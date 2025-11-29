@@ -1,0 +1,259 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services\LLM;
+
+use App\Models\Conversation;
+use App\Models\Message;
+use App\Models\Tenant;
+use App\Models\UsageRecord;
+use Illuminate\Support\Facades\Log;
+use Prism\Prism\Enums\Provider;
+use Prism\Prism\Facades\Prism;
+use Prism\Prism\ValueObjects\Messages\AssistantMessage;
+use Prism\Prism\ValueObjects\Messages\UserMessage;
+
+class ChatService
+{
+    private Provider $provider;
+    private string $model;
+
+    public function __construct()
+    {
+        $providerName = config('app.env') === 'production' ? 'groq' : 'ollama';
+
+        $this->provider = match ($providerName) {
+            'groq' => Provider::Groq,
+            'ollama' => Provider::Ollama,
+            default => Provider::Ollama,
+        };
+
+        $this->model = match ($providerName) {
+            'groq' => env('GROQ_MODEL', 'llama-3.1-8b-instant'),
+            'ollama' => env('OLLAMA_MODEL', 'gemma3:4b'),
+            default => 'gemma3:4b',
+        };
+    }
+
+    public function generateResponse(
+        Conversation $conversation,
+        string $userMessage,
+        array $context = []
+    ): string {
+        $tenant = $conversation->tenant;
+
+        Log::debug('[LLM] (IS $) Generating response', [
+            'conversation_id' => $conversation->id,
+            'tenant_id' => $tenant->id,
+            'provider' => $this->provider->value,
+            'model' => $this->model,
+        ]);
+
+        $systemPrompt = $this->buildSystemPrompt($tenant, $context, $conversation);
+        $messages = $this->buildMessageHistory($conversation);
+
+        // Add current user message to the messages array
+        $messages[] = new UserMessage($userMessage);
+
+        try {
+            $response = Prism::text()
+                ->using($this->provider, $this->model)
+                ->withSystemPrompt($systemPrompt)
+                ->withMessages($messages)
+                ->withClientOptions(['timeout' => 60])
+                ->asText();
+
+            // Track token usage
+            $this->trackUsage($tenant, $conversation, $response->usage);
+
+            Log::debug('[LLM] (IS $) Response generated', [
+                'conversation_id' => $conversation->id,
+                'tokens' => $response->usage?->totalTokens ?? 0,
+            ]);
+
+            return $response->text;
+        } catch (\Exception $e) {
+            Log::error('[LLM] Response generation failed', [
+                'conversation_id' => $conversation->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->getFallbackResponse();
+        }
+    }
+
+    public function streamResponse(
+        Conversation $conversation,
+        string $userMessage,
+        array $context = []
+    ): \Generator {
+        $tenant = $conversation->tenant;
+        $systemPrompt = $this->buildSystemPrompt($tenant, $context, $conversation);
+        $messages = $this->buildMessageHistory($conversation);
+
+        Log::debug('[LLM] (IS $) Starting stream', [
+            'conversation_id' => $conversation->id,
+            'provider' => $this->provider->value,
+        ]);
+
+        // Add current user message to the messages array
+        $messages[] = new UserMessage($userMessage);
+
+        try {
+            $stream = Prism::text()
+                ->using($this->provider, $this->model)
+                ->withSystemPrompt($systemPrompt)
+                ->withMessages($messages)
+                ->withClientOptions(['timeout' => 60])
+                ->asStream();
+
+            $totalTokens = 0;
+            $fullResponse = '';
+
+            foreach ($stream as $event) {
+                // Only process text chunks, skip start/end events
+                if (property_exists($event, 'text') && $event->text !== null) {
+                    $fullResponse .= $event->text;
+                    yield $event->text;
+                }
+
+                if (property_exists($event, 'usage') && $event->usage) {
+                    $totalTokens = $event->usage->totalTokens ?? 0;
+                }
+            }
+
+            // Track usage after stream completes
+            if ($totalTokens > 0) {
+                UsageRecord::create([
+                    'tenant_id' => $tenant->id,
+                    'type' => 'tokens',
+                    'quantity' => $totalTokens,
+                    'recorded_date' => now()->toDateString(),
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('[LLM] Stream failed', [
+                'conversation_id' => $conversation->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            yield $this->getFallbackResponse();
+        }
+    }
+
+    private function buildSystemPrompt(Tenant $tenant, array $context, ?Conversation $conversation = null): string
+    {
+        $settings = $tenant->settings ?? [];
+        $companyName = $tenant->name;
+
+        // Check conversation state
+        $leadCaptured = $conversation?->lead_id !== null;
+        $contactRequested = false;
+
+        if ($conversation) {
+            $assistantMessages = $conversation->messages()
+                ->where('role', 'assistant')
+                ->pluck('content')
+                ->implode(' ');
+            $contactRequested = preg_match('/email|phone|contact.*info|reach.*out|get.*back/i', $assistantMessages);
+        }
+
+        $basePrompt = <<<PROMPT
+You are a friendly customer support assistant for {$companyName}.
+
+Response Style:
+- Be warm, conversational, and natural
+- Keep responses short (2-4 sentences)
+- Use casual, approachable language
+PROMPT;
+
+        // Add lead capture instructions based on state
+        if ($leadCaptured) {
+            $basePrompt .= <<<PROMPT
+
+
+CONTACT INFO ALREADY COLLECTED:
+The user has already provided their contact details. Do NOT ask for email/phone again.
+Just continue helping them and confirm our team will be in touch soon.
+PROMPT;
+        } elseif ($contactRequested) {
+            $basePrompt .= <<<PROMPT
+
+
+ALREADY ASKED FOR CONTACT INFO:
+You've already asked for their contact details. Do NOT ask again.
+- If they provide it now, thank them and confirm follow-up
+- If they ask something else, just answer helpfully
+- Only gently remind once if conversation continues without them providing it
+PROMPT;
+        } else {
+            $basePrompt .= <<<PROMPT
+
+
+LEAD CAPTURE:
+When user shows buying interest (meeting, demo, quote, get started, pricing):
+- Ask for their name and email so the team can follow up
+- Only ask ONCE, don't repeat
+PROMPT;
+        }
+
+        $basePrompt .= <<<PROMPT
+
+
+STRICT RULES:
+- ONLY use information from "Relevant Information" below
+- If info unavailable, offer to connect with the team
+- NEVER use placeholders like [Insert X] or make up data
+PROMPT;
+
+        if (!empty($context['knowledge'])) {
+            $knowledgeContext = implode("\n\n", $context['knowledge']);
+            $basePrompt .= "\n\n## Relevant Information:\n{$knowledgeContext}";
+        }
+
+        return $basePrompt;
+    }
+
+    private function buildMessageHistory(Conversation $conversation): array
+    {
+        $messages = $conversation->messages()
+            ->orderBy('created_at', 'asc')
+            ->limit(20) // Keep context window manageable
+            ->get();
+
+        return $messages->map(function (Message $message) {
+            if ($message->role === 'user') {
+                return new UserMessage($message->content);
+            }
+            return new AssistantMessage($message->content);
+        })->toArray();
+    }
+
+    private function trackUsage(Tenant $tenant, Conversation $conversation, $usage): void
+    {
+        if (!$usage) {
+            return;
+        }
+
+        UsageRecord::create([
+            'tenant_id' => $tenant->id,
+            'type' => 'tokens',
+            'quantity' => $usage->totalTokens ?? 0,
+            'recorded_date' => now()->toDateString(),
+        ]);
+
+        Log::debug('[Usage] (NO $) Tokens tracked', [
+            'tenant_id' => $tenant->id,
+            'conversation_id' => $conversation->id,
+            'prompt_tokens' => $usage->promptTokens ?? 0,
+            'completion_tokens' => $usage->completionTokens ?? 0,
+            'total_tokens' => $usage->totalTokens ?? 0,
+        ]);
+    }
+
+    private function getFallbackResponse(): string
+    {
+        return "I apologize, but I'm having trouble processing your request right now. Please try again in a moment, or contact our support team for immediate assistance.";
+    }
+}
