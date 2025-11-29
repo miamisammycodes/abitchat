@@ -39,7 +39,8 @@ class LeadService
     ];
 
     /**
-     * Create or update a lead from conversation data
+     * Create a lead from conversation data
+     * Always creates a new lead - each inquiry is a separate opportunity
      */
     public function captureFromConversation(Conversation $conversation, array $contactInfo = []): ?Lead
     {
@@ -50,18 +51,17 @@ class LeadService
             return null;
         }
 
-        // Find existing lead by email or phone
-        $lead = $this->findExistingLead($tenant, $contactInfo);
-
-        if ($lead) {
-            // Update existing lead
-            $lead = $this->updateLead($lead, $conversation, $contactInfo);
-        } else {
-            // Create new lead
-            $lead = $this->createLead($tenant, $conversation, $contactInfo);
+        // Check if this conversation already has a lead
+        if ($conversation->lead_id) {
+            // Update existing lead for this conversation
+            $lead = Lead::find($conversation->lead_id);
+            if ($lead) {
+                return $this->updateLead($lead, $conversation, $contactInfo);
+            }
         }
 
-        return $lead;
+        // Always create a new lead for each conversation/inquiry
+        return $this->createLead($tenant, $conversation, $contactInfo);
     }
 
     /**
@@ -255,6 +255,21 @@ class LeadService
         // Extract email
         if (preg_match('/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/', $content, $matches)) {
             $info['email'] = strtolower($matches[0]);
+
+            // Try to extract name before email (common pattern: "name email@example.com")
+            $emailPos = strpos($content, $matches[0]);
+            if ($emailPos > 0) {
+                $beforeEmail = trim(substr($content, 0, $emailPos));
+                // Get last word(s) before email as potential name
+                if (preg_match('/([A-Za-z]+(?:\s+[A-Za-z]+)?)\s*$/', $beforeEmail, $nameMatch)) {
+                    $potentialName = trim($nameMatch[1]);
+                    // Validate it looks like a name (not common words)
+                    $excludeWords = ['my', 'is', 'am', 'the', 'and', 'or', 'to', 'from', 'at', 'for', 'it', 'its', 'yes', 'no', 'hi', 'hello', 'hey'];
+                    if (strlen($potentialName) >= 2 && !in_array(strtolower($potentialName), $excludeWords)) {
+                        $info['name'] = ucwords(strtolower($potentialName));
+                    }
+                }
+            }
         }
 
         // Extract phone (various formats)

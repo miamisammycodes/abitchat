@@ -4,6 +4,20 @@ import { Link, router, useForm } from '@inertiajs/vue3'
 import { ref, watch } from 'vue'
 import { useRoute } from '@/composables/useRoute'
 import { debounce } from 'lodash'
+import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card'
+import { Button } from '@/Components/ui/button'
+import { Input } from '@/Components/ui/input'
+import { Label } from '@/Components/ui/label'
+import { Badge } from '@/Components/ui/badge'
+import { Textarea } from '@/Components/ui/textarea'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/Components/ui/table'
 
 const route = useRoute()
 
@@ -93,13 +107,13 @@ const formatDate = (date) => {
     })
 }
 
-const getStatusColor = (status) => {
-    const colors = {
-        pending: 'bg-amber-900 text-amber-200',
-        approved: 'bg-emerald-900 text-emerald-200',
-        rejected: 'bg-red-900 text-red-200',
+const getStatusVariant = (status) => {
+    const variants = {
+        pending: 'warning',
+        approved: 'success',
+        rejected: 'destructive',
     }
-    return colors[status] || 'bg-gray-700 text-gray-300'
+    return variants[status] || 'secondary'
 }
 
 const getPaymentMethodLabel = (method) => {
@@ -117,12 +131,12 @@ const getPaymentMethodLabel = (method) => {
 <template>
     <AdminLayout title="Transactions">
         <!-- Tabs -->
-        <div class="mb-6 border-b border-gray-700">
+        <div class="mb-6 border-b border-zinc-700">
             <nav class="flex space-x-8">
                 <button
                     @click="filterByStatus('all')"
                     :class="[
-                        status === 'all' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-gray-400 hover:text-gray-300',
+                        status === 'all' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-zinc-400 hover:text-zinc-300',
                         'py-4 px-1 border-b-2 font-medium text-sm'
                     ]"
                 >
@@ -131,7 +145,7 @@ const getPaymentMethodLabel = (method) => {
                 <button
                     @click="filterByStatus('pending')"
                     :class="[
-                        status === 'pending' ? 'border-amber-500 text-amber-400' : 'border-transparent text-gray-400 hover:text-gray-300',
+                        status === 'pending' ? 'border-amber-500 text-amber-400' : 'border-transparent text-zinc-400 hover:text-zinc-300',
                         'py-4 px-1 border-b-2 font-medium text-sm'
                     ]"
                 >
@@ -140,7 +154,7 @@ const getPaymentMethodLabel = (method) => {
                 <button
                     @click="filterByStatus('approved')"
                     :class="[
-                        status === 'approved' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-gray-400 hover:text-gray-300',
+                        status === 'approved' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-zinc-400 hover:text-zinc-300',
                         'py-4 px-1 border-b-2 font-medium text-sm'
                     ]"
                 >
@@ -149,7 +163,7 @@ const getPaymentMethodLabel = (method) => {
                 <button
                     @click="filterByStatus('rejected')"
                     :class="[
-                        status === 'rejected' ? 'border-red-500 text-red-400' : 'border-transparent text-gray-400 hover:text-gray-300',
+                        status === 'rejected' ? 'border-red-500 text-red-400' : 'border-transparent text-zinc-400 hover:text-zinc-300',
                         'py-4 px-1 border-b-2 font-medium text-sm'
                     ]"
                 >
@@ -160,82 +174,84 @@ const getPaymentMethodLabel = (method) => {
 
         <!-- Search -->
         <div class="mb-6">
-            <input
+            <Input
                 v-model="search"
                 type="text"
                 placeholder="Search by transaction number or client name..."
-                class="w-full max-w-md bg-gray-700 border-gray-600 text-white rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                class="w-full max-w-md bg-zinc-700 border-zinc-600 text-white placeholder:text-zinc-500"
             />
         </div>
 
         <!-- Table -->
-        <div class="bg-gray-800 shadow rounded-lg overflow-hidden">
-            <table class="min-w-full divide-y divide-gray-700">
-                <thead class="bg-gray-700">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Client</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Plan</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Transaction #</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Method</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">Amount</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Date</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-gray-800 divide-y divide-gray-700">
-                    <tr v-for="txn in transactions.data" :key="txn.id">
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <Link :href="route('admin.clients.show', txn.tenant?.id)" class="text-sm font-medium text-white hover:text-indigo-400">
-                                {{ txn.tenant?.name }}
-                            </Link>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                            {{ txn.plan?.name }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="text-sm text-gray-300 font-mono">{{ txn.transaction_number }}</span>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                            {{ getPaymentMethodLabel(txn.payment_method) }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-white font-medium">
-                            {{ formatCurrency(txn.amount) }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
-                            {{ formatDate(txn.payment_date) }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span :class="[getStatusColor(txn.status), 'px-2 py-1 text-xs rounded-full']">
-                                {{ txn.status }}
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm space-x-2">
-                            <template v-if="txn.status === 'pending'">
-                                <button
-                                    @click="openApproveModal(txn)"
-                                    class="text-emerald-400 hover:text-emerald-300"
-                                >
-                                    Approve
-                                </button>
-                                <button
-                                    @click="openRejectModal(txn)"
-                                    class="text-red-400 hover:text-red-300"
-                                >
-                                    Reject
-                                </button>
-                            </template>
-                            <span v-else class="text-gray-500">-</span>
-                        </td>
-                    </tr>
-                    <tr v-if="!transactions.data?.length">
-                        <td colspan="8" class="px-6 py-12 text-center text-gray-400">
-                            No transactions found
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+        <Card class="bg-zinc-800 border-zinc-700">
+            <CardContent class="p-0">
+                <Table>
+                    <TableHeader>
+                        <TableRow class="border-zinc-700 hover:bg-zinc-700/50">
+                            <TableHead class="text-zinc-300">Client</TableHead>
+                            <TableHead class="text-zinc-300">Plan</TableHead>
+                            <TableHead class="text-zinc-300">Transaction #</TableHead>
+                            <TableHead class="text-zinc-300">Method</TableHead>
+                            <TableHead class="text-zinc-300 text-right">Amount</TableHead>
+                            <TableHead class="text-zinc-300">Date</TableHead>
+                            <TableHead class="text-zinc-300">Status</TableHead>
+                            <TableHead class="text-zinc-300 text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        <TableRow v-for="txn in transactions.data" :key="txn.id" class="border-zinc-700 hover:bg-zinc-700/50">
+                            <TableCell>
+                                <Link :href="route('admin.clients.show', txn.tenant?.id)" class="text-sm font-medium text-white hover:text-indigo-400">
+                                    {{ txn.tenant?.name }}
+                                </Link>
+                            </TableCell>
+                            <TableCell class="text-zinc-300">
+                                {{ txn.plan?.name }}
+                            </TableCell>
+                            <TableCell>
+                                <span class="text-zinc-300 font-mono">{{ txn.transaction_number }}</span>
+                            </TableCell>
+                            <TableCell class="text-zinc-300">
+                                {{ getPaymentMethodLabel(txn.payment_method) }}
+                            </TableCell>
+                            <TableCell class="text-right text-white font-medium">
+                                {{ formatCurrency(txn.amount) }}
+                            </TableCell>
+                            <TableCell class="text-zinc-400">
+                                {{ formatDate(txn.payment_date) }}
+                            </TableCell>
+                            <TableCell>
+                                <Badge :variant="getStatusVariant(txn.status)" class="capitalize">
+                                    {{ txn.status }}
+                                </Badge>
+                            </TableCell>
+                            <TableCell class="text-right space-x-2">
+                                <template v-if="txn.status === 'pending'">
+                                    <button
+                                        @click="openApproveModal(txn)"
+                                        class="text-sm text-emerald-400 hover:text-emerald-300"
+                                    >
+                                        Approve
+                                    </button>
+                                    <button
+                                        @click="openRejectModal(txn)"
+                                        class="text-sm text-red-400 hover:text-red-300"
+                                    >
+                                        Reject
+                                    </button>
+                                </template>
+                                <span v-else class="text-zinc-500">-</span>
+                            </TableCell>
+                        </TableRow>
+                        <TableRow v-if="!transactions.data?.length" class="border-zinc-700">
+                            <TableCell colspan="8" class="text-center py-12 text-zinc-400">
+                                No transactions found
+                            </TableCell>
+                        </TableRow>
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
 
         <!-- Pagination -->
         <div v-if="transactions.links?.length > 3" class="mt-4 flex justify-center">
@@ -246,7 +262,7 @@ const getPaymentMethodLabel = (method) => {
                         :href="link.url"
                         :class="[
                             'px-3 py-2 text-sm rounded-md',
-                            link.active ? 'bg-indigo-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                            link.active ? 'bg-indigo-600 text-white' : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
                         ]"
                         v-html="link.label"
                     />
@@ -256,82 +272,92 @@ const getPaymentMethodLabel = (method) => {
 
         <!-- Approve Modal -->
         <div v-if="showApproveModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div class="bg-gray-800 rounded-lg p-6 w-full max-w-md">
-                <h3 class="text-lg font-medium text-white mb-4">Approve Transaction</h3>
-                <div class="mb-4 p-4 bg-gray-700 rounded-md">
-                    <p class="text-sm text-gray-300"><strong>Client:</strong> {{ selectedTransaction?.tenant?.name }}</p>
-                    <p class="text-sm text-gray-300"><strong>Plan:</strong> {{ selectedTransaction?.plan?.name }}</p>
-                    <p class="text-sm text-gray-300"><strong>Amount:</strong> {{ formatCurrency(selectedTransaction?.amount) }}</p>
-                    <p class="text-sm text-gray-300"><strong>Transaction #:</strong> {{ selectedTransaction?.transaction_number }}</p>
-                </div>
-                <form @submit.prevent="approveTransaction">
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Admin Notes (Optional)</label>
-                        <textarea
-                            v-model="approveForm.admin_notes"
-                            rows="3"
-                            class="w-full bg-gray-700 border-gray-600 text-white rounded-md"
-                            placeholder="Add any notes..."
-                        ></textarea>
+            <Card class="w-full max-w-md bg-zinc-800 border-zinc-700">
+                <CardHeader>
+                    <CardTitle class="text-white">Approve Transaction</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div class="mb-4 p-4 bg-zinc-700 rounded-md">
+                        <p class="text-sm text-zinc-300"><strong>Client:</strong> {{ selectedTransaction?.tenant?.name }}</p>
+                        <p class="text-sm text-zinc-300"><strong>Plan:</strong> {{ selectedTransaction?.plan?.name }}</p>
+                        <p class="text-sm text-zinc-300"><strong>Amount:</strong> {{ formatCurrency(selectedTransaction?.amount) }}</p>
+                        <p class="text-sm text-zinc-300"><strong>Transaction #:</strong> {{ selectedTransaction?.transaction_number }}</p>
                     </div>
-                    <div class="flex justify-end space-x-3">
-                        <button
-                            type="button"
-                            @click="showApproveModal = false"
-                            class="px-4 py-2 text-sm text-gray-300 hover:text-white"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            :disabled="approveForm.processing"
-                            class="px-4 py-2 bg-emerald-600 text-white text-sm rounded-md hover:bg-emerald-700 disabled:opacity-50"
-                        >
-                            Approve & Activate Plan
-                        </button>
-                    </div>
-                </form>
-            </div>
+                    <form @submit.prevent="approveTransaction">
+                        <div class="mb-4">
+                            <Label class="text-zinc-300 mb-1">Admin Notes (Optional)</Label>
+                            <Textarea
+                                v-model="approveForm.admin_notes"
+                                rows="3"
+                                class="bg-zinc-700 border-zinc-600 text-white placeholder:text-zinc-500"
+                                placeholder="Add any notes..."
+                            />
+                        </div>
+                        <div class="flex justify-end space-x-3">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                @click="showApproveModal = false"
+                                class="text-zinc-300 hover:text-white"
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="submit"
+                                :disabled="approveForm.processing"
+                                class="bg-emerald-600 hover:bg-emerald-700"
+                            >
+                                Approve & Activate Plan
+                            </Button>
+                        </div>
+                    </form>
+                </CardContent>
+            </Card>
         </div>
 
         <!-- Reject Modal -->
         <div v-if="showRejectModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div class="bg-gray-800 rounded-lg p-6 w-full max-w-md">
-                <h3 class="text-lg font-medium text-white mb-4">Reject Transaction</h3>
-                <div class="mb-4 p-4 bg-gray-700 rounded-md">
-                    <p class="text-sm text-gray-300"><strong>Client:</strong> {{ selectedTransaction?.tenant?.name }}</p>
-                    <p class="text-sm text-gray-300"><strong>Transaction #:</strong> {{ selectedTransaction?.transaction_number }}</p>
-                </div>
-                <form @submit.prevent="rejectTransaction">
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Reason for Rejection *</label>
-                        <textarea
-                            v-model="rejectForm.admin_notes"
-                            rows="3"
-                            class="w-full bg-gray-700 border-gray-600 text-white rounded-md"
-                            placeholder="Please provide a reason..."
-                            required
-                        ></textarea>
-                        <p v-if="rejectForm.errors.admin_notes" class="text-red-400 text-sm mt-1">{{ rejectForm.errors.admin_notes }}</p>
+            <Card class="w-full max-w-md bg-zinc-800 border-zinc-700">
+                <CardHeader>
+                    <CardTitle class="text-white">Reject Transaction</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div class="mb-4 p-4 bg-zinc-700 rounded-md">
+                        <p class="text-sm text-zinc-300"><strong>Client:</strong> {{ selectedTransaction?.tenant?.name }}</p>
+                        <p class="text-sm text-zinc-300"><strong>Transaction #:</strong> {{ selectedTransaction?.transaction_number }}</p>
                     </div>
-                    <div class="flex justify-end space-x-3">
-                        <button
-                            type="button"
-                            @click="showRejectModal = false"
-                            class="px-4 py-2 text-sm text-gray-300 hover:text-white"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            :disabled="rejectForm.processing"
-                            class="px-4 py-2 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 disabled:opacity-50"
-                        >
-                            Reject Transaction
-                        </button>
-                    </div>
-                </form>
-            </div>
+                    <form @submit.prevent="rejectTransaction">
+                        <div class="mb-4">
+                            <Label class="text-zinc-300 mb-1">Reason for Rejection *</Label>
+                            <Textarea
+                                v-model="rejectForm.admin_notes"
+                                rows="3"
+                                class="bg-zinc-700 border-zinc-600 text-white placeholder:text-zinc-500"
+                                placeholder="Please provide a reason..."
+                                required
+                            />
+                            <p v-if="rejectForm.errors.admin_notes" class="text-red-400 text-sm mt-1">{{ rejectForm.errors.admin_notes }}</p>
+                        </div>
+                        <div class="flex justify-end space-x-3">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                @click="showRejectModal = false"
+                                class="text-zinc-300 hover:text-white"
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="submit"
+                                :disabled="rejectForm.processing"
+                                variant="destructive"
+                            >
+                                Reject Transaction
+                            </Button>
+                        </div>
+                    </form>
+                </CardContent>
+            </Card>
         </div>
     </AdminLayout>
 </template>
