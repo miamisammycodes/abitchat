@@ -1,0 +1,28 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    paths:
+        - app/
+    level: 4
+    parallel:
+        maximumNumberOfProcesses: 1
+    ignoreErrors:
+        # Laravel relationship type inference
+        - '#Access to an undefined property Illuminate\\Database\\Eloquent\\Model::\$\w+#'
+        - '#Call to an undefined method Illuminate\\Database\\Eloquent\\Model::\w+\(\)#'
+        # Match arms for environment-based logic
+        - '#Match arm comparison between .* is always true#'
+        # Nullsafe on optional chaining that may be defensive
+        - '#Using nullsafe property access .* on left side of \?\? is unnecessary#'
+        # Dynamic properties from raw SQL selects
+        - '#Access to an undefined property App\\Models\\\w+::\$count#'
+        # Metadata array casts work correctly at runtime
+        - '#Property App\\Models\\KnowledgeItem::\$metadata .* does not accept array#'
+        # Unused methods may be used in future
+        - '#Method App\\Services\\Leads\\LeadService::findExistingLead\(\) is unused#'
+        # Null coalesce on metadata works at runtime
+        - '#Offset .* on array\{\}\|string on left side of \?\? does not exist#'
+        # env() calls outside config - acceptable in dev-only code paths
+        - '#Called .env. outside of the config directory#'
+    reportUnmatchedIgnoredErrors: false

@@ -9,8 +9,8 @@ use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\Tenant;
 use App\Services\Knowledge\RetrievalService;
-use App\Services\LLM\ChatService;
 use App\Services\Leads\LeadService;
+use App\Services\LLM\ChatService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -36,7 +36,7 @@ class ChatController extends Controller
 
         $tenant = Tenant::where('api_key', $request->api_key)->first();
 
-        if (!$tenant) {
+        if (! $tenant) {
             return response()->json(['error' => 'Invalid API key'], 401);
         }
 
@@ -66,7 +66,7 @@ class ChatController extends Controller
 
         $tenant = Tenant::where('api_key', $request->api_key)->first();
 
-        if (!$tenant) {
+        if (! $tenant) {
             return response()->json(['error' => 'Invalid API key'], 401);
         }
 
@@ -107,7 +107,7 @@ class ChatController extends Controller
 
         $tenant = Tenant::where('api_key', $request->api_key)->first();
 
-        if (!$tenant) {
+        if (! $tenant) {
             return response()->json(['error' => 'Invalid API key'], 401);
         }
 
@@ -115,7 +115,7 @@ class ChatController extends Controller
             ->where('tenant_id', $tenant->id)
             ->first();
 
-        if (!$conversation) {
+        if (! $conversation) {
             return response()->json(['error' => 'Conversation not found'], 404);
         }
 
@@ -168,9 +168,9 @@ class ChatController extends Controller
 
         $tenant = Tenant::where('api_key', $request->api_key)->first();
 
-        if (!$tenant) {
+        if (! $tenant) {
             return response()->stream(function () {
-                echo "data: " . json_encode(['error' => 'Invalid API key']) . "\n\n";
+                echo 'data: '.json_encode(['error' => 'Invalid API key'])."\n\n";
             }, 401, [
                 'Content-Type' => 'text/event-stream',
                 'Cache-Control' => 'no-cache',
@@ -182,9 +182,9 @@ class ChatController extends Controller
             ->where('tenant_id', $tenant->id)
             ->first();
 
-        if (!$conversation) {
+        if (! $conversation) {
             return response()->stream(function () {
-                echo "data: " . json_encode(['error' => 'Conversation not found']) . "\n\n";
+                echo 'data: '.json_encode(['error' => 'Conversation not found'])."\n\n";
             }, 404, [
                 'Content-Type' => 'text/event-stream',
                 'Cache-Control' => 'no-cache',
@@ -210,7 +210,7 @@ class ChatController extends Controller
 
             foreach ($this->chatService->streamResponse($conversation, $request->message, ['knowledge' => $context]) as $chunk) {
                 $fullResponse .= $chunk;
-                echo "data: " . json_encode(['chunk' => $chunk]) . "\n\n";
+                echo 'data: '.json_encode(['chunk' => $chunk])."\n\n";
                 ob_flush();
                 flush();
             }
@@ -222,7 +222,7 @@ class ChatController extends Controller
                 'content' => $fullResponse,
             ]);
 
-            echo "data: " . json_encode(['done' => true]) . "\n\n";
+            echo 'data: '.json_encode(['done' => true])."\n\n";
             ob_flush();
             flush();
         }, 200, [
@@ -245,7 +245,7 @@ class ChatController extends Controller
 
         $tenant = Tenant::where('api_key', $request->api_key)->first();
 
-        if (!$tenant) {
+        if (! $tenant) {
             return response()->json(['error' => 'Invalid API key'], 401);
         }
 
@@ -253,7 +253,7 @@ class ChatController extends Controller
             ->where('tenant_id', $tenant->id)
             ->first();
 
-        if (!$conversation) {
+        if (! $conversation) {
             return response()->json(['error' => 'Conversation not found'], 404);
         }
 
@@ -278,7 +278,7 @@ class ChatController extends Controller
     {
         $contactInfo = $this->leadService->extractContactInfo($message);
 
-        if (!empty($contactInfo)) {
+        if (! empty($contactInfo)) {
             // Get all messages to build name context
             $messages = $conversation->messages()->where('role', 'user')->get();
             $allContent = $messages->pluck('content')->implode(' ');
@@ -294,8 +294,8 @@ class ChatController extends Controller
                 Log::debug('[Widget] (NO $) Lead captured from message', [
                     'conversation_id' => $conversation->id,
                     'lead_id' => $lead->id,
-                    'has_email' => !empty($contactInfo['email']),
-                    'has_phone' => !empty($contactInfo['phone']),
+                    'has_email' => ! empty($contactInfo['email']),
+                    'has_phone' => ! empty($contactInfo['phone']),
                 ]);
             }
         }

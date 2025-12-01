@@ -30,24 +30,24 @@ const submit = () => {
 <template>
   <Head title="Admin Login" />
 
-  <div class="min-h-screen flex items-center justify-center bg-zinc-900 py-12 px-4 sm:px-6 lg:px-8">
-    <Card class="w-full max-w-md bg-zinc-800 border-zinc-700">
+  <div class="min-h-screen flex items-center justify-center bg-background py-12 px-4 sm:px-6 lg:px-8">
+    <Card class="w-full max-w-md">
       <CardHeader class="text-center">
-        <CardTitle class="text-2xl text-white">Admin Portal</CardTitle>
-        <CardDescription class="text-zinc-400">
+        <CardTitle class="text-2xl">Admin Portal</CardTitle>
+        <CardDescription>
           Sign in to access the admin dashboard
         </CardDescription>
       </CardHeader>
 
       <CardContent>
-        <Alert v-if="status" class="mb-6 border-green-800 bg-green-900/50 text-green-300">
+        <Alert v-if="status" class="mb-6 border-green-500/50 bg-green-500/10 text-green-500">
           <CheckCircle class="h-4 w-4" />
           <AlertDescription>{{ status }}</AlertDescription>
         </Alert>
 
         <form @submit.prevent="submit" class="space-y-4">
           <div class="space-y-2">
-            <Label for="email" class="text-zinc-300">Email address</Label>
+            <Label for="email">Email address</Label>
             <Input
               id="email"
               v-model="form.email"
@@ -56,15 +56,14 @@ const submit = () => {
               autofocus
               autocomplete="username"
               placeholder="admin@example.com"
-              class="bg-zinc-700 border-zinc-600 text-white placeholder:text-zinc-500"
             />
-            <p v-if="form.errors.email" class="text-sm text-red-400">
+            <p v-if="form.errors.email" class="text-sm text-red-500">
               {{ form.errors.email }}
             </p>
           </div>
 
           <div class="space-y-2">
-            <Label for="password" class="text-zinc-300">Password</Label>
+            <Label for="password">Password</Label>
             <Input
               id="password"
               v-model="form.password"
@@ -72,9 +71,8 @@ const submit = () => {
               required
               autocomplete="current-password"
               placeholder="Password"
-              class="bg-zinc-700 border-zinc-600 text-white placeholder:text-zinc-500"
             />
-            <p v-if="form.errors.password" class="text-sm text-red-400">
+            <p v-if="form.errors.password" class="text-sm text-red-500">
               {{ form.errors.password }}
             </p>
           </div>
@@ -84,9 +82,9 @@ const submit = () => {
               id="remember"
               v-model="form.remember"
               type="checkbox"
-              class="h-4 w-4 rounded border-zinc-600 bg-zinc-700 text-indigo-600 focus:ring-indigo-500"
+              class="h-4 w-4 rounded border-input bg-background text-primary focus:ring-primary"
             />
-            <Label for="remember" class="text-sm font-normal text-zinc-300">Remember me</Label>
+            <Label for="remember" class="text-sm font-normal">Remember me</Label>
           </div>
 
           <Button type="submit" class="w-full" :disabled="form.processing">

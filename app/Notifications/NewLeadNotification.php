@@ -37,14 +37,14 @@ class NewLeadNotification extends Notification implements ShouldQueue
         return (new MailMessage)
             ->subject("New Lead: {$lead->name} ({$scoreLabel})")
             ->greeting('New Lead Captured!')
-            ->line("A new lead has been captured from your chatbot.")
+            ->line('A new lead has been captured from your chatbot.')
             ->line("**Name:** {$lead->name}")
             ->when($lead->email, fn ($mail) => $mail->line("**Email:** {$lead->email}"))
             ->when($lead->phone, fn ($mail) => $mail->line("**Phone:** {$lead->phone}"))
             ->when($lead->company, fn ($mail) => $mail->line("**Company:** {$lead->company}"))
             ->line("**Lead Score:** {$lead->score}/100 ({$scoreLabel})")
-            ->line("**Source:** Chatbot")
-            ->action('View Lead', url('/leads/' . $lead->id))
+            ->line('**Source:** Chatbot')
+            ->action('View Lead', url('/leads/'.$lead->id))
             ->line('Follow up with this lead soon to maximize conversion!');
     }
 

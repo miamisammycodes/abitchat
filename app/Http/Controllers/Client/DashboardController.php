@@ -20,7 +20,7 @@ class DashboardController extends Controller
             'tenant' => [
                 'name' => $tenant->name,
                 'plan' => $tenant->plan,
-                'api_key' => substr($tenant->api_key, 0, 8) . '...',
+                'api_key' => substr($tenant->api_key, 0, 8).'...',
             ],
             'stats' => [
                 'conversations' => $tenant->conversations()->count(),

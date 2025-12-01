@@ -93,10 +93,7 @@ const rejectTransaction = () => {
 }
 
 const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-    }).format(amount || 0)
+    return 'Nu. ' + new Intl.NumberFormat('en-IN').format(amount || 0)
 }
 
 const formatDate = (date) => {
@@ -131,12 +128,12 @@ const getPaymentMethodLabel = (method) => {
 <template>
     <AdminLayout title="Transactions">
         <!-- Tabs -->
-        <div class="mb-6 border-b border-zinc-700">
+        <div class="mb-6 border-b">
             <nav class="flex space-x-8">
                 <button
                     @click="filterByStatus('all')"
                     :class="[
-                        status === 'all' ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-zinc-400 hover:text-zinc-300',
+                        status === 'all' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground',
                         'py-4 px-1 border-b-2 font-medium text-sm'
                     ]"
                 >
@@ -145,7 +142,7 @@ const getPaymentMethodLabel = (method) => {
                 <button
                     @click="filterByStatus('pending')"
                     :class="[
-                        status === 'pending' ? 'border-amber-500 text-amber-400' : 'border-transparent text-zinc-400 hover:text-zinc-300',
+                        status === 'pending' ? 'border-amber-500 text-amber-500' : 'border-transparent text-muted-foreground hover:text-foreground',
                         'py-4 px-1 border-b-2 font-medium text-sm'
                     ]"
                 >
@@ -154,7 +151,7 @@ const getPaymentMethodLabel = (method) => {
                 <button
                     @click="filterByStatus('approved')"
                     :class="[
-                        status === 'approved' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-zinc-400 hover:text-zinc-300',
+                        status === 'approved' ? 'border-emerald-500 text-emerald-500' : 'border-transparent text-muted-foreground hover:text-foreground',
                         'py-4 px-1 border-b-2 font-medium text-sm'
                     ]"
                 >
@@ -163,7 +160,7 @@ const getPaymentMethodLabel = (method) => {
                 <button
                     @click="filterByStatus('rejected')"
                     :class="[
-                        status === 'rejected' ? 'border-red-500 text-red-400' : 'border-transparent text-zinc-400 hover:text-zinc-300',
+                        status === 'rejected' ? 'border-red-500 text-red-500' : 'border-transparent text-muted-foreground hover:text-foreground',
                         'py-4 px-1 border-b-2 font-medium text-sm'
                     ]"
                 >
@@ -178,46 +175,46 @@ const getPaymentMethodLabel = (method) => {
                 v-model="search"
                 type="text"
                 placeholder="Search by transaction number or client name..."
-                class="w-full max-w-md bg-zinc-700 border-zinc-600 text-white placeholder:text-zinc-500"
+                class="w-full max-w-md"
             />
         </div>
 
         <!-- Table -->
-        <Card class="bg-zinc-800 border-zinc-700">
+        <Card>
             <CardContent class="p-0">
                 <Table>
                     <TableHeader>
-                        <TableRow class="border-zinc-700 hover:bg-zinc-700/50">
-                            <TableHead class="text-zinc-300">Client</TableHead>
-                            <TableHead class="text-zinc-300">Plan</TableHead>
-                            <TableHead class="text-zinc-300">Transaction #</TableHead>
-                            <TableHead class="text-zinc-300">Method</TableHead>
-                            <TableHead class="text-zinc-300 text-right">Amount</TableHead>
-                            <TableHead class="text-zinc-300">Date</TableHead>
-                            <TableHead class="text-zinc-300">Status</TableHead>
-                            <TableHead class="text-zinc-300 text-right">Actions</TableHead>
+                        <TableRow>
+                            <TableHead>Client</TableHead>
+                            <TableHead>Plan</TableHead>
+                            <TableHead>Transaction #</TableHead>
+                            <TableHead>Method</TableHead>
+                            <TableHead class="text-right">Amount</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead class="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        <TableRow v-for="txn in transactions.data" :key="txn.id" class="border-zinc-700 hover:bg-zinc-700/50">
+                        <TableRow v-for="txn in transactions.data" :key="txn.id">
                             <TableCell>
-                                <Link :href="route('admin.clients.show', txn.tenant?.id)" class="text-sm font-medium text-white hover:text-indigo-400">
+                                <Link :href="route('admin.clients.show', txn.tenant?.id)" class="text-sm font-medium text-foreground hover:text-primary">
                                     {{ txn.tenant?.name }}
                                 </Link>
                             </TableCell>
-                            <TableCell class="text-zinc-300">
+                            <TableCell class="text-muted-foreground">
                                 {{ txn.plan?.name }}
                             </TableCell>
                             <TableCell>
-                                <span class="text-zinc-300 font-mono">{{ txn.transaction_number }}</span>
+                                <span class="text-muted-foreground font-mono">{{ txn.transaction_number }}</span>
                             </TableCell>
-                            <TableCell class="text-zinc-300">
+                            <TableCell class="text-muted-foreground">
                                 {{ getPaymentMethodLabel(txn.payment_method) }}
                             </TableCell>
-                            <TableCell class="text-right text-white font-medium">
+                            <TableCell class="text-right text-foreground font-medium">
                                 {{ formatCurrency(txn.amount) }}
                             </TableCell>
-                            <TableCell class="text-zinc-400">
+                            <TableCell class="text-muted-foreground">
                                 {{ formatDate(txn.payment_date) }}
                             </TableCell>
                             <TableCell>
@@ -229,22 +226,22 @@ const getPaymentMethodLabel = (method) => {
                                 <template v-if="txn.status === 'pending'">
                                     <button
                                         @click="openApproveModal(txn)"
-                                        class="text-sm text-emerald-400 hover:text-emerald-300"
+                                        class="text-sm text-emerald-500 hover:text-emerald-400"
                                     >
                                         Approve
                                     </button>
                                     <button
                                         @click="openRejectModal(txn)"
-                                        class="text-sm text-red-400 hover:text-red-300"
+                                        class="text-sm text-red-500 hover:text-red-400"
                                     >
                                         Reject
                                     </button>
                                 </template>
-                                <span v-else class="text-zinc-500">-</span>
+                                <span v-else class="text-muted-foreground">-</span>
                             </TableCell>
                         </TableRow>
-                        <TableRow v-if="!transactions.data?.length" class="border-zinc-700">
-                            <TableCell colspan="8" class="text-center py-12 text-zinc-400">
+                        <TableRow v-if="!transactions.data?.length">
+                            <TableCell colspan="8" class="text-center py-12 text-muted-foreground">
                                 No transactions found
                             </TableCell>
                         </TableRow>
@@ -262,7 +259,7 @@ const getPaymentMethodLabel = (method) => {
                         :href="link.url"
                         :class="[
                             'px-3 py-2 text-sm rounded-md',
-                            link.active ? 'bg-indigo-600 text-white' : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
+                            link.active ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'
                         ]"
                         v-html="link.label"
                     />
@@ -272,24 +269,23 @@ const getPaymentMethodLabel = (method) => {
 
         <!-- Approve Modal -->
         <div v-if="showApproveModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <Card class="w-full max-w-md bg-zinc-800 border-zinc-700">
+            <Card class="w-full max-w-md">
                 <CardHeader>
-                    <CardTitle class="text-white">Approve Transaction</CardTitle>
+                    <CardTitle>Approve Transaction</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div class="mb-4 p-4 bg-zinc-700 rounded-md">
-                        <p class="text-sm text-zinc-300"><strong>Client:</strong> {{ selectedTransaction?.tenant?.name }}</p>
-                        <p class="text-sm text-zinc-300"><strong>Plan:</strong> {{ selectedTransaction?.plan?.name }}</p>
-                        <p class="text-sm text-zinc-300"><strong>Amount:</strong> {{ formatCurrency(selectedTransaction?.amount) }}</p>
-                        <p class="text-sm text-zinc-300"><strong>Transaction #:</strong> {{ selectedTransaction?.transaction_number }}</p>
+                    <div class="mb-4 p-4 bg-muted rounded-md">
+                        <p class="text-sm text-muted-foreground"><strong class="text-foreground">Client:</strong> {{ selectedTransaction?.tenant?.name }}</p>
+                        <p class="text-sm text-muted-foreground"><strong class="text-foreground">Plan:</strong> {{ selectedTransaction?.plan?.name }}</p>
+                        <p class="text-sm text-muted-foreground"><strong class="text-foreground">Amount:</strong> {{ formatCurrency(selectedTransaction?.amount) }}</p>
+                        <p class="text-sm text-muted-foreground"><strong class="text-foreground">Transaction #:</strong> {{ selectedTransaction?.transaction_number }}</p>
                     </div>
                     <form @submit.prevent="approveTransaction">
                         <div class="mb-4">
-                            <Label class="text-zinc-300 mb-1">Admin Notes (Optional)</Label>
+                            <Label class="mb-1">Admin Notes (Optional)</Label>
                             <Textarea
                                 v-model="approveForm.admin_notes"
                                 rows="3"
-                                class="bg-zinc-700 border-zinc-600 text-white placeholder:text-zinc-500"
                                 placeholder="Add any notes..."
                             />
                         </div>
@@ -298,7 +294,6 @@ const getPaymentMethodLabel = (method) => {
                                 type="button"
                                 variant="ghost"
                                 @click="showApproveModal = false"
-                                class="text-zinc-300 hover:text-white"
                             >
                                 Cancel
                             </Button>
@@ -317,33 +312,31 @@ const getPaymentMethodLabel = (method) => {
 
         <!-- Reject Modal -->
         <div v-if="showRejectModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <Card class="w-full max-w-md bg-zinc-800 border-zinc-700">
+            <Card class="w-full max-w-md">
                 <CardHeader>
-                    <CardTitle class="text-white">Reject Transaction</CardTitle>
+                    <CardTitle>Reject Transaction</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div class="mb-4 p-4 bg-zinc-700 rounded-md">
-                        <p class="text-sm text-zinc-300"><strong>Client:</strong> {{ selectedTransaction?.tenant?.name }}</p>
-                        <p class="text-sm text-zinc-300"><strong>Transaction #:</strong> {{ selectedTransaction?.transaction_number }}</p>
+                    <div class="mb-4 p-4 bg-muted rounded-md">
+                        <p class="text-sm text-muted-foreground"><strong class="text-foreground">Client:</strong> {{ selectedTransaction?.tenant?.name }}</p>
+                        <p class="text-sm text-muted-foreground"><strong class="text-foreground">Transaction #:</strong> {{ selectedTransaction?.transaction_number }}</p>
                     </div>
                     <form @submit.prevent="rejectTransaction">
                         <div class="mb-4">
-                            <Label class="text-zinc-300 mb-1">Reason for Rejection *</Label>
+                            <Label class="mb-1">Reason for Rejection *</Label>
                             <Textarea
                                 v-model="rejectForm.admin_notes"
                                 rows="3"
-                                class="bg-zinc-700 border-zinc-600 text-white placeholder:text-zinc-500"
                                 placeholder="Please provide a reason..."
                                 required
                             />
-                            <p v-if="rejectForm.errors.admin_notes" class="text-red-400 text-sm mt-1">{{ rejectForm.errors.admin_notes }}</p>
+                            <p v-if="rejectForm.errors.admin_notes" class="text-red-500 text-sm mt-1">{{ rejectForm.errors.admin_notes }}</p>
                         </div>
                         <div class="flex justify-end space-x-3">
                             <Button
                                 type="button"
                                 variant="ghost"
                                 @click="showRejectModal = false"
-                                class="text-zinc-300 hover:text-white"
                             >
                                 Cancel
                             </Button>

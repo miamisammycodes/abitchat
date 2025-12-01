@@ -29,10 +29,7 @@ const formatNumber = (num) => {
 }
 
 const formatCurrency = (amount) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(amount || 0)
+  return 'Nu. ' + new Intl.NumberFormat('en-IN').format(amount || 0)
 }
 
 const formatDate = (date) => {
@@ -60,71 +57,71 @@ const getStatusVariant = (status) => {
   <AdminLayout title="Dashboard">
     <!-- Stats Grid -->
     <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-      <Card class="bg-zinc-800 border-zinc-700">
+      <Card>
         <CardContent class="p-5">
           <div class="flex items-center">
-            <div class="flex-shrink-0 rounded-lg bg-indigo-900/50 p-3">
-              <Building2 class="h-6 w-6 text-indigo-400" />
+            <div class="flex-shrink-0 rounded-lg bg-indigo-500/10 p-3">
+              <Building2 class="h-6 w-6 text-indigo-500" />
             </div>
             <div class="ml-5">
-              <p class="text-sm font-medium text-zinc-400">Total Clients</p>
+              <p class="text-sm font-medium text-muted-foreground">Total Clients</p>
               <div class="flex items-baseline gap-2">
-                <span class="text-2xl font-semibold text-white">{{ stats.tenants.total }}</span>
-                <span class="text-sm text-emerald-400">{{ stats.tenants.active }} active</span>
+                <span class="text-2xl font-semibold text-foreground">{{ stats.tenants.total }}</span>
+                <span class="text-sm text-emerald-500">{{ stats.tenants.active }} active</span>
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <Card class="bg-zinc-800 border-zinc-700">
+      <Card>
         <CardContent class="p-5">
           <div class="flex items-center">
-            <div class="flex-shrink-0 rounded-lg bg-blue-900/50 p-3">
-              <MessageSquare class="h-6 w-6 text-blue-400" />
+            <div class="flex-shrink-0 rounded-lg bg-blue-500/10 p-3">
+              <MessageSquare class="h-6 w-6 text-blue-500" />
             </div>
             <div class="ml-5">
-              <p class="text-sm font-medium text-zinc-400">Conversations</p>
+              <p class="text-sm font-medium text-muted-foreground">Conversations</p>
               <div class="flex items-baseline gap-2">
-                <span class="text-2xl font-semibold text-white">{{ formatNumber(stats.conversations.total) }}</span>
-                <span class="text-sm text-blue-400">{{ stats.conversations.today }} today</span>
+                <span class="text-2xl font-semibold text-foreground">{{ formatNumber(stats.conversations.total) }}</span>
+                <span class="text-sm text-blue-500">{{ stats.conversations.today }} today</span>
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <Card class="bg-zinc-800 border-zinc-700">
+      <Card>
         <CardContent class="p-5">
           <div class="flex items-center">
-            <div class="flex-shrink-0 rounded-lg bg-emerald-900/50 p-3">
-              <DollarSign class="h-6 w-6 text-emerald-400" />
+            <div class="flex-shrink-0 rounded-lg bg-emerald-500/10 p-3">
+              <DollarSign class="h-6 w-6 text-emerald-500" />
             </div>
             <div class="ml-5">
-              <p class="text-sm font-medium text-zinc-400">Revenue</p>
+              <p class="text-sm font-medium text-muted-foreground">Revenue</p>
               <div class="flex items-baseline gap-2">
-                <span class="text-2xl font-semibold text-white">{{ formatCurrency(stats.revenue.thisMonth) }}</span>
-                <span class="text-xs text-zinc-400">this month</span>
+                <span class="text-2xl font-semibold text-foreground">{{ formatCurrency(stats.revenue.thisMonth) }}</span>
+                <span class="text-xs text-muted-foreground">this month</span>
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <Card class="bg-zinc-800 border-zinc-700">
+      <Card>
         <CardContent class="p-5">
           <div class="flex items-center">
-            <div class="flex-shrink-0 rounded-lg bg-amber-900/50 p-3">
-              <Clock class="h-6 w-6 text-amber-400" />
+            <div class="flex-shrink-0 rounded-lg bg-amber-500/10 p-3">
+              <Clock class="h-6 w-6 text-amber-500" />
             </div>
             <div class="ml-5">
-              <p class="text-sm font-medium text-zinc-400">Pending Approvals</p>
+              <p class="text-sm font-medium text-muted-foreground">Pending Approvals</p>
               <div class="flex items-baseline gap-2">
-                <span class="text-2xl font-semibold text-white">{{ stats.pendingTransactions }}</span>
+                <span class="text-2xl font-semibold text-foreground">{{ stats.pendingTransactions }}</span>
                 <Link
                   v-if="stats.pendingTransactions > 0"
                   :href="route('admin.transactions.index', { status: 'pending' })"
-                  class="text-sm text-amber-400 hover:text-amber-300"
+                  class="text-sm text-amber-500 hover:text-amber-400"
                 >
                   Review
                 </Link>
@@ -137,46 +134,46 @@ const getStatusVariant = (status) => {
 
     <!-- Secondary Stats -->
     <div class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
-      <Card class="bg-zinc-800 border-zinc-700">
+      <Card>
         <CardContent class="p-5">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm font-medium text-zinc-400">Total Leads</p>
-              <p class="text-xl font-semibold text-white">{{ formatNumber(stats.leads.total) }}</p>
+              <p class="text-sm font-medium text-muted-foreground">Total Leads</p>
+              <p class="text-xl font-semibold text-foreground">{{ formatNumber(stats.leads.total) }}</p>
             </div>
             <div class="text-right">
-              <p class="text-sm text-zinc-400">This Week</p>
-              <p class="text-lg font-medium text-emerald-400">+{{ stats.leads.thisWeek }}</p>
+              <p class="text-sm text-muted-foreground">This Week</p>
+              <p class="text-lg font-medium text-emerald-500">+{{ stats.leads.thisWeek }}</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <Card class="bg-zinc-800 border-zinc-700">
+      <Card>
         <CardContent class="p-5">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm font-medium text-zinc-400">Total Tokens Used</p>
-              <p class="text-xl font-semibold text-white">{{ formatNumber(stats.tokens.total) }}</p>
+              <p class="text-sm font-medium text-muted-foreground">Total Tokens Used</p>
+              <p class="text-xl font-semibold text-foreground">{{ formatNumber(stats.tokens.total) }}</p>
             </div>
             <div class="text-right">
-              <p class="text-sm text-zinc-400">This Month</p>
-              <p class="text-lg font-medium text-blue-400">{{ formatNumber(stats.tokens.thisMonth) }}</p>
+              <p class="text-sm text-muted-foreground">This Month</p>
+              <p class="text-lg font-medium text-blue-500">{{ formatNumber(stats.tokens.thisMonth) }}</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <Card class="bg-zinc-800 border-zinc-700">
+      <Card>
         <CardContent class="p-5">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm font-medium text-zinc-400">Total Revenue</p>
-              <p class="text-xl font-semibold text-white">{{ formatCurrency(stats.revenue.total) }}</p>
+              <p class="text-sm font-medium text-muted-foreground">Total Revenue</p>
+              <p class="text-xl font-semibold text-foreground">{{ formatCurrency(stats.revenue.total) }}</p>
             </div>
             <div class="text-right">
-              <p class="text-sm text-zinc-400">Users</p>
-              <p class="text-lg font-medium text-indigo-400">{{ stats.users }}</p>
+              <p class="text-sm text-muted-foreground">Users</p>
+              <p class="text-lg font-medium text-indigo-500">{{ stats.users }}</p>
             </div>
           </div>
         </CardContent>
@@ -186,27 +183,27 @@ const getStatusVariant = (status) => {
     <!-- Tables -->
     <div class="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
       <!-- Recent Clients -->
-      <Card class="bg-zinc-800 border-zinc-700">
-        <CardHeader class="flex flex-row items-center justify-between border-b border-zinc-700">
-          <CardTitle class="text-white">Recent Clients</CardTitle>
-          <Link :href="route('admin.clients.index')" class="text-sm text-indigo-400 hover:text-indigo-300">
+      <Card>
+        <CardHeader class="flex flex-row items-center justify-between border-b">
+          <CardTitle>Recent Clients</CardTitle>
+          <Link :href="route('admin.clients.index')" class="text-sm text-primary hover:text-primary/80">
             View all
           </Link>
         </CardHeader>
         <CardContent class="p-0">
-          <ul class="divide-y divide-zinc-700">
+          <ul class="divide-y">
             <li v-for="tenant in recentTenants" :key="tenant.id" class="px-4 py-4">
               <div class="flex items-center justify-between">
                 <div>
-                  <p class="text-sm font-medium text-white">{{ tenant.name }}</p>
-                  <p class="text-xs text-zinc-400">{{ formatDate(tenant.created_at) }}</p>
+                  <p class="text-sm font-medium text-foreground">{{ tenant.name }}</p>
+                  <p class="text-xs text-muted-foreground">{{ formatDate(tenant.created_at) }}</p>
                 </div>
                 <Badge :variant="getStatusVariant(tenant.status)" class="capitalize">
                   {{ tenant.status }}
                 </Badge>
               </div>
             </li>
-            <li v-if="!recentTenants?.length" class="px-4 py-8 text-center text-zinc-400">
+            <li v-if="!recentTenants?.length" class="px-4 py-8 text-center text-muted-foreground">
               No clients yet
             </li>
           </ul>
@@ -214,27 +211,27 @@ const getStatusVariant = (status) => {
       </Card>
 
       <!-- Recent Transactions -->
-      <Card class="bg-zinc-800 border-zinc-700">
-        <CardHeader class="flex flex-row items-center justify-between border-b border-zinc-700">
-          <CardTitle class="text-white">Recent Transactions</CardTitle>
-          <Link :href="route('admin.transactions.index')" class="text-sm text-indigo-400 hover:text-indigo-300">
+      <Card>
+        <CardHeader class="flex flex-row items-center justify-between border-b">
+          <CardTitle>Recent Transactions</CardTitle>
+          <Link :href="route('admin.transactions.index')" class="text-sm text-primary hover:text-primary/80">
             View all
           </Link>
         </CardHeader>
         <CardContent class="p-0">
-          <ul class="divide-y divide-zinc-700">
+          <ul class="divide-y">
             <li v-for="txn in recentTransactions" :key="txn.id" class="px-4 py-4">
               <div class="flex items-center justify-between">
                 <div>
-                  <p class="text-sm font-medium text-white">{{ txn.tenant?.name }}</p>
-                  <p class="text-xs text-zinc-400">{{ txn.plan?.name }} - {{ formatCurrency(txn.amount) }}</p>
+                  <p class="text-sm font-medium text-foreground">{{ txn.tenant?.name }}</p>
+                  <p class="text-xs text-muted-foreground">{{ txn.plan?.name }} - {{ formatCurrency(txn.amount) }}</p>
                 </div>
                 <Badge :variant="getStatusVariant(txn.status)" class="capitalize">
                   {{ txn.status }}
                 </Badge>
               </div>
             </li>
-            <li v-if="!recentTransactions?.length" class="px-4 py-8 text-center text-zinc-400">
+            <li v-if="!recentTransactions?.length" class="px-4 py-8 text-center text-muted-foreground">
               No transactions yet
             </li>
           </ul>
@@ -243,32 +240,32 @@ const getStatusVariant = (status) => {
     </div>
 
     <!-- Top Clients Table -->
-    <Card class="mt-6 bg-zinc-800 border-zinc-700">
-      <CardHeader class="border-b border-zinc-700">
-        <CardTitle class="text-white">Top Clients by Conversations</CardTitle>
+    <Card class="mt-6">
+      <CardHeader class="border-b">
+        <CardTitle>Top Clients by Conversations</CardTitle>
       </CardHeader>
       <CardContent class="p-0">
         <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-zinc-700">
-            <thead class="bg-zinc-700">
+          <table class="min-w-full divide-y">
+            <thead class="bg-muted">
               <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-zinc-300 uppercase tracking-wider">Client</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-zinc-300 uppercase tracking-wider">Conversations</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Client</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Conversations</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-zinc-700">
+            <tbody class="divide-y">
               <tr v-for="client in topClients" :key="client.id">
                 <td class="px-6 py-4 whitespace-nowrap">
-                  <Link :href="route('admin.clients.show', client.id)" class="text-sm font-medium text-white hover:text-indigo-400">
+                  <Link :href="route('admin.clients.show', client.id)" class="text-sm font-medium text-foreground hover:text-primary">
                     {{ client.name }}
                   </Link>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-zinc-300">
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-muted-foreground">
                   {{ client.conversations_count }}
                 </td>
               </tr>
               <tr v-if="!topClients?.length">
-                <td colspan="2" class="px-6 py-8 text-center text-zinc-400">
+                <td colspan="2" class="px-6 py-8 text-center text-muted-foreground">
                   No data yet
                 </td>
               </tr>

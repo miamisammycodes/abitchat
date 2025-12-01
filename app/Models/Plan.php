@@ -74,6 +74,6 @@ class Plan extends Model
             return 'Free';
         }
 
-        return '$' . number_format($this->price, 2) . '/' . $this->billing_period;
+        return '$'.number_format($this->price, 2).'/'.$this->billing_period;
     }
 }

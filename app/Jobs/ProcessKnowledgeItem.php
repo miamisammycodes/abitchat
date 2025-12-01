@@ -6,7 +6,6 @@ namespace App\Jobs;
 
 use App\Models\KnowledgeChunk;
 use App\Models\KnowledgeItem;
-use App\Models\Tenant;
 use App\Services\Knowledge\DocumentProcessor;
 use App\Services\Knowledge\TextChunker;
 use Illuminate\Bus\Queueable;
@@ -17,11 +16,12 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Spatie\Multitenancy\Jobs\NotTenantAware;
 
-class ProcessKnowledgeItem implements ShouldQueue, NotTenantAware
+class ProcessKnowledgeItem implements NotTenantAware, ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
+
     public int $backoff = 60;
 
     public function __construct(

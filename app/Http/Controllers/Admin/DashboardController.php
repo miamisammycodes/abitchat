@@ -9,10 +9,9 @@ use App\Models\Conversation;
 use App\Models\Lead;
 use App\Models\Tenant;
 use App\Models\Transaction;
-use App\Models\User;
 use App\Models\UsageRecord;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 

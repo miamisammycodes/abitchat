@@ -7,6 +7,7 @@ namespace App\Services\Knowledge;
 class TextChunker
 {
     private int $chunkSize;
+
     private int $overlap;
 
     public function __construct(int $chunkSize = 500, int $overlap = 50)
@@ -41,10 +42,10 @@ class TextChunker
 
             // If paragraph fits in current chunk
             if (strlen($currentChunk) + strlen($paragraph) + 1 <= $this->chunkSize) {
-                $currentChunk .= (empty($currentChunk) ? '' : "\n\n") . $paragraph;
+                $currentChunk .= (empty($currentChunk) ? '' : "\n\n").$paragraph;
             } else {
                 // Save current chunk if not empty
-                if (!empty($currentChunk)) {
+                if (! empty($currentChunk)) {
                     $chunks[] = $currentChunk;
 
                     // Start new chunk with overlap from previous
@@ -60,13 +61,13 @@ class TextChunker
                     }
                     $currentChunk = $this->getOverlapText(end($sentenceChunks) ?: '');
                 } else {
-                    $currentChunk .= (empty($currentChunk) ? '' : "\n\n") . $paragraph;
+                    $currentChunk .= (empty($currentChunk) ? '' : "\n\n").$paragraph;
                 }
             }
         }
 
         // Don't forget the last chunk
-        if (!empty(trim($currentChunk))) {
+        if (! empty(trim($currentChunk))) {
             $chunks[] = $currentChunk;
         }
 
@@ -91,16 +92,16 @@ class TextChunker
 
         foreach ($sentences as $sentence) {
             if (strlen($currentChunk) + strlen($sentence) + 1 <= $this->chunkSize) {
-                $currentChunk .= (empty($currentChunk) ? '' : ' ') . $sentence;
+                $currentChunk .= (empty($currentChunk) ? '' : ' ').$sentence;
             } else {
-                if (!empty($currentChunk)) {
+                if (! empty($currentChunk)) {
                     $chunks[] = $currentChunk;
                 }
                 $currentChunk = $sentence;
             }
         }
 
-        if (!empty($currentChunk)) {
+        if (! empty($currentChunk)) {
             $chunks[] = $currentChunk;
         }
 

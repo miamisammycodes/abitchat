@@ -156,7 +156,7 @@ function regenerateApiKey() {
           <!-- Customization Card -->
           <Card>
             <CardHeader>
-              <CardTitle>Customization</CardTitle>
+              <CardTitle>Widget Appearance</CardTitle>
             </CardHeader>
             <CardContent>
               <form @submit.prevent="saveSettings" class="space-y-4">

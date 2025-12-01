@@ -71,9 +71,9 @@ class LeadService
     {
         $query = Lead::where('tenant_id', $tenant->id);
 
-        if (!empty($contactInfo['email'])) {
+        if (! empty($contactInfo['email'])) {
             $query->where('email', $contactInfo['email']);
-        } elseif (!empty($contactInfo['phone'])) {
+        } elseif (! empty($contactInfo['phone'])) {
             $query->where('phone', $contactInfo['phone']);
         } else {
             return null;
@@ -129,13 +129,13 @@ class LeadService
         $updates = [];
 
         // Update contact info if provided and not already set
-        if (!empty($contactInfo['name']) && empty($lead->name)) {
+        if (! empty($contactInfo['name']) && empty($lead->name)) {
             $updates['name'] = $contactInfo['name'];
         }
-        if (!empty($contactInfo['phone']) && empty($lead->phone)) {
+        if (! empty($contactInfo['phone']) && empty($lead->phone)) {
             $updates['phone'] = $contactInfo['phone'];
         }
-        if (!empty($contactInfo['company']) && empty($lead->company)) {
+        if (! empty($contactInfo['company']) && empty($lead->company)) {
             $updates['company'] = $contactInfo['company'];
         }
 
@@ -145,7 +145,7 @@ class LeadService
             $updates['score'] = $newScore;
         }
 
-        if (!empty($updates)) {
+        if (! empty($updates)) {
             $lead->update($updates);
         }
 
@@ -165,16 +165,16 @@ class LeadService
         $score = 0;
 
         // Score for contact info provided
-        if (!empty($contactInfo['email'])) {
+        if (! empty($contactInfo['email'])) {
             $score += self::SCORE_WEIGHTS['provided_email'];
         }
-        if (!empty($contactInfo['phone'])) {
+        if (! empty($contactInfo['phone'])) {
             $score += self::SCORE_WEIGHTS['provided_phone'];
         }
-        if (!empty($contactInfo['name'])) {
+        if (! empty($contactInfo['name'])) {
             $score += self::SCORE_WEIGHTS['provided_name'];
         }
-        if (!empty($contactInfo['company'])) {
+        if (! empty($contactInfo['company'])) {
             $score += self::SCORE_WEIGHTS['provided_company'];
         }
 
@@ -196,10 +196,10 @@ class LeadService
         $score = $lead->score;
 
         // Add points for new contact info
-        if (!empty($contactInfo['phone']) && empty($lead->phone)) {
+        if (! empty($contactInfo['phone']) && empty($lead->phone)) {
             $score += self::SCORE_WEIGHTS['provided_phone'];
         }
-        if (!empty($contactInfo['company']) && empty($lead->company)) {
+        if (! empty($contactInfo['company']) && empty($lead->company)) {
             $score += self::SCORE_WEIGHTS['provided_company'];
         }
 
@@ -229,7 +229,7 @@ class LeadService
 
         foreach (self::HIGH_INTENT_KEYWORDS as $intent => $keywords) {
             foreach ($keywords as $keyword) {
-                if (str_contains($allContentLower, $keyword) && !in_array($intent, $detectedIntents)) {
+                if (str_contains($allContentLower, $keyword) && ! in_array($intent, $detectedIntents)) {
                     $detectedIntents[] = $intent;
 
                     if ($intent === 'pricing') {
@@ -265,7 +265,7 @@ class LeadService
                     $potentialName = trim($nameMatch[1]);
                     // Validate it looks like a name (not common words)
                     $excludeWords = ['my', 'is', 'am', 'the', 'and', 'or', 'to', 'from', 'at', 'for', 'it', 'its', 'yes', 'no', 'hi', 'hello', 'hey'];
-                    if (strlen($potentialName) >= 2 && !in_array(strtolower($potentialName), $excludeWords)) {
+                    if (strlen($potentialName) >= 2 && ! in_array(strtolower($potentialName), $excludeWords)) {
                         $info['name'] = ucwords(strtolower($potentialName));
                     }
                 }

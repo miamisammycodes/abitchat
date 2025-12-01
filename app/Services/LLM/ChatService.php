@@ -17,6 +17,7 @@ use Prism\Prism\ValueObjects\Messages\UserMessage;
 class ChatService
 {
     private Provider $provider;
+
     private string $model;
 
     public function __construct()
@@ -144,8 +145,10 @@ class ChatService
 
     private function buildSystemPrompt(Tenant $tenant, array $context, ?Conversation $conversation = null): string
     {
-        $settings = $tenant->settings ?? [];
         $companyName = $tenant->name;
+        $botType = $tenant->bot_type ?? 'hybrid';
+        $botTone = $tenant->bot_tone ?? 'friendly';
+        $customInstructions = $tenant->bot_custom_instructions;
 
         // Check conversation state
         $leadCaptured = $conversation?->lead_id !== null;
@@ -159,26 +162,29 @@ class ChatService
             $contactRequested = preg_match('/email|phone|contact.*info|reach.*out|get.*back/i', $assistantMessages);
         }
 
-        $basePrompt = <<<PROMPT
-You are a friendly customer support assistant for {$companyName}.
+        // Build base prompt based on bot type
+        $basePrompt = $this->getBotTypePrompt($botType, $companyName);
 
-Response Style:
-- Be warm, conversational, and natural
-- Keep responses short (2-4 sentences)
-- Use casual, approachable language
-PROMPT;
+        // Add tone modifier
+        $basePrompt .= "\n\n".$this->getToneModifier($botTone);
 
-        // Add lead capture instructions based on state
-        if ($leadCaptured) {
-            $basePrompt .= <<<PROMPT
+        // Add custom instructions if provided
+        if (! empty($customInstructions)) {
+            $basePrompt .= "\n\nADDITIONAL INSTRUCTIONS:\n{$customInstructions}";
+        }
+
+        // Add lead capture instructions based on bot type and state
+        if ($botType === 'sales' || $botType === 'hybrid') {
+            if ($leadCaptured) {
+                $basePrompt .= <<<'PROMPT'
 
 
 CONTACT INFO ALREADY COLLECTED:
 The user has already provided their contact details. Do NOT ask for email/phone again.
 Just continue helping them and confirm our team will be in touch soon.
 PROMPT;
-        } elseif ($contactRequested) {
-            $basePrompt .= <<<PROMPT
+            } elseif ($contactRequested) {
+                $basePrompt .= <<<'PROMPT'
 
 
 ALREADY ASKED FOR CONTACT INFO:
@@ -187,8 +193,8 @@ You've already asked for their contact details. Do NOT ask again.
 - If they ask something else, just answer helpfully
 - Only gently remind once if conversation continues without them providing it
 PROMPT;
-        } else {
-            $basePrompt .= <<<PROMPT
+            } else {
+                $basePrompt .= <<<'PROMPT'
 
 
 LEAD CAPTURE:
@@ -196,9 +202,10 @@ When user shows buying interest (meeting, demo, quote, get started, pricing):
 - Ask for their name and email so the team can follow up
 - Only ask ONCE, don't repeat
 PROMPT;
+            }
         }
 
-        $basePrompt .= <<<PROMPT
+        $basePrompt .= <<<'PROMPT'
 
 
 STRICT RULES:
@@ -207,12 +214,86 @@ STRICT RULES:
 - NEVER use placeholders like [Insert X] or make up data
 PROMPT;
 
-        if (!empty($context['knowledge'])) {
+        if (! empty($context['knowledge'])) {
             $knowledgeContext = implode("\n\n", $context['knowledge']);
             $basePrompt .= "\n\n## Relevant Information:\n{$knowledgeContext}";
         }
 
         return $basePrompt;
+    }
+
+    private function getBotTypePrompt(string $botType, string $companyName): string
+    {
+        return match ($botType) {
+            'support' => <<<PROMPT
+You are a helpful customer support assistant for {$companyName}.
+
+Your Role:
+- Focus on answering questions and solving problems
+- Provide helpful, accurate information
+- Do NOT push sales or promotions
+- Empathize with customer issues
+- Offer to escalate to human support when needed
+PROMPT,
+            'sales' => <<<PROMPT
+You are a friendly sales assistant for {$companyName}.
+
+Your Role:
+- Proactively engage visitors and understand their needs
+- Highlight benefits and value propositions
+- Qualify leads by understanding their requirements
+- Encourage conversions and next steps
+- Create urgency when appropriate
+- Always be helpful, never pushy
+PROMPT,
+            'information' => <<<PROMPT
+You are an information assistant for {$companyName}.
+
+Your Role:
+- Provide neutral, factual responses
+- Answer questions accurately and concisely
+- Do NOT apply sales pressure or push conversions
+- Be objective and informative
+- Direct users to appropriate resources
+PROMPT,
+            default => <<<PROMPT
+You are a versatile assistant for {$companyName}.
+
+Your Role:
+- Dynamically adapt based on user intent
+- When users have questions or issues: focus on support and help
+- When users show buying interest: engage as a sales assistant
+- Be helpful, informative, and responsive to their needs
+PROMPT,
+        };
+    }
+
+    private function getToneModifier(string $tone): string
+    {
+        return match ($tone) {
+            'formal' => <<<'PROMPT'
+Communication Style:
+- Use professional, polished language
+- Maintain respectful distance
+- Proper grammar and complete sentences
+- Avoid slang, contractions, and casual expressions
+PROMPT,
+            'casual' => <<<'PROMPT'
+Communication Style:
+- Very relaxed and peer-like
+- Use contractions and casual expressions freely
+- Can use appropriate emojis sparingly
+- Short, punchy responses
+- Like talking to a friend
+PROMPT,
+            default => <<<'PROMPT'
+Communication Style:
+- Warm, conversational, and approachable
+- Natural language with some contractions
+- Keep responses concise (2-4 sentences)
+- Friendly but professional
+PROMPT,
+        };
     }
 
     private function buildMessageHistory(Conversation $conversation): array
@@ -226,13 +307,14 @@ PROMPT;
             if ($message->role === 'user') {
                 return new UserMessage($message->content);
             }
+
             return new AssistantMessage($message->content);
         })->toArray();
     }
 
     private function trackUsage(Tenant $tenant, Conversation $conversation, $usage): void
     {
-        if (!$usage) {
+        if (! $usage) {
             return;
         }
 

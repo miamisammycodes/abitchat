@@ -22,7 +22,7 @@ class WidgetController extends Controller
                 'api_key' => $tenant->api_key,
                 'settings' => $tenant->settings ?? [],
             ],
-            'embedUrl' => config('app.url') . '/widget/chatbot.js',
+            'embedUrl' => config('app.url').'/widget/chatbot.js',
         ]);
     }
 
@@ -37,9 +37,10 @@ class WidgetController extends Controller
         ]);
 
         $tenant = $request->user()->tenant;
-        $settings = $tenant->settings ?? [];
 
+        $settings = $tenant->settings ?? [];
         $settings = array_merge($settings, $validated);
+
         $tenant->update(['settings' => $settings]);
 
         return back()->with('success', 'Widget settings updated successfully.');

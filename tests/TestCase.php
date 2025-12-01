@@ -13,6 +13,7 @@ abstract class TestCase extends BaseTestCase
     use RefreshDatabase;
 
     protected Tenant $tenant;
+
     protected User $user;
 
     protected function setUp(): void

@@ -189,7 +189,7 @@ class AnalyticsService
             ->limit($limit)
             ->get()
             ->map(fn ($m) => [
-                'question' => strlen($m->content) > 100 ? substr($m->content, 0, 100) . '...' : $m->content,
+                'question' => strlen($m->content) > 100 ? substr($m->content, 0, 100).'...' : $m->content,
                 'count' => $m->count,
             ])
             ->toArray();

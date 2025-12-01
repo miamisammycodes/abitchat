@@ -68,12 +68,11 @@ const formatDate = (date) => {
                     v-model="search"
                     type="text"
                     placeholder="Search clients..."
-                    class="bg-zinc-700 border-zinc-600 text-white placeholder:text-zinc-500"
                 />
             </div>
             <select
                 v-model="status"
-                class="h-9 rounded-md bg-zinc-700 border-zinc-600 text-white px-3 text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                class="h-9 rounded-md bg-background border px-3 text-sm text-foreground focus:border-primary focus:ring-primary"
             >
                 <option value="all">All Status</option>
                 <option value="active">Active</option>
@@ -82,7 +81,7 @@ const formatDate = (date) => {
             </select>
             <select
                 v-model="plan"
-                class="h-9 rounded-md bg-zinc-700 border-zinc-600 text-white px-3 text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                class="h-9 rounded-md bg-background border px-3 text-sm text-foreground focus:border-primary focus:ring-primary"
             >
                 <option value="all">All Plans</option>
                 <option v-for="p in plans" :key="p.id" :value="p.id">{{ p.name }}</option>
@@ -90,32 +89,32 @@ const formatDate = (date) => {
         </div>
 
         <!-- Table -->
-        <Card class="bg-zinc-800 border-zinc-700">
+        <Card>
             <CardContent class="p-0">
                 <Table>
                     <TableHeader>
-                        <TableRow class="border-zinc-700 hover:bg-zinc-700/50">
-                            <TableHead class="text-zinc-300">Client</TableHead>
-                            <TableHead class="text-zinc-300">Plan</TableHead>
-                            <TableHead class="text-zinc-300">Status</TableHead>
-                            <TableHead class="text-zinc-300 text-center">Users</TableHead>
-                            <TableHead class="text-zinc-300 text-center">Conversations</TableHead>
-                            <TableHead class="text-zinc-300 text-center">Leads</TableHead>
-                            <TableHead class="text-zinc-300">Created</TableHead>
-                            <TableHead class="text-zinc-300 text-right">Actions</TableHead>
+                        <TableRow>
+                            <TableHead>Client</TableHead>
+                            <TableHead>Plan</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead class="text-center">Users</TableHead>
+                            <TableHead class="text-center">Conversations</TableHead>
+                            <TableHead class="text-center">Leads</TableHead>
+                            <TableHead>Created</TableHead>
+                            <TableHead class="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        <TableRow v-for="client in clients.data" :key="client.id" class="border-zinc-700 hover:bg-zinc-700/50">
+                        <TableRow v-for="client in clients.data" :key="client.id">
                             <TableCell>
                                 <div>
-                                    <Link :href="route('admin.clients.show', client.id)" class="text-sm font-medium text-white hover:text-indigo-400">
+                                    <Link :href="route('admin.clients.show', client.id)" class="text-sm font-medium text-foreground hover:text-primary">
                                         {{ client.name }}
                                     </Link>
-                                    <p class="text-xs text-zinc-400">{{ client.slug }}</p>
+                                    <p class="text-xs text-muted-foreground">{{ client.slug }}</p>
                                 </div>
                             </TableCell>
-                            <TableCell class="text-zinc-300">
+                            <TableCell class="text-muted-foreground">
                                 {{ client.current_plan?.name || 'Free' }}
                             </TableCell>
                             <TableCell>
@@ -123,26 +122,26 @@ const formatDate = (date) => {
                                     {{ client.status }}
                                 </Badge>
                             </TableCell>
-                            <TableCell class="text-center text-zinc-300">
+                            <TableCell class="text-center text-muted-foreground">
                                 {{ client.users_count }}
                             </TableCell>
-                            <TableCell class="text-center text-zinc-300">
+                            <TableCell class="text-center text-muted-foreground">
                                 {{ client.conversations_count }}
                             </TableCell>
-                            <TableCell class="text-center text-zinc-300">
+                            <TableCell class="text-center text-muted-foreground">
                                 {{ client.leads_count }}
                             </TableCell>
-                            <TableCell class="text-zinc-400">
+                            <TableCell class="text-muted-foreground">
                                 {{ formatDate(client.created_at) }}
                             </TableCell>
                             <TableCell class="text-right">
-                                <Link :href="route('admin.clients.show', client.id)" class="text-sm text-indigo-400 hover:text-indigo-300">
+                                <Link :href="route('admin.clients.show', client.id)" class="text-sm text-primary hover:text-primary/80">
                                     View
                                 </Link>
                             </TableCell>
                         </TableRow>
-                        <TableRow v-if="!clients.data?.length" class="border-zinc-700">
-                            <TableCell colspan="8" class="text-center py-12 text-zinc-400">
+                        <TableRow v-if="!clients.data?.length">
+                            <TableCell colspan="8" class="text-center py-12 text-muted-foreground">
                                 No clients found
                             </TableCell>
                         </TableRow>
@@ -160,13 +159,13 @@ const formatDate = (date) => {
                         :href="link.url"
                         :class="[
                             'px-3 py-2 text-sm rounded-md',
-                            link.active ? 'bg-indigo-600 text-white' : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
+                            link.active ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'
                         ]"
                         v-html="link.label"
                     />
                     <span
                         v-else
-                        class="px-3 py-2 text-sm text-zinc-500"
+                        class="px-3 py-2 text-sm text-muted-foreground"
                         v-html="link.label"
                     />
                 </template>

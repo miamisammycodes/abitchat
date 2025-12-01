@@ -88,7 +88,7 @@ function getPaymentMethodLabel(method) {
                   </div>
                 </TableCell>
                 <TableCell class="font-medium">{{ transaction.plan?.name }}</TableCell>
-                <TableCell class="font-medium">${{ transaction.amount }}</TableCell>
+                <TableCell class="font-medium">Nu. {{ transaction.amount }}</TableCell>
                 <TableCell class="text-muted-foreground">
                   {{ getPaymentMethodLabel(transaction.payment_method) }}
                 </TableCell>

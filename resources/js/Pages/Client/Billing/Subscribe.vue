@@ -76,7 +76,7 @@ const paymentMethods = [
             <div class="py-4 border-b border-border">
               <div class="flex justify-between items-center">
                 <span class="text-muted-foreground">Price</span>
-                <span class="text-2xl font-bold">${{ plan.price }}</span>
+                <span class="text-2xl font-bold">Nu. {{ plan.price }}</span>
               </div>
               <p class="text-sm text-muted-foreground text-right">per {{ plan.billing_period }}</p>
             </div>
@@ -138,14 +138,14 @@ const paymentMethods = [
                   <div class="space-y-2">
                     <Label for="amount">Amount Paid *</Label>
                     <div class="relative">
-                      <span class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                      <span class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">Nu.</span>
                       <Input
                         id="amount"
                         v-model="form.amount"
                         type="number"
                         step="0.01"
                         required
-                        class="pl-7"
+                        class="pl-10"
                       />
                     </div>
                     <p v-if="form.errors.amount" class="text-sm text-destructive">

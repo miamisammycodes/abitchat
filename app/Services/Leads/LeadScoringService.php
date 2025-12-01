@@ -63,17 +63,17 @@ class LeadScoringService
         $signals = [];
 
         // Contact info signals
-        if (!empty($lead->email)) {
+        if (! empty($lead->email)) {
             $score += $this->signals['provided_email'];
             $signals[] = 'provided_email';
         }
 
-        if (!empty($lead->phone)) {
+        if (! empty($lead->phone)) {
             $score += $this->signals['provided_phone'];
             $signals[] = 'provided_phone';
         }
 
-        if (!empty($lead->name)) {
+        if (! empty($lead->name)) {
             $score += $this->signals['provided_name'];
             $signals[] = 'provided_name';
         }
@@ -144,6 +144,7 @@ class LeadScoringService
         } elseif ($score >= 31) {
             return 'warm';
         }
+
         return 'cold';
     }
 
@@ -166,6 +167,7 @@ class LeadScoringService
                 return true;
             }
         }
+
         return false;
     }
 }

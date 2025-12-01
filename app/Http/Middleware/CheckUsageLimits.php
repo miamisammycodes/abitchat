@@ -20,14 +20,14 @@ class CheckUsageLimits
     {
         $user = $request->user();
 
-        if (!$user || !$user->tenant) {
+        if (! $user || ! $user->tenant) {
             return $next($request);
         }
 
         $tenant = $user->tenant;
 
         // Check if tenant has an active plan
-        if (!$tenant->hasPlan()) {
+        if (! $tenant->hasPlan()) {
             if ($request->wantsJson()) {
                 return response()->json([
                     'error' => 'No active subscription',
@@ -54,14 +54,14 @@ class CheckUsageLimits
             if ($request->wantsJson()) {
                 return response()->json([
                     'error' => 'Limit reached',
-                    'message' => $message . ' Please upgrade your plan.',
+                    'message' => $message.' Please upgrade your plan.',
                     'limit_type' => $type,
                 ], 403);
             }
 
             return redirect()
                 ->route('client.billing.plans')
-                ->with('error', $message . ' Please upgrade your plan.');
+                ->with('error', $message.' Please upgrade your plan.');
         }
 
         return $next($request);

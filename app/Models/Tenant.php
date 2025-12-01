@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -26,6 +25,9 @@ class Tenant extends BaseTenant
         'status',
         'settings',
         'trial_ends_at',
+        'bot_type',
+        'bot_tone',
+        'bot_custom_instructions',
     ];
 
     protected $casts = [
@@ -102,7 +104,7 @@ class Tenant extends BaseTenant
 
     public function hasPlan(): bool
     {
-        return $this->plan_id !== null && !$this->isPlanExpired();
+        return $this->plan_id !== null && ! $this->isPlanExpired();
     }
 
     /**
@@ -112,7 +114,7 @@ class Tenant extends BaseTenant
     {
         $plan = $this->currentPlan;
 
-        if (!$plan) {
+        if (! $plan) {
             return true; // No plan = limit reached
         }
 
@@ -124,7 +126,7 @@ class Tenant extends BaseTenant
             default => null,
         };
 
-        if (!$limitField) {
+        if (! $limitField) {
             return false;
         }
 

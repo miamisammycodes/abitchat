@@ -29,22 +29,23 @@ class RetrievalService
         // Get all chunks for this tenant with embeddings
         $chunks = KnowledgeChunk::whereHas('knowledgeItem', function ($q) use ($tenant) {
             $q->where('tenant_id', $tenant->id)
-              ->where('status', 'ready');
+                ->where('status', 'ready');
         })
-        ->whereNotNull('embedding')
-        ->get()
-        ->map(function ($chunk) {
-            return [
-                'id' => $chunk->id,
-                'content' => $chunk->content,
-                'embedding' => $chunk->embedding,
-            ];
-        })
-        ->toArray();
+            ->whereNotNull('embedding')
+            ->get()
+            ->map(function ($chunk) {
+                return [
+                    'id' => $chunk->id,
+                    'content' => $chunk->content,
+                    'embedding' => $chunk->embedding,
+                ];
+            })
+            ->toArray();
 
         // If no chunks with embeddings, fall back to keyword search
         if (empty($chunks)) {
             Log::debug('[RAG] (NO $) No chunks with embeddings, using keyword fallback');
+
             return $this->retrieveByKeywords($tenant, $query, $limit);
         }
 
@@ -57,7 +58,7 @@ class RetrievalService
         ]);
 
         // Return just the content strings
-        return array_map(fn($item) => $item['content'], $similar);
+        return array_map(fn ($item) => $item['content'], $similar);
     }
 
     /**
@@ -76,15 +77,15 @@ class RetrievalService
 
         $chunks = KnowledgeChunk::whereHas('knowledgeItem', function ($q) use ($tenant) {
             $q->where('tenant_id', $tenant->id)
-              ->where('status', 'ready');
+                ->where('status', 'ready');
         })
-        ->where(function ($q) use ($keywords) {
-            foreach ($keywords as $keyword) {
-                $q->orWhere('content', 'like', "%{$keyword}%");
-            }
-        })
-        ->limit($limit)
-        ->get();
+            ->where(function ($q) use ($keywords) {
+                foreach ($keywords as $keyword) {
+                    $q->orWhere('content', 'like', "%{$keyword}%");
+                }
+            })
+            ->limit($limit)
+            ->get();
 
         return $chunks->pluck('content')->toArray();
     }
@@ -96,7 +97,7 @@ class RetrievalService
 
         $words = preg_split('/\W+/', strtolower($text));
         $words = array_filter($words, function ($word) use ($stopWords) {
-            return strlen($word) > 2 && !in_array($word, $stopWords);
+            return strlen($word) > 2 && ! in_array($word, $stopWords);
         });
 
         return array_values(array_unique($words));

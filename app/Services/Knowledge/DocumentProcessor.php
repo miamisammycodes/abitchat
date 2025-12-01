@@ -15,7 +15,7 @@ class DocumentProcessor
     {
         $fullPath = Storage::disk('local')->path($filePath);
 
-        if (!file_exists($fullPath)) {
+        if (! file_exists($fullPath)) {
             throw new \Exception("File not found: {$filePath}");
         }
 
@@ -43,7 +43,7 @@ class DocumentProcessor
         try {
             $response = Http::timeout(30)->get($url);
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 throw new \Exception("Failed to fetch URL: {$url}");
             }
 
@@ -61,7 +61,7 @@ class DocumentProcessor
 
     private function extractFromPdf(string $path): string
     {
-        $parser = new PdfParser();
+        $parser = new PdfParser;
         $pdf = $parser->parseFile($path);
 
         $text = $pdf->getText();
@@ -80,7 +80,7 @@ class DocumentProcessor
     {
         $content = '';
 
-        $zip = new \ZipArchive();
+        $zip = new \ZipArchive;
 
         if ($zip->open($path) === true) {
             $xmlContent = $zip->getFromName('word/document.xml');

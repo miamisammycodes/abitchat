@@ -14,11 +14,12 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Spatie\Multitenancy\Jobs\NotTenantAware;
 
-class GenerateEmbeddings implements ShouldQueue, NotTenantAware
+class GenerateEmbeddings implements NotTenantAware, ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
+
     public int $backoff = 60;
 
     public function __construct(

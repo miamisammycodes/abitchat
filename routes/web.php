@@ -1,20 +1,20 @@
 <?php
 
-use App\Http\Controllers\Admin\Auth\LoginController as AdminLoginController;
-use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
-use App\Http\Controllers\Admin\ClientController as AdminClientController;
-use App\Http\Controllers\Admin\TransactionController as AdminTransactionController;
 use App\Http\Controllers\Admin\ActivityLogController as AdminActivityLogController;
+use App\Http\Controllers\Admin\Auth\LoginController as AdminLoginController;
+use App\Http\Controllers\Admin\ClientController as AdminClientController;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\TransactionController as AdminTransactionController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\ResetPasswordController;
-use App\Http\Controllers\Client\DashboardController;
-use App\Http\Controllers\Client\KnowledgeBaseController;
-use App\Http\Controllers\Client\WidgetController;
-use App\Http\Controllers\Client\LeadController;
 use App\Http\Controllers\Client\AnalyticsController;
 use App\Http\Controllers\Client\BillingController;
+use App\Http\Controllers\Client\DashboardController;
+use App\Http\Controllers\Client\KnowledgeBaseController;
+use App\Http\Controllers\Client\LeadController;
+use App\Http\Controllers\Client\WidgetController;
 use App\Http\Middleware\AdminAuthenticate;
 use App\Models\Tenant;
 use Illuminate\Support\Facades\Route;
@@ -108,6 +108,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('clients/{client}', [AdminClientController::class, 'show'])->name('clients.show');
         Route::put('clients/{client}/status', [AdminClientController::class, 'updateStatus'])->name('clients.update-status');
         Route::put('clients/{client}/plan', [AdminClientController::class, 'updatePlan'])->name('clients.update-plan');
+        Route::put('clients/{client}/bot-personality', [AdminClientController::class, 'updateBotPersonality'])->name('clients.update-bot-personality');
 
         // Transaction Approval
         Route::get('transactions', [AdminTransactionController::class, 'index'])->name('transactions.index');

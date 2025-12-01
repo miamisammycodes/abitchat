@@ -1,13 +1,28 @@
-import { ref, watch, onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 
-const theme = ref('light');
+// Initialize from localStorage immediately (before mount) to prevent flash
+const getInitialTheme = () => {
+    if (typeof window !== 'undefined') {
+        return localStorage.getItem('theme') || 'dark';
+    }
+    return 'dark';
+};
+
+const theme = ref(getInitialTheme());
+
+// Apply theme immediately on script load
+if (typeof document !== 'undefined') {
+    if (theme.value === 'dark') {
+        document.documentElement.classList.add('dark');
+    } else {
+        document.documentElement.classList.remove('dark');
+    }
+}
 
 export function useTheme() {
     onMounted(() => {
-        // Load saved theme from localStorage
-        const savedTheme = localStorage.getItem('theme') || 'light';
-        theme.value = savedTheme;
-        applyTheme(savedTheme);
+        // Re-apply theme on mount to ensure it's correct
+        applyTheme(theme.value);
     });
 
     function applyTheme(newTheme) {

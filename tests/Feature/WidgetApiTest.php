@@ -9,6 +9,7 @@ use Tests\TestCase;
 class WidgetApiTest extends TestCase
 {
     protected Tenant $widgetTenant;
+
     protected string $apiKey;
 
     protected function setUp(): void

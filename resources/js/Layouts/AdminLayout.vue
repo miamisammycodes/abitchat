@@ -12,9 +12,13 @@ import {
   Menu,
   X,
   LogOut,
+  Sun,
+  Moon,
 } from 'lucide-vue-next'
+import { useTheme } from '@/composables/useTheme'
 
 const route = useRoute()
+const { theme, toggleTheme } = useTheme()
 const page = usePage()
 
 defineProps({
@@ -48,7 +52,7 @@ const logout = () => {
 <template>
   <Head :title="title + ' - Admin'" />
 
-  <div class="min-h-screen bg-zinc-900">
+  <div class="min-h-screen bg-background">
     <!-- Mobile sidebar backdrop -->
     <div
       v-if="sidebarOpen"
@@ -59,11 +63,11 @@ const logout = () => {
     <!-- Mobile sidebar -->
     <div
       v-if="sidebarOpen"
-      class="fixed inset-y-0 left-0 z-50 w-64 bg-zinc-800 lg:hidden"
+      class="fixed inset-y-0 left-0 z-50 w-64 bg-card lg:hidden"
     >
-      <div class="flex h-16 items-center justify-between px-4 border-b border-zinc-700">
-        <span class="text-xl font-semibold text-white">Admin Portal</span>
-        <Button variant="ghost" size="icon" @click="sidebarOpen = false" class="text-zinc-400 hover:text-white">
+      <div class="flex h-16 items-center justify-between px-4 border-b">
+        <span class="text-xl font-semibold text-foreground">Admin Portal</span>
+        <Button variant="ghost" size="icon" @click="sidebarOpen = false" class="text-muted-foreground hover:text-foreground">
           <X class="h-5 w-5" />
         </Button>
       </div>
@@ -74,8 +78,8 @@ const logout = () => {
           :href="route(item.href)"
           :class="[
             isCurrentRoute(item.href)
-              ? 'bg-zinc-900 text-white'
-              : 'text-zinc-300 hover:bg-zinc-700 hover:text-white',
+              ? 'bg-primary text-primary-foreground'
+              : 'text-muted-foreground hover:bg-accent hover:text-foreground',
             'group flex items-center px-3 py-2 text-sm font-medium rounded-md'
           ]"
           @click="sidebarOpen = false"
@@ -88,9 +92,9 @@ const logout = () => {
 
     <!-- Desktop sidebar -->
     <div class="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-      <div class="flex min-h-0 flex-1 flex-col bg-zinc-800">
-        <div class="flex h-16 flex-shrink-0 items-center px-4 border-b border-zinc-700">
-          <span class="text-xl font-semibold text-white">Admin Portal</span>
+      <div class="flex min-h-0 flex-1 flex-col bg-card">
+        <div class="flex h-16 flex-shrink-0 items-center px-4 border-b">
+          <span class="text-xl font-semibold text-foreground">Admin Portal</span>
         </div>
         <div class="flex flex-1 flex-col overflow-y-auto">
           <nav class="flex-1 space-y-1 px-2 py-4">
@@ -100,8 +104,8 @@ const logout = () => {
               :href="route(item.href)"
               :class="[
                 isCurrentRoute(item.href)
-                  ? 'bg-zinc-900 text-white'
-                  : 'text-zinc-300 hover:bg-zinc-700 hover:text-white',
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-accent hover:text-foreground',
                 'group flex items-center px-3 py-2 text-sm font-medium rounded-md'
               ]"
             >
@@ -116,25 +120,29 @@ const logout = () => {
     <!-- Main content -->
     <div class="lg:pl-64">
       <!-- Top bar -->
-      <div class="sticky top-0 z-10 flex h-16 flex-shrink-0 bg-zinc-800 shadow border-b border-zinc-700">
+      <div class="sticky top-0 z-10 flex h-16 flex-shrink-0 bg-card shadow border-b">
         <Button
           variant="ghost"
           size="icon"
-          class="px-4 text-zinc-400 lg:hidden"
+          class="px-4 text-muted-foreground lg:hidden"
           @click="sidebarOpen = true"
         >
           <Menu class="h-6 w-6" />
         </Button>
         <div class="flex flex-1 justify-between px-4">
           <div class="flex flex-1 items-center">
-            <h1 class="text-lg font-semibold text-white">{{ title }}</h1>
+            <h1 class="text-lg font-semibold text-foreground">{{ title }}</h1>
           </div>
           <div class="flex items-center gap-4">
-            <span class="text-sm text-zinc-300">{{ admin.name }}</span>
-            <Badge variant="secondary" class="bg-indigo-900 text-indigo-200 hover:bg-indigo-900">
+            <span class="text-sm text-muted-foreground">{{ admin.name }}</span>
+            <Badge variant="secondary">
               {{ admin.role }}
             </Badge>
-            <Button variant="ghost" size="sm" @click="logout" class="text-zinc-400 hover:text-white">
+            <Button variant="ghost" size="icon" @click="toggleTheme" title="Toggle theme" class="text-muted-foreground hover:text-foreground">
+              <Sun v-if="theme === 'dark'" class="h-5 w-5" />
+              <Moon v-else class="h-5 w-5" />
+            </Button>
+            <Button variant="ghost" size="sm" @click="logout" class="text-muted-foreground hover:text-foreground">
               <LogOut class="h-4 w-4 mr-2" />
               Sign out
             </Button>

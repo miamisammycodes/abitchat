@@ -13,7 +13,6 @@ use App\Models\Transaction;
 use App\Models\UsageRecord;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -123,6 +122,17 @@ class ClientController extends Controller
             'transactions' => $transactions,
             'recentConversations' => $recentConversations,
             'plans' => Plan::active()->ordered()->get(),
+            'botTypes' => [
+                ['value' => 'support', 'label' => 'Support Bot', 'description' => 'Focuses on answering questions and providing help. Does not push sales.'],
+                ['value' => 'sales', 'label' => 'Sales Bot', 'description' => 'Proactively engages visitors, highlights benefits, and encourages conversions.'],
+                ['value' => 'information', 'label' => 'Information Bot', 'description' => 'Provides neutral, factual responses without sales pressure.'],
+                ['value' => 'hybrid', 'label' => 'Hybrid Bot', 'description' => 'Dynamically switches between support and sales based on conversation signals.'],
+            ],
+            'botTones' => [
+                ['value' => 'formal', 'label' => 'Formal', 'description' => 'Professional language with respectful distance.'],
+                ['value' => 'friendly', 'label' => 'Friendly', 'description' => 'Warm, conversational, and approachable.'],
+                ['value' => 'casual', 'label' => 'Casual', 'description' => 'Very relaxed, peer-like communication style.'],
+            ],
         ]);
     }
 
@@ -152,5 +162,18 @@ class ClientController extends Controller
         $plan = Plan::find($validated['plan_id']);
 
         return back()->with('success', "Client plan updated to {$plan->name}.");
+    }
+
+    public function updateBotPersonality(Request $request, Tenant $client): RedirectResponse
+    {
+        $validated = $request->validate([
+            'bot_type' => 'required|in:support,sales,information,hybrid',
+            'bot_tone' => 'required|in:formal,friendly,casual',
+            'bot_custom_instructions' => 'nullable|string|max:2000',
+        ]);
+
+        $client->update($validated);
+
+        return back()->with('success', 'Bot personality updated successfully.');
     }
 }

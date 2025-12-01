@@ -16,7 +16,10 @@ import {
   Menu,
   X,
   ChevronDown,
+  Sun,
+  Moon,
 } from 'lucide-vue-next'
+import { useTheme } from '@/composables/useTheme'
 
 const page = usePage()
 const user = computed(() => page.props.auth?.user)
@@ -25,13 +28,15 @@ const tenant = computed(() => page.props.tenant)
 const sidebarOpen = ref(false)
 const userMenuOpen = ref(false)
 
+const { theme, toggleTheme } = useTheme()
+
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Widget', href: '/dashboard/widget', icon: MessageSquare },
-  { name: 'Knowledge Base', href: '/dashboard/knowledge', icon: BookOpen },
-  { name: 'Leads', href: '/dashboard/leads', icon: Users },
-  { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
-  { name: 'Billing', href: '/dashboard/billing', icon: CreditCard },
+  { name: 'Widget', href: '/widget-settings', icon: MessageSquare },
+  { name: 'Knowledge Base', href: '/knowledge', icon: BookOpen },
+  { name: 'Leads', href: '/leads', icon: Users },
+  { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+  { name: 'Billing', href: '/billing', icon: CreditCard },
 ]
 
 const isActive = (href) => {
@@ -129,6 +134,12 @@ const getInitials = (name) => {
         </Button>
 
         <div class="flex flex-1 items-center justify-end gap-4">
+          <!-- Theme toggle -->
+          <Button variant="ghost" size="icon" @click="toggleTheme" title="Toggle theme">
+            <Sun v-if="theme === 'dark'" class="h-5 w-5" />
+            <Moon v-else class="h-5 w-5" />
+          </Button>
+
           <!-- User menu -->
           <div class="relative">
             <Button

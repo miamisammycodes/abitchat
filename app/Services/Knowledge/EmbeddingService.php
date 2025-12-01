@@ -90,7 +90,7 @@ class EmbeddingService
     {
         $queryEmbedding = $this->generate($queryText);
 
-        if (!$queryEmbedding) {
+        if (! $queryEmbedding) {
             return [];
         }
 
@@ -105,7 +105,7 @@ class EmbeddingService
 
             $chunkVector = json_decode($chunk['embedding'], true);
 
-            if (!is_array($chunkVector)) {
+            if (! is_array($chunkVector)) {
                 continue;
             }
 
@@ -119,7 +119,7 @@ class EmbeddingService
         }
 
         // Sort by similarity descending
-        usort($similarities, fn($a, $b) => $b['similarity'] <=> $a['similarity']);
+        usort($similarities, fn ($a, $b) => $b['similarity'] <=> $a['similarity']);
 
         return array_slice($similarities, 0, $limit);
     }
@@ -132,7 +132,7 @@ class EmbeddingService
     {
         // Tokenize and normalize
         $words = preg_split('/\W+/', strtolower($text));
-        $words = array_filter($words, fn($w) => strlen($w) > 2);
+        $words = array_filter($words, fn ($w) => strlen($w) > 2);
 
         // Create a simple bag-of-words representation
         $wordCounts = array_count_values($words);
@@ -146,9 +146,9 @@ class EmbeddingService
         }
 
         // Normalize
-        $norm = sqrt(array_sum(array_map(fn($x) => $x * $x, $embedding)));
+        $norm = sqrt(array_sum(array_map(fn ($x) => $x * $x, $embedding)));
         if ($norm > 0) {
-            $embedding = array_map(fn($x) => $x / $norm, $embedding);
+            $embedding = array_map(fn ($x) => $x / $norm, $embedding);
         }
 
         return json_encode($embedding);

@@ -47,6 +47,16 @@ Log::debug('[ServiceName] (NO $) Description', ['data' => $value]);
   - `laravel/cashier`
   - `barryvdh/laravel-debugbar`
 
+### M1.5 ✅ Install Code Quality Tools
+- **Status**: Complete
+- **Packages**:
+  - `larastan/larastan` - Static analysis
+  - `laravel/pint` - Code formatting
+- **Config Files**: `phpstan.neon`, `pint.json`
+- **Commands**:
+  - `./vendor/bin/pint` - Format code
+  - `./vendor/bin/phpstan analyse` - Run static analysis
+
 ### M1.4 ✅ Create Rules Files
 - **Status**: Complete
 - **Files**: `CLAUDE.md`, `prd.md`, `ROADMAP.md`
@@ -1292,9 +1302,33 @@ Log::debug('[Dashboard] (NO $) Loading stats', ['tenant_id' => $tenant->id]);
 
 ---
 
-## Phase 10: Billing
+## Phase 10: Bot Personality (COMPLETE)
 
-### M10.1 Set Up Stripe Cashier
+### M10.1 ✅ Bot Type Selection
+- **Status**: Complete
+- **Types**: Support, Sales, Information, Hybrid (default)
+- **DB Column**: `tenants.bot_type`
+
+### M10.2 ✅ Bot Tone Selection
+- **Status**: Complete
+- **Tones**: Formal, Friendly (default), Casual
+- **DB Column**: `tenants.bot_tone`
+
+### M10.3 ✅ Custom Instructions
+- **Status**: Complete
+- **Feature**: Optional text field for additional bot behavior
+- **DB Column**: `tenants.bot_custom_instructions`
+
+### M10.4 ✅ Dynamic System Prompts
+- **Status**: Complete
+- **File**: `app/Services/LLM/ChatService.php`
+- **Methods**: `getBotTypePrompt()`, `getToneModifier()`
+
+---
+
+## Phase 11: Billing
+
+### M11.1 Set Up Stripe Cashier
 **Status**: Pending
 
 **Subtasks**:

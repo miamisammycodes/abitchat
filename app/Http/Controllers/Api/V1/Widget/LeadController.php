@@ -36,7 +36,7 @@ class LeadController extends Controller
 
         $tenant = Tenant::where('api_key', $request->api_key)->first();
 
-        if (!$tenant) {
+        if (! $tenant) {
             return response()->json(['error' => 'Invalid API key'], 401);
         }
 
@@ -44,7 +44,7 @@ class LeadController extends Controller
             ->where('tenant_id', $tenant->id)
             ->first();
 
-        if (!$conversation) {
+        if (! $conversation) {
             return response()->json(['error' => 'Conversation not found'], 404);
         }
 

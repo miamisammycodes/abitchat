@@ -107,7 +107,7 @@ function getStatusVariant(status) {
                 </div>
                 <div class="text-right">
                   <p class="text-3xl font-bold">
-                    {{ currentPlan.price == 0 ? 'Free' : `$${currentPlan.price}` }}
+                    {{ currentPlan.price == 0 ? 'Free' : `Nu. ${currentPlan.price}` }}
                   </p>
                   <p v-if="currentPlan.price > 0" class="text-sm text-muted-foreground">/{{ currentPlan.billing_period }}</p>
                 </div>
@@ -218,7 +218,7 @@ function getStatusVariant(status) {
                   <p class="text-xs text-muted-foreground">{{ new Date(transaction.created_at).toLocaleDateString() }}</p>
                 </div>
                 <div class="text-right">
-                  <p class="font-medium text-sm">${{ transaction.amount }}</p>
+                  <p class="font-medium text-sm">Nu. {{ transaction.amount }}</p>
                   <Badge :variant="getStatusVariant(transaction.status)" class="text-xs capitalize">
                     {{ transaction.status }}
                   </Badge>

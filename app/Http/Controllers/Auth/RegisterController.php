@@ -36,7 +36,7 @@ class RegisterController extends Controller
 
             Log::debug('[Register] (NO $) Tenant created', [
                 'tenant_id' => $tenant->id,
-                'api_key' => substr($tenant->api_key, 0, 8) . '...',
+                'api_key' => substr($tenant->api_key, 0, 8).'...',
             ]);
 
             $user = User::create([

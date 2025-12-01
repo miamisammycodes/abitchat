@@ -10,6 +10,14 @@
 - Email: `admin@example.com`
 - Password: `password`
 
+## Development URLs
+
+- **App**: http://127.0.0.1:8001
+- **Client Dashboard**: http://127.0.0.1:8001/dashboard
+- **Admin Dashboard**: http://127.0.0.1:8001/admin/dashboard
+- **Widget Test Page**: http://127.0.0.1:8001/widget/test.html
+- **Widget Settings**: http://127.0.0.1:8001/widget-settings
+
 ---
 
 ## Project Overview

@@ -74,7 +74,7 @@ class KnowledgeBaseController extends Controller
             'type' => $validated['type'],
         ]);
 
-        $item = new KnowledgeItem();
+        $item = new KnowledgeItem;
         $item->tenant_id = $tenant->id;
         $item->title = $validated['title'];
         $item->type = $validated['type'];

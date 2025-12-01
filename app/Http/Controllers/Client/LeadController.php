@@ -8,7 +8,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Lead;
 use App\Services\Leads\LeadService;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -123,7 +122,7 @@ class LeadController extends Controller
         }
 
         // Update other fields
-        if (!empty($validated)) {
+        if (! empty($validated)) {
             $lead->update($validated);
         }
 
@@ -156,7 +155,7 @@ class LeadController extends Controller
 
         $headers = [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="lead-' . $lead->id . '-' . now()->format('Y-m-d') . '.csv"',
+            'Content-Disposition' => 'attachment; filename="lead-'.$lead->id.'-'.now()->format('Y-m-d').'.csv"',
         ];
 
         $callback = function () use ($lead) {
@@ -211,7 +210,7 @@ class LeadController extends Controller
 
         $headers = [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="leads-' . now()->format('Y-m-d') . '.csv"',
+            'Content-Disposition' => 'attachment; filename="leads-'.now()->format('Y-m-d').'.csv"',
         ];
 
         $callback = function () use ($leads) {

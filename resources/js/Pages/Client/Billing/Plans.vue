@@ -64,7 +64,7 @@ function formatLimit(limit) {
               <p class="text-sm text-muted-foreground mt-1">{{ plan.description }}</p>
               <div class="mt-4">
                 <span class="text-4xl font-bold">
-                  {{ plan.price == 0 ? 'Free' : `$${plan.price}` }}
+                  {{ plan.price == 0 ? 'Free' : `Nu. ${plan.price}` }}
                 </span>
                 <span v-if="plan.price > 0" class="text-muted-foreground">/{{ plan.billing_period }}</span>
               </div>
