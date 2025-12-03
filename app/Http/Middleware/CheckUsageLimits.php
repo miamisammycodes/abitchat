@@ -26,8 +26,8 @@ class CheckUsageLimits
 
         $tenant = $user->tenant;
 
-        // Check if tenant has an active plan
-        if (! $tenant->hasPlan()) {
+        // Check if tenant has an active plan or is on trial
+        if (! $tenant->hasPlan() && ! $tenant->isOnTrial()) {
             if ($request->wantsJson()) {
                 return response()->json([
                     'error' => 'No active subscription',
@@ -37,7 +37,12 @@ class CheckUsageLimits
 
             return redirect()
                 ->route('client.billing.plans')
-                ->with('error', 'Please subscribe to a plan to continue.');
+                ->with('error', 'Your trial has expired. Please subscribe to a plan to continue.');
+        }
+
+        // Skip limit checks for trial users (they get full access during trial)
+        if ($tenant->isOnTrial()) {
+            return $next($request);
         }
 
         // Check if the specific limit has been reached

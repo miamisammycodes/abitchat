@@ -1326,10 +1326,73 @@ Log::debug('[Dashboard] (NO $) Loading stats', ['tenant_id' => $tenant->id]);
 
 ---
 
+## Phase 10.5: UI/UX Enhancements (COMPLETE)
+
+### M10.5.1 ✅ Dark/Light Theme Toggle
+- **Status**: Complete
+- **Features**:
+  - Theme toggle button in header (sun/moon icons)
+  - localStorage persistence
+  - System preference detection
+  - CSS variable-based theming
+- **Files**:
+  - `resources/js/composables/useTheme.js`
+  - `resources/js/Layouts/ClientLayout.vue`
+  - `resources/js/Layouts/AdminLayout.vue`
+  - All Admin pages updated with theme-aware CSS classes
+
+### M10.5.2 ✅ Currency Localization (Bhutanese Ngultrum)
+- **Status**: Complete
+- **Currency**: Nu. (Bhutanese Ngultrum)
+- **Format**: Indian number format (en-IN)
+- **Files Updated**:
+  - Admin/Dashboard.vue
+  - Admin/Clients/Index.vue
+  - Admin/Clients/Show.vue
+  - Admin/Transactions/Index.vue
+  - Client/Billing/Index.vue
+  - Client/Billing/Plans.vue
+  - Client/Billing/Subscribe.vue
+  - Client/Billing/Transactions.vue
+
+### M10.5.3 ✅ Navigation Fixes
+- **Status**: Complete
+- **Issue**: ClientLayout.vue had incorrect navigation paths causing 404 errors
+- **Fix**: Updated navigation array to match actual route definitions:
+  - `/dashboard` → Dashboard
+  - `/widget-settings` → Widget
+  - `/knowledge` → Knowledge Base
+  - `/leads` → Leads
+  - `/analytics` → Analytics
+  - `/billing` → Billing
+
+---
+
 ## Phase 11: Billing
 
+### M11.0 ✅ Free Trial on Registration
+**Status**: Complete
+
+**Implementation**:
+- New users automatically receive a 14-day free trial on registration
+- `trial_ends_at` is set to `now()->addDays(14)` in `RegisterController`
+- Trial status checked via `Tenant::isOnTrial()` method
+- Manual payment/transaction system remains in place (no Stripe)
+
+**Files Modified**:
+- `app/Http/Controllers/Auth/RegisterController.php`
+- `app/Http/Middleware/CheckUsageLimits.php`
+
+**How It Works**:
+1. User registers → tenant created with `trial_ends_at = now + 14 days`
+2. During trial, user can use the platform
+3. After trial expires, user must subscribe to a plan
+4. Current subscription flow: submit payment → admin approval → plan activated
+
+---
+
 ### M11.1 Set Up Stripe Cashier
-**Status**: Pending
+**Status**: Pending (Optional - Manual payment system in use)
 
 **Subtasks**:
 1. Run Cashier migrations

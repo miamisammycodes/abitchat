@@ -32,11 +32,13 @@ class RegisterController extends Controller
         $user = DB::transaction(function () use ($request) {
             $tenant = Tenant::create([
                 'name' => $request->company_name,
+                'trial_ends_at' => now()->addDays(14),
             ]);
 
             Log::debug('[Register] (NO $) Tenant created', [
                 'tenant_id' => $tenant->id,
                 'api_key' => substr($tenant->api_key, 0, 8).'...',
+                'trial_ends_at' => $tenant->trial_ends_at->toDateString(),
             ]);
 
             $user = User::create([
