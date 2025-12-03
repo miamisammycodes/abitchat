@@ -99,19 +99,26 @@ class ChatController extends Controller
      */
     public function sendMessage(Request $request): JsonResponse
     {
-        $request->validate([
+        $validated = $request->validate([
             'api_key' => 'required|string',
             'conversation_id' => 'required|integer',
             'message' => 'required|string|max:2000',
         ]);
 
-        $tenant = Tenant::where('api_key', $request->api_key)->first();
+        /** @var string $apiKey */
+        $apiKey = $validated['api_key'];
+        /** @var int $conversationId */
+        $conversationId = $validated['conversation_id'];
+        /** @var string $message */
+        $message = $validated['message'];
+
+        $tenant = Tenant::where('api_key', $apiKey)->first();
 
         if (! $tenant) {
             return response()->json(['error' => 'Invalid API key'], 401);
         }
 
-        $conversation = Conversation::where('id', $request->conversation_id)
+        $conversation = Conversation::where('id', $conversationId)
             ->where('tenant_id', $tenant->id)
             ->first();
 
@@ -123,19 +130,19 @@ class ChatController extends Controller
         Message::create([
             'conversation_id' => $conversation->id,
             'role' => 'user',
-            'content' => $request->message,
+            'content' => $message,
         ]);
 
         // Extract contact info and capture lead
-        $this->captureLeadFromMessage($conversation, $request->message);
+        $this->captureLeadFromMessage($conversation, $message);
 
         // Retrieve relevant context
-        $context = $this->retrievalService->retrieve($tenant, $request->message);
+        $context = $this->retrievalService->retrieve($tenant, $message);
 
         // Generate AI response
         $response = $this->chatService->generateResponse(
             $conversation,
-            $request->message,
+            $message,
             ['knowledge' => $context]
         );
 
@@ -160,13 +167,20 @@ class ChatController extends Controller
      */
     public function streamMessage(Request $request): StreamedResponse
     {
-        $request->validate([
+        $validated = $request->validate([
             'api_key' => 'required|string',
             'conversation_id' => 'required|integer',
             'message' => 'required|string|max:2000',
         ]);
 
-        $tenant = Tenant::where('api_key', $request->api_key)->first();
+        /** @var string $apiKey */
+        $apiKey = $validated['api_key'];
+        /** @var int $conversationId */
+        $conversationId = $validated['conversation_id'];
+        /** @var string $message */
+        $message = $validated['message'];
+
+        $tenant = Tenant::where('api_key', $apiKey)->first();
 
         if (! $tenant) {
             return response()->stream(function () {
@@ -178,7 +192,7 @@ class ChatController extends Controller
             ]);
         }
 
-        $conversation = Conversation::where('id', $request->conversation_id)
+        $conversation = Conversation::where('id', $conversationId)
             ->where('tenant_id', $tenant->id)
             ->first();
 
@@ -196,20 +210,20 @@ class ChatController extends Controller
         Message::create([
             'conversation_id' => $conversation->id,
             'role' => 'user',
-            'content' => $request->message,
+            'content' => $message,
         ]);
 
         // Extract contact info and capture lead
-        $this->captureLeadFromMessage($conversation, $request->message);
+        $this->captureLeadFromMessage($conversation, $message);
 
         // Retrieve relevant context
-        $context = $this->retrievalService->retrieve($tenant, $request->message);
+        $context = $this->retrievalService->retrieve($tenant, $message);
 
-        return response()->stream(function () use ($conversation, $request, $context) {
+        return response()->stream(function () use ($conversation, $message, $context) {
             $fullResponse = '';
 
-            foreach ($this->chatService->streamResponse($conversation, $request->message, ['knowledge' => $context]) as $chunk) {
-                $fullResponse .= $chunk;
+            foreach ($this->chatService->streamResponse($conversation, $message, ['knowledge' => $context]) as $chunk) {
+                $fullResponse .= (string) $chunk;
                 echo 'data: '.json_encode(['chunk' => $chunk])."\n\n";
                 ob_flush();
                 flush();
@@ -257,9 +271,11 @@ class ChatController extends Controller
             return response()->json(['error' => 'Conversation not found'], 404);
         }
 
+        /** @var array<string, mixed> $existingMetadata */
+        $existingMetadata = $conversation->metadata ?? [];
         $conversation->update([
             'status' => 'closed',
-            'metadata' => array_merge($conversation->metadata ?? [], [
+            'metadata' => array_merge($existingMetadata, [
                 'closed_at' => now()->toIso8601String(),
             ]),
         ]);

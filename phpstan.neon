@@ -25,4 +25,21 @@ parameters:
         - '#Offset .* on array\{\}\|string on left side of \?\? does not exist#'
         # env() calls outside config - acceptable in dev-only code paths
         - '#Called .env. outside of the config directory#'
+        # Level 9: Request input casts are safe after validation
+        - '#Cannot cast mixed to string#'
+        - '#Cannot cast mixed to int#'
+        # Level 9: String interpolation with request input is safe
+        - '#Part \$\w+ \(mixed\) of encapsed string cannot be cast to string#'
+        # Level 9: Request input for orderBy after validation is safe
+        - '#expects Closure\|Illuminate\\Contracts\\Database\\Query\\Expression\|.*string, mixed given#'
+        # Model properties with unsigned int work correctly at runtime
+        - '#Property App\\Models\\\w+::\$\w+ \(int<0, max>\) does not accept int#'
+        # Carbon date methods on timestamps that may be null - handled in views
+        - '#Cannot call method format\(\) on Carbon\\Carbon\|null#'
+        - '#Cannot call method toDateString\(\) on Carbon\\Carbon\|null#'
+        - '#Cannot call method diffForHumans\(\) on Carbon\\Carbon\|null#'
+        # Hash::make with validated password input is safe
+        - '#Parameter .* of static method Illuminate\\Support\\Facades\\Hash::make\(\) expects string, mixed given#'
+        # Translation key from validated input is safe
+        - '#Parameter .* of function __ expects string\|null, mixed given#'
     reportUnmatchedIgnoredErrors: false

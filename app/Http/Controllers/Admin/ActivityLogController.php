@@ -27,11 +27,11 @@ class ActivityLogController extends Controller
         }
 
         // Date range
-        if ($request->has('from')) {
-            $query->whereDate('created_at', '>=', $request->from);
+        if ($request->has('from') && $request->from) {
+            $query->whereDate('created_at', '>=', (string) $request->from);
         }
-        if ($request->has('to')) {
-            $query->whereDate('created_at', '<=', $request->to);
+        if ($request->has('to') && $request->to) {
+            $query->whereDate('created_at', '<=', (string) $request->to);
         }
 
         $logs = $query->latest()->paginate(50)->withQueryString();

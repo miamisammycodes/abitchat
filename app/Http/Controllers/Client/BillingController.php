@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Client;
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
 use App\Models\Transaction;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -18,7 +19,7 @@ class BillingController extends Controller
      */
     public function index(Request $request): Response
     {
-        $tenant = $request->user()->tenant;
+        $tenant = $this->getTenant($request);
         $tenant->load('currentPlan');
 
         return Inertia::render('Client/Billing/Index', [
@@ -39,7 +40,7 @@ class BillingController extends Controller
      */
     public function plans(Request $request): Response
     {
-        $tenant = $request->user()->tenant;
+        $tenant = $this->getTenant($request);
 
         return Inertia::render('Client/Billing/Plans', [
             'plans' => Plan::active()->ordered()->get(),
@@ -52,12 +53,12 @@ class BillingController extends Controller
      */
     public function subscribe(Request $request, Plan $plan): Response
     {
-        $tenant = $request->user()->tenant;
+        $tenant = $this->getTenant($request);
 
         // Check if there's already a pending transaction for this plan
         $pendingTransaction = $tenant->transactions()
             ->where('plan_id', $plan->id)
-            ->pending()
+            ->where('status', 'pending')
             ->first();
 
         return Inertia::render('Client/Billing/Subscribe', [
@@ -69,7 +70,7 @@ class BillingController extends Controller
     /**
      * Submit payment details
      */
-    public function submitPayment(Request $request, Plan $plan)
+    public function submitPayment(Request $request, Plan $plan): RedirectResponse
     {
         $validated = $request->validate([
             'transaction_number' => 'required|string|max:255',
@@ -79,7 +80,7 @@ class BillingController extends Controller
             'notes' => 'nullable|string|max:1000',
         ]);
 
-        $tenant = $request->user()->tenant;
+        $tenant = $this->getTenant($request);
 
         // Check for duplicate transaction number
         $exists = Transaction::where('transaction_number', $validated['transaction_number'])->exists();
@@ -110,7 +111,7 @@ class BillingController extends Controller
      */
     public function transactions(Request $request): Response
     {
-        $tenant = $request->user()->tenant;
+        $tenant = $this->getTenant($request);
 
         return Inertia::render('Client/Billing/Transactions', [
             'transactions' => $tenant->transactions()

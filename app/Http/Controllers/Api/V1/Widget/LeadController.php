@@ -58,14 +58,15 @@ class LeadController extends Controller
 
         if ($existingLead) {
             // Update existing lead with new info
+            /** @var array<string, mixed> $existingCustomFields */
+            $existingCustomFields = $existingLead->custom_fields ?? [];
+            /** @var array<string, mixed> $newCustomFields */
+            $newCustomFields = $request->custom_fields ?? [];
             $existingLead->update([
                 'name' => $request->name ?? $existingLead->name,
                 'phone' => $request->phone ?? $existingLead->phone,
                 'company' => $request->company ?? $existingLead->company,
-                'custom_fields' => array_merge(
-                    $existingLead->custom_fields ?? [],
-                    $request->custom_fields ?? []
-                ),
+                'custom_fields' => array_merge($existingCustomFields, $newCustomFields),
             ]);
 
             // Update conversation reference

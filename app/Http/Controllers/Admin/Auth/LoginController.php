@@ -35,8 +35,8 @@ class LoginController extends Controller
         $admin = Auth::guard('admin')->user();
 
         Log::debug('[AdminAuth] (NO $) Login success', [
-            'admin_id' => $admin->id,
-            'role' => $admin->role,
+            'admin_id' => $admin?->id,
+            'role' => $admin?->role,
         ]);
 
         return redirect()->intended(route('admin.dashboard'));

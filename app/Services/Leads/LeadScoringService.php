@@ -12,6 +12,8 @@ class LeadScoringService
 {
     /**
      * Scoring signals and their point values.
+     *
+     * @var array<string, int>
      */
     private array $signals = [
         'provided_email' => 20,
@@ -28,27 +30,33 @@ class LeadScoringService
 
     /**
      * Keywords that indicate buying intent.
+     *
+     * @var array<int, string>
      */
     private array $pricingKeywords = [
         'price', 'pricing', 'cost', 'quote', 'budget', 'affordable',
         'expensive', 'cheap', 'how much', 'rate', 'fee', 'charge',
     ];
 
+    /** @var array<int, string> */
     private array $demoKeywords = [
         'demo', 'trial', 'try', 'test', 'sample', 'preview',
         'see it', 'show me', 'walkthrough', 'presentation',
     ];
 
+    /** @var array<int, string> */
     private array $timelineKeywords = [
         'urgent', 'asap', 'immediately', 'today', 'this week',
         'deadline', 'soon', 'quickly', 'right away', 'now',
     ];
 
+    /** @var array<int, string> */
     private array $competitorKeywords = [
         'competitor', 'alternative', 'compared to', 'versus',
         'vs', 'switch from', 'migrate', 'currently using',
     ];
 
+    /** @var array<int, string> */
     private array $negativeKeywords = [
         'frustrated', 'angry', 'disappointed', 'terrible', 'awful',
         'hate', 'worst', 'useless', 'waste', 'scam',
@@ -160,6 +168,9 @@ class LeadScoringService
         return $lead;
     }
 
+    /**
+     * @param array<int, string> $keywords
+     */
     private function containsAny(string $text, array $keywords): bool
     {
         foreach ($keywords as $keyword) {

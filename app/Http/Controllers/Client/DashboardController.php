@@ -13,8 +13,7 @@ class DashboardController extends Controller
 {
     public function index(): Response
     {
-        $user = Auth::user();
-        $tenant = $user->tenant;
+        $tenant = $this->getTenant();
 
         return Inertia::render('Client/Dashboard', [
             'tenant' => [

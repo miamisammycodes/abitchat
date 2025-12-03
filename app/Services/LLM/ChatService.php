@@ -31,17 +31,21 @@ class ChatService
         };
 
         $this->model = match ($providerName) {
-            'groq' => env('GROQ_MODEL', 'llama-3.1-8b-instant'),
-            'ollama' => env('OLLAMA_MODEL', 'gemma3:4b'),
+            'groq' => (string) env('GROQ_MODEL', 'llama-3.1-8b-instant'),
+            'ollama' => (string) env('OLLAMA_MODEL', 'gemma3:4b'),
             default => 'gemma3:4b',
         };
     }
 
+    /**
+     * @param array<string, mixed> $context
+     */
     public function generateResponse(
         Conversation $conversation,
         string $userMessage,
         array $context = []
     ): string {
+        /** @var Tenant $tenant */
         $tenant = $conversation->tenant;
 
         Log::debug('[LLM] (IS $) Generating response', [
@@ -84,11 +88,15 @@ class ChatService
         }
     }
 
+    /**
+     * @param array<string, mixed> $context
+     */
     public function streamResponse(
         Conversation $conversation,
         string $userMessage,
         array $context = []
     ): \Generator {
+        /** @var Tenant $tenant */
         $tenant = $conversation->tenant;
         $systemPrompt = $this->buildSystemPrompt($tenant, $context, $conversation);
         $messages = $this->buildMessageHistory($conversation);
@@ -143,6 +151,9 @@ class ChatService
         }
     }
 
+    /**
+     * @param array<string, mixed> $context
+     */
     private function buildSystemPrompt(Tenant $tenant, array $context, ?Conversation $conversation = null): string
     {
         $companyName = $tenant->name;
@@ -214,7 +225,7 @@ STRICT RULES:
 - NEVER use placeholders like [Insert X] or make up data
 PROMPT;
 
-        if (! empty($context['knowledge'])) {
+        if (! empty($context['knowledge']) && is_array($context['knowledge'])) {
             $knowledgeContext = implode("\n\n", $context['knowledge']);
             $basePrompt .= "\n\n## Relevant Information:\n{$knowledgeContext}";
         }
@@ -296,6 +307,9 @@ PROMPT,
         };
     }
 
+    /**
+     * @return array<int, UserMessage|AssistantMessage>
+     */
     private function buildMessageHistory(Conversation $conversation): array
     {
         $messages = $conversation->messages()
@@ -312,25 +326,29 @@ PROMPT,
         })->toArray();
     }
 
-    private function trackUsage(Tenant $tenant, Conversation $conversation, $usage): void
+    private function trackUsage(Tenant $tenant, Conversation $conversation, mixed $usage): void
     {
-        if (! $usage) {
+        if (! $usage || ! is_object($usage)) {
             return;
         }
+
+        $totalTokens = property_exists($usage, 'totalTokens') ? (int) $usage->totalTokens : 0;
+        $promptTokens = property_exists($usage, 'promptTokens') ? (int) $usage->promptTokens : 0;
+        $completionTokens = property_exists($usage, 'completionTokens') ? (int) $usage->completionTokens : 0;
 
         UsageRecord::create([
             'tenant_id' => $tenant->id,
             'type' => 'tokens',
-            'quantity' => $usage->totalTokens ?? 0,
+            'quantity' => $totalTokens,
             'recorded_date' => now()->toDateString(),
         ]);
 
         Log::debug('[Usage] (NO $) Tokens tracked', [
             'tenant_id' => $tenant->id,
             'conversation_id' => $conversation->id,
-            'prompt_tokens' => $usage->promptTokens ?? 0,
-            'completion_tokens' => $usage->completionTokens ?? 0,
-            'total_tokens' => $usage->totalTokens ?? 0,
+            'prompt_tokens' => $promptTokens,
+            'completion_tokens' => $completionTokens,
+            'total_tokens' => $totalTokens,
         ]);
     }
 

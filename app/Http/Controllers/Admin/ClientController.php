@@ -25,7 +25,7 @@ class ClientController extends Controller
 
         // Search
         if ($request->has('search') && $request->search) {
-            $search = $request->search;
+            $search = (string) $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                     ->orWhere('slug', 'like', "%{$search}%");
@@ -43,8 +43,8 @@ class ClientController extends Controller
         }
 
         // Sort
-        $sortField = $request->input('sort', 'created_at');
-        $sortDirection = $request->input('direction', 'desc');
+        $sortField = (string) $request->input('sort', 'created_at');
+        $sortDirection = (string) $request->input('direction', 'desc');
         $allowedSorts = ['name', 'created_at', 'status', 'conversations_count', 'leads_count'];
 
         if (in_array($sortField, $allowedSorts)) {
@@ -159,7 +159,8 @@ class ClientController extends Controller
             'plan_expires_at' => $validated['expires_at'] ?? now()->addMonth(),
         ]);
 
-        $plan = Plan::find($validated['plan_id']);
+        /** @var Plan $plan */
+        $plan = Plan::findOrFail($validated['plan_id']);
 
         return back()->with('success', "Client plan updated to {$plan->name}.");
     }

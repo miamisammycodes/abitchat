@@ -41,9 +41,12 @@ class LeadService
     /**
      * Create a lead from conversation data
      * Always creates a new lead - each inquiry is a separate opportunity
+     *
+     * @param array<string, mixed> $contactInfo
      */
     public function captureFromConversation(Conversation $conversation, array $contactInfo = []): ?Lead
     {
+        /** @var Tenant $tenant */
         $tenant = $conversation->tenant;
 
         // Check if we have enough info to create a lead
@@ -66,6 +69,8 @@ class LeadService
 
     /**
      * Find existing lead by email or phone
+     *
+     * @param array<string, mixed> $contactInfo
      */
     private function findExistingLead(Tenant $tenant, array $contactInfo): ?Lead
     {
@@ -84,6 +89,8 @@ class LeadService
 
     /**
      * Create a new lead
+     *
+     * @param array<string, mixed> $contactInfo
      */
     private function createLead(Tenant $tenant, Conversation $conversation, array $contactInfo): Lead
     {
@@ -123,6 +130,8 @@ class LeadService
 
     /**
      * Update existing lead with new info
+     *
+     * @param array<string, mixed> $contactInfo
      */
     private function updateLead(Lead $lead, Conversation $conversation, array $contactInfo): Lead
     {
@@ -154,11 +163,15 @@ class LeadService
             $conversation->update(['lead_id' => $lead->id]);
         }
 
-        return $lead->fresh();
+        $lead->refresh();
+
+        return $lead;
     }
 
     /**
      * Calculate initial score for new lead
+     *
+     * @param array<string, mixed> $contactInfo
      */
     private function calculateInitialScore(Conversation $conversation, array $contactInfo): int
     {
@@ -190,6 +203,8 @@ class LeadService
 
     /**
      * Calculate updated score for existing lead
+     *
+     * @param array<string, mixed> $contactInfo
      */
     private function calculateScore(Lead $lead, Conversation $conversation, array $contactInfo): int
     {
@@ -247,6 +262,8 @@ class LeadService
 
     /**
      * Extract contact information from message content
+     *
+     * @return array<string, string|null>
      */
     public function extractContactInfo(string $content): array
     {
@@ -279,7 +296,7 @@ class LeadService
         ];
         foreach ($phonePatterns as $pattern) {
             if (preg_match($pattern, $content, $matches)) {
-                $info['phone'] = preg_replace('/[^\d+]/', '', $matches[0]);
+                $info['phone'] = preg_replace('/[^\d+]/', '', $matches[0]) ?? '';
                 break;
             }
         }
@@ -294,6 +311,9 @@ class LeadService
     {
         try {
             $tenant = $lead->tenant;
+            if (! $tenant) {
+                return;
+            }
 
             // Get tenant users to notify
             $users = $tenant->users()->get();
@@ -321,26 +341,33 @@ class LeadService
     {
         $newScore = min(100, max(0, $lead->score + $adjustment));
 
+        /** @var array<string, mixed> $metadata */
         $metadata = $lead->metadata ?? [];
-        $metadata['score_adjustments'] = $metadata['score_adjustments'] ?? [];
-        $metadata['score_adjustments'][] = [
+        /** @var array<int, array<string, mixed>> $scoreAdjustments */
+        $scoreAdjustments = $metadata['score_adjustments'] ?? [];
+        $scoreAdjustments[] = [
             'from' => $lead->score,
             'to' => $newScore,
             'adjustment' => $adjustment,
             'reason' => $reason,
             'at' => now()->toIso8601String(),
         ];
+        $metadata['score_adjustments'] = $scoreAdjustments;
 
         $lead->update([
             'score' => $newScore,
             'metadata' => $metadata,
         ]);
 
-        return $lead->fresh();
+        $lead->refresh();
+
+        return $lead;
     }
 
     /**
      * Get lead statistics for a tenant
+     *
+     * @return array<string, int|float>
      */
     public function getStats(Tenant $tenant): array
     {
@@ -353,7 +380,7 @@ class LeadService
             'qualified' => (clone $leads)->where('status', 'qualified')->count(),
             'converted' => (clone $leads)->where('status', 'converted')->count(),
             'lost' => (clone $leads)->where('status', 'lost')->count(),
-            'average_score' => (clone $leads)->avg('score') ?? 0,
+            'average_score' => (float) ((clone $leads)->avg('score') ?? 0),
             'high_quality' => (clone $leads)->where('score', '>=', 70)->count(),
         ];
     }

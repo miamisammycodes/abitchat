@@ -18,7 +18,7 @@ class AnalyticsController extends Controller
 
     public function index(Request $request): Response
     {
-        $tenant = $request->user()->tenant;
+        $tenant = $this->getTenant($request);
         $days = (int) $request->input('days', 30);
 
         return Inertia::render('Client/Analytics/Index', [

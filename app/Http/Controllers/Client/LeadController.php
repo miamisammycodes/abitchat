@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Client;
 use App\Http\Controllers\Controller;
 use App\Models\Lead;
 use App\Services\Leads\LeadService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
@@ -20,7 +21,7 @@ class LeadController extends Controller
 
     public function index(Request $request): InertiaResponse
     {
-        $tenant = $request->user()->tenant;
+        $tenant = $this->getTenant($request);
 
         $query = Lead::where('tenant_id', $tenant->id)
             ->with(['conversation' => fn ($q) => $q->withCount('messages')]);
@@ -76,7 +77,7 @@ class LeadController extends Controller
 
     public function show(Request $request, Lead $lead): InertiaResponse
     {
-        $tenant = $request->user()->tenant;
+        $tenant = $this->getTenant($request);
 
         // Ensure lead belongs to tenant
         if ($lead->tenant_id !== $tenant->id) {
@@ -93,9 +94,9 @@ class LeadController extends Controller
         ]);
     }
 
-    public function update(Request $request, Lead $lead)
+    public function update(Request $request, Lead $lead): RedirectResponse
     {
-        $tenant = $request->user()->tenant;
+        $tenant = $this->getTenant($request);
 
         if ($lead->tenant_id !== $tenant->id) {
             abort(404);
@@ -129,9 +130,9 @@ class LeadController extends Controller
         return back()->with('success', 'Lead updated successfully.');
     }
 
-    public function destroy(Request $request, Lead $lead)
+    public function destroy(Request $request, Lead $lead): RedirectResponse
     {
-        $tenant = $request->user()->tenant;
+        $tenant = $this->getTenant($request);
 
         if ($lead->tenant_id !== $tenant->id) {
             abort(404);
@@ -145,7 +146,7 @@ class LeadController extends Controller
 
     public function exportSingle(Request $request, Lead $lead): StreamedResponse
     {
-        $tenant = $request->user()->tenant;
+        $tenant = $this->getTenant($request);
 
         if ($lead->tenant_id !== $tenant->id) {
             abort(404);
@@ -160,6 +161,9 @@ class LeadController extends Controller
 
         $callback = function () use ($lead) {
             $file = fopen('php://output', 'w');
+            if ($file === false) {
+                return;
+            }
 
             // Lead Info Section
             fputcsv($file, ['LEAD INFORMATION']);
@@ -197,7 +201,7 @@ class LeadController extends Controller
 
     public function export(Request $request): StreamedResponse
     {
-        $tenant = $request->user()->tenant;
+        $tenant = $this->getTenant($request);
 
         $query = Lead::where('tenant_id', $tenant->id);
 
@@ -215,6 +219,9 @@ class LeadController extends Controller
 
         $callback = function () use ($leads) {
             $file = fopen('php://output', 'w');
+            if ($file === false) {
+                return;
+            }
 
             // Header row
             fputcsv($file, [

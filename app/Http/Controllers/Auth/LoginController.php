@@ -35,8 +35,8 @@ class LoginController extends Controller
         $user = Auth::user();
 
         Log::debug('[Auth] (NO $) Login success', [
-            'user_id' => $user->id,
-            'tenant_id' => $user->tenant_id,
+            'user_id' => $user?->id,
+            'tenant_id' => $user instanceof \App\Models\User ? $user->tenant_id : null,
         ]);
 
         return redirect()->intended(route('dashboard'));

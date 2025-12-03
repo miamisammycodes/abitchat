@@ -13,7 +13,7 @@ class WidgetController extends Controller
 {
     public function index(Request $request): Response
     {
-        $tenant = $request->user()->tenant;
+        $tenant = $this->getTenant($request);
 
         return Inertia::render('Client/Widget/Index', [
             'tenant' => [
@@ -36,7 +36,7 @@ class WidgetController extends Controller
             'offline_message' => 'nullable|string|max:500',
         ]);
 
-        $tenant = $request->user()->tenant;
+        $tenant = $this->getTenant($request);
 
         $settings = $tenant->settings ?? [];
         $settings = array_merge($settings, $validated);
@@ -48,7 +48,7 @@ class WidgetController extends Controller
 
     public function regenerateApiKey(Request $request)
     {
-        $tenant = $request->user()->tenant;
+        $tenant = $this->getTenant($request);
         $tenant->update([
             'api_key' => bin2hex(random_bytes(32)),
         ]);

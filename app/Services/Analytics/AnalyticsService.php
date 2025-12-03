@@ -16,6 +16,8 @@ class AnalyticsService
 {
     /**
      * Get overview stats for the dashboard
+     *
+     * @return array<string, int|float>
      */
     public function getOverviewStats(Tenant $tenant, int $days = 30): array
     {
@@ -64,6 +66,8 @@ class AnalyticsService
 
     /**
      * Get conversations over time
+     *
+     * @return array<int, array<string, mixed>>
      */
     public function getConversationsOverTime(Tenant $tenant, int $days = 30): array
     {
@@ -92,6 +96,8 @@ class AnalyticsService
 
     /**
      * Get leads over time
+     *
+     * @return array<int, array<string, mixed>>
      */
     public function getLeadsOverTime(Tenant $tenant, int $days = 30): array
     {
@@ -120,6 +126,8 @@ class AnalyticsService
 
     /**
      * Get token usage over time
+     *
+     * @return array<int, array<string, mixed>>
      */
     public function getTokenUsageOverTime(Tenant $tenant, int $days = 30): array
     {
@@ -149,6 +157,8 @@ class AnalyticsService
 
     /**
      * Get lead score distribution
+     *
+     * @return array<string, int>
      */
     public function getLeadScoreDistribution(Tenant $tenant): array
     {
@@ -165,6 +175,8 @@ class AnalyticsService
 
     /**
      * Get lead status distribution
+     *
+     * @return array<string, int>
      */
     public function getLeadStatusDistribution(Tenant $tenant): array
     {
@@ -177,6 +189,8 @@ class AnalyticsService
 
     /**
      * Get top questions (most common user messages)
+     *
+     * @return array<int, array<string, mixed>>
      */
     public function getTopQuestions(Tenant $tenant, int $limit = 10): array
     {
@@ -197,6 +211,8 @@ class AnalyticsService
 
     /**
      * Get conversations by hour (peak times)
+     *
+     * @return array<int, array<string, mixed>>
      */
     public function getConversationsByHour(Tenant $tenant, int $days = 30): array
     {
@@ -230,6 +246,8 @@ class AnalyticsService
 
     /**
      * Get recent activity feed
+     *
+     * @return array<int, array<string, mixed>>
      */
     public function getRecentActivity(Tenant $tenant, int $limit = 10): array
     {

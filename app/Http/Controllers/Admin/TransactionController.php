@@ -25,7 +25,7 @@ class TransactionController extends Controller
 
         // Search by tenant name or transaction number
         if ($request->has('search') && $request->search) {
-            $search = $request->search;
+            $search = (string) $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('transaction_number', 'like', "%{$search}%")
                     ->orWhereHas('tenant', function ($tq) use ($search) {
@@ -35,8 +35,8 @@ class TransactionController extends Controller
         }
 
         // Sort
-        $sortField = $request->input('sort', 'created_at');
-        $sortDirection = $request->input('direction', 'desc');
+        $sortField = (string) $request->input('sort', 'created_at');
+        $sortDirection = (string) $request->input('direction', 'desc');
 
         $query->orderBy($sortField, $sortDirection);
 
@@ -86,13 +86,13 @@ class TransactionController extends Controller
         $transaction->update([
             'status' => 'approved',
             'admin_notes' => $validated['admin_notes'] ?? null,
-            'approved_by' => $admin->id,
+            'approved_by' => $admin?->id,
             'approved_at' => now(),
         ]);
 
         // Activate the plan for the tenant
         $tenant = $transaction->tenant;
-        $tenant->update([
+        $tenant?->update([
             'plan_id' => $transaction->plan_id,
             'plan_expires_at' => now()->addMonth(), // Or based on plan billing period
         ]);
@@ -115,7 +115,7 @@ class TransactionController extends Controller
         $transaction->update([
             'status' => 'rejected',
             'admin_notes' => $validated['admin_notes'],
-            'approved_by' => $admin->id,
+            'approved_by' => $admin?->id,
             'approved_at' => now(),
         ]);
 

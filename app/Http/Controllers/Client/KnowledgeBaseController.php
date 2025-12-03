@@ -19,7 +19,7 @@ class KnowledgeBaseController extends Controller
 {
     public function index(): Response
     {
-        $tenant = Auth::user()->tenant;
+        $tenant = $this->getTenant();
 
         $items = KnowledgeItem::where('tenant_id', $tenant->id)
             ->orderBy('created_at', 'desc')
@@ -59,7 +59,7 @@ class KnowledgeBaseController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $tenant = Auth::user()->tenant;
+        $tenant = $this->getTenant();
 
         $validated = $request->validate([
             'type' => 'required|in:document,faq,webpage,text',
@@ -83,7 +83,7 @@ class KnowledgeBaseController extends Controller
         if ($validated['type'] === 'document' && $request->hasFile('file')) {
             $file = $request->file('file');
             $path = $file->store("knowledge/{$tenant->id}", 'local');
-            $item->file_path = $path;
+            $item->file_path = $path ?: null;
             $item->metadata = [
                 'original_name' => $file->getClientOriginalName(),
                 'mime_type' => $file->getMimeType(),
@@ -206,7 +206,7 @@ class KnowledgeBaseController extends Controller
 
     private function authorizeItem(KnowledgeItem $item): void
     {
-        $tenant = Auth::user()->tenant;
+        $tenant = $this->getTenant();
 
         if ($item->tenant_id !== $tenant->id) {
             abort(403, 'Unauthorized');
