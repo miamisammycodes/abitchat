@@ -224,7 +224,7 @@ class ChatController extends Controller
         // Retrieve relevant context
         $context = $this->retrievalService->retrieve($tenant, $message);
 
-        return response()->stream(function () use ($conversation, $message, $context) {
+        return response()->stream(function () use ($tenant, $conversation, $message, $context) {
             $fullResponse = '';
 
             foreach ($this->chatService->streamResponse($conversation, $message, ['knowledge' => $context]) as $chunk) {

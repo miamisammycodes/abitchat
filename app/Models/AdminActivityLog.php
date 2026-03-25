@@ -26,11 +26,13 @@ class AdminActivityLog extends Model
         'details' => 'array',
     ];
 
+    /** @return BelongsTo<AdminUser, $this> */
     public function admin(): BelongsTo
     {
         return $this->belongsTo(AdminUser::class, 'admin_user_id');
     }
 
+    /** @return MorphTo<Model, $this> */
     public function target(): MorphTo
     {
         return $this->morphTo();
@@ -38,6 +40,8 @@ class AdminActivityLog extends Model
 
     /**
      * Log an admin activity
+     *
+     * @param array<string, mixed> $details
      */
     public static function log(
         string $actionType,

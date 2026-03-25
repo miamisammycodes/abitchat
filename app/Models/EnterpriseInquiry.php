@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -24,24 +25,28 @@ class EnterpriseInquiry extends Model
         'updated_at' => 'datetime',
     ];
 
+    /** @return BelongsTo<Tenant, $this> */
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
     }
 
-    public function scopePending($query)
+    /** @param Builder<self> $query */
+    public function scopePending(Builder $query): void
     {
-        return $query->where('status', 'pending');
+        $query->where('status', 'pending');
     }
 
-    public function scopeContacted($query)
+    /** @param Builder<self> $query */
+    public function scopeContacted(Builder $query): void
     {
-        return $query->where('status', 'contacted');
+        $query->where('status', 'contacted');
     }
 
-    public function scopeClosed($query)
+    /** @param Builder<self> $query */
+    public function scopeClosed(Builder $query): void
     {
-        return $query->where('status', 'closed');
+        $query->where('status', 'closed');
     }
 
     public function isPending(): bool

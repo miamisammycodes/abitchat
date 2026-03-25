@@ -58,36 +58,43 @@ class Tenant extends BaseTenant
         });
     }
 
+    /** @return HasMany<User, $this> */
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
     }
 
+    /** @return HasMany<Conversation, $this> */
     public function conversations(): HasMany
     {
         return $this->hasMany(Conversation::class);
     }
 
+    /** @return HasMany<Lead, $this> */
     public function leads(): HasMany
     {
         return $this->hasMany(Lead::class);
     }
 
+    /** @return HasMany<KnowledgeItem, $this> */
     public function knowledgeItems(): HasMany
     {
         return $this->hasMany(KnowledgeItem::class);
     }
 
+    /** @return HasMany<UsageRecord, $this> */
     public function usageRecords(): HasMany
     {
         return $this->hasMany(UsageRecord::class);
     }
 
+    /** @return BelongsTo<Plan, $this> */
     public function currentPlan(): BelongsTo
     {
         return $this->belongsTo(Plan::class, 'plan_id');
     }
 
+    /** @return HasMany<Transaction, $this> */
     public function transactions(): HasMany
     {
         return $this->hasMany(Transaction::class);
@@ -156,6 +163,8 @@ class Tenant extends BaseTenant
 
     /**
      * Get current usage stats
+     *
+     * @return array<string, array<string, int>>
      */
     public function getUsageStats(): array
     {

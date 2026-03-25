@@ -25,7 +25,7 @@ class EnterpriseInquiryController extends Controller
         $tenant = $this->getTenant($request);
 
         $inquiry = EnterpriseInquiry::create([
-            'tenant_id' => $tenant?->id,
+            'tenant_id' => $tenant->id,
             'name' => $validated['name'],
             'email' => $validated['email'],
             'company' => $validated['company'] ?? null,

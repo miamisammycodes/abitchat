@@ -4,14 +4,11 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class KnowledgeChunk extends Model
 {
-    use HasFactory;
-
     protected $fillable = [
         'knowledge_item_id',
         'content',
@@ -21,6 +18,7 @@ class KnowledgeChunk extends Model
         'metadata',
     ];
 
+    /** @return array<string, string> */
     protected function casts(): array
     {
         return [
@@ -30,6 +28,7 @@ class KnowledgeChunk extends Model
         ];
     }
 
+    /** @return BelongsTo<KnowledgeItem, $this> */
     public function knowledgeItem(): BelongsTo
     {
         return $this->belongsTo(KnowledgeItem::class);

@@ -77,11 +77,13 @@ class TextChunker
         }));
     }
 
+    /** @return array<int, string> */
     private function splitByParagraphs(string $text): array
     {
         return preg_split('/\n\s*\n/', $text);
     }
 
+    /** @return array<int, string> */
     private function splitLargeParagraph(string $paragraph): array
     {
         // Split by sentences

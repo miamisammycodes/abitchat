@@ -194,19 +194,24 @@ class AnalyticsService
      */
     public function getTopQuestions(Tenant $tenant, int $limit = 10): array
     {
-        return Message::whereHas('conversation', fn ($q) => $q->where('tenant_id', $tenant->id))
+        $messages = Message::whereHas('conversation', fn ($q) => $q->where('tenant_id', $tenant->id))
             ->where('role', 'user')
             ->where('created_at', '>=', now()->subDays(30))
             ->selectRaw('content, COUNT(*) as count')
             ->groupBy('content')
             ->orderByDesc('count')
             ->limit($limit)
-            ->get()
-            ->map(fn ($m) => [
+            ->get();
+
+        $result = [];
+        foreach ($messages as $m) {
+            $result[] = [
                 'question' => strlen($m->content) > 100 ? substr($m->content, 0, 100).'...' : $m->content,
                 'count' => $m->count,
-            ])
-            ->toArray();
+            ];
+        }
+
+        return $result;
     }
 
     /**

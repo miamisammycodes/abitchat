@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -26,7 +27,7 @@ class WidgetController extends Controller
         ]);
     }
 
-    public function update(Request $request)
+    public function update(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'welcome_message' => 'nullable|string|max:500',
@@ -46,7 +47,7 @@ class WidgetController extends Controller
         return back()->with('success', 'Widget settings updated successfully.');
     }
 
-    public function regenerateApiKey(Request $request)
+    public function regenerateApiKey(Request $request): RedirectResponse
     {
         $tenant = $this->getTenant($request);
         $tenant->update([

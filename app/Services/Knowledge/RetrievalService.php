@@ -96,6 +96,7 @@ class RetrievalService
         return $chunks->pluck('content')->toArray();
     }
 
+    /** @return array<int, string> */
     private function extractKeywords(string $text): array
     {
         // Remove common stop words and extract significant words

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -39,24 +40,28 @@ class Plan extends Model
         'sort_order' => 'integer',
     ];
 
+    /** @return HasMany<Tenant, $this> */
     public function tenants(): HasMany
     {
         return $this->hasMany(Tenant::class);
     }
 
+    /** @return HasMany<Transaction, $this> */
     public function transactions(): HasMany
     {
         return $this->hasMany(Transaction::class);
     }
 
-    public function scopeActive($query)
+    /** @param Builder<self> $query */
+    public function scopeActive(Builder $query): void
     {
-        return $query->where('is_active', true);
+        $query->where('is_active', true);
     }
 
-    public function scopeOrdered($query)
+    /** @param Builder<self> $query */
+    public function scopeOrdered(Builder $query): void
     {
-        return $query->orderBy('sort_order')->orderBy('price');
+        $query->orderBy('sort_order')->orderBy('price');
     }
 
     /**
@@ -80,6 +85,6 @@ class Plan extends Model
             return 'Free';
         }
 
-        return 'Nu. '.number_format($this->price, 0).'/'.$this->billing_period;
+        return 'Nu. '.number_format((float) $this->price, 0).'/'.$this->billing_period;
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -30,34 +31,40 @@ class Transaction extends Model
         'approved_at' => 'datetime',
     ];
 
+    /** @return BelongsTo<Tenant, $this> */
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
     }
 
+    /** @return BelongsTo<Plan, $this> */
     public function plan(): BelongsTo
     {
         return $this->belongsTo(Plan::class);
     }
 
+    /** @return BelongsTo<User, $this> */
     public function approvedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
     }
 
-    public function scopePending($query)
+    /** @param Builder<self> $query */
+    public function scopePending(Builder $query): void
     {
-        return $query->where('status', 'pending');
+        $query->where('status', 'pending');
     }
 
-    public function scopeApproved($query)
+    /** @param Builder<self> $query */
+    public function scopeApproved(Builder $query): void
     {
-        return $query->where('status', 'approved');
+        $query->where('status', 'approved');
     }
 
-    public function scopeRejected($query)
+    /** @param Builder<self> $query */
+    public function scopeRejected(Builder $query): void
     {
-        return $query->where('status', 'rejected');
+        $query->where('status', 'rejected');
     }
 
     public function isPending(): bool

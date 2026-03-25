@@ -54,6 +54,9 @@ class EmbeddingService
 
     /**
      * Calculate cosine similarity between two embeddings.
+     *
+     * @param array<int, float> $a
+     * @param array<int, float> $b
      */
     public function cosineSimilarity(array $a, array $b): float
     {
@@ -84,7 +87,8 @@ class EmbeddingService
     /**
      * Find similar chunks based on embedding similarity.
      *
-     * @return array<array{chunk_id: int, content: string, similarity: float}>
+     * @param array<int, array<string, mixed>> $chunks
+     * @return array<int, array{chunk_id: int, content: string, similarity: float}>
      */
     public function findSimilar(string $queryText, array $chunks, int $limit = 5): array
     {

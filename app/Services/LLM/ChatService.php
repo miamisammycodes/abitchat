@@ -74,7 +74,7 @@ class ChatService
 
             Log::debug('[LLM] (IS $) Response generated', [
                 'conversation_id' => $conversation->id,
-                'tokens' => $response->usage?->totalTokens ?? 0,
+                'tokens' => $response->usage->promptTokens + $response->usage->completionTokens,
             ]);
 
             return $response->text;
