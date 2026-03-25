@@ -20,6 +20,7 @@ class WidgetApiTest extends TestCase
             'name' => 'Widget Test Company',
             'slug' => 'widget-test',
             'status' => 'active',
+            'trial_ends_at' => now()->addDays(14),
         ]);
 
         // Tenant creates api_key automatically via boot method
@@ -71,8 +72,9 @@ class WidgetApiTest extends TestCase
     {
         $response = $this->postJson('/api/v1/widget/conversation', []);
 
-        $response->assertStatus(422);
-        $response->assertJsonValidationErrors('api_key');
+        // Middleware now rejects requests without api_key before validation
+        $response->assertStatus(401);
+        $response->assertJson(['code' => 'NO_TENANT']);
     }
 
     public function test_start_conversation_creates_new_conversation(): void

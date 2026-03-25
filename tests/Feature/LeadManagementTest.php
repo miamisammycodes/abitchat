@@ -78,7 +78,7 @@ class LeadManagementTest extends TestCase
 
         $response = $this->get("/leads/{$otherLead->id}");
 
-        $response->assertStatus(404);
+        $response->assertStatus(403);
     }
 
     public function test_user_can_update_lead_status(): void
@@ -191,7 +191,7 @@ class LeadManagementTest extends TestCase
 
         $response = $this->delete("/leads/{$otherLead->id}");
 
-        $response->assertStatus(404);
+        $response->assertStatus(403);
 
         // Lead should still exist
         $this->assertDatabaseHas('leads', [
