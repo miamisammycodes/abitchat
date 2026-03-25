@@ -38,7 +38,7 @@ class ChatController extends Controller
         $tenant = $this->findTenantByApiKey($request->api_key);
 
         if (! $tenant) {
-            return response()->json(['error' => 'Invalid API key'], 401);
+            return $this->errorResponse('Invalid API key', 'TENANT_NOT_FOUND', 401);
         }
 
         Log::debug('[Widget] (NO $) Initialized', [
@@ -68,9 +68,10 @@ class ChatController extends Controller
         $tenant = $this->findTenantByApiKey($request->api_key);
 
         if (! $tenant) {
-            return response()->json(['error' => 'Invalid API key'], 401);
+            return $this->errorResponse('Invalid API key', 'TENANT_NOT_FOUND', 401);
         }
 
+        try {
         $sessionId = $request->session_id ?? Str::uuid()->toString();
 
         $conversation = Conversation::create([
@@ -95,6 +96,10 @@ class ChatController extends Controller
             'conversation_id' => $conversation->id,
             'session_id' => $conversation->session_id,
         ]);
+        } catch (\Exception $e) {
+            Log::error('[Widget] Failed to start conversation', ['error' => $e->getMessage()]);
+            return $this->errorResponse('Failed to start conversation', 'CONVERSATION_ERROR', 500);
+        }
     }
 
     /**
@@ -118,15 +123,16 @@ class ChatController extends Controller
         $tenant = $this->findTenantByApiKey($apiKey);
 
         if (! $tenant) {
-            return response()->json(['error' => 'Invalid API key'], 401);
+            return $this->errorResponse('Invalid API key', 'TENANT_NOT_FOUND', 401);
         }
 
+        try {
         $conversation = Conversation::where('id', $conversationId)
             ->where('tenant_id', $tenant->id)
             ->first();
 
         if (! $conversation) {
-            return response()->json(['error' => 'Conversation not found'], 404);
+            return $this->errorResponse('Conversation not found', 'CONVERSATION_NOT_FOUND', 404);
         }
 
         // Store user message
@@ -165,12 +171,16 @@ class ChatController extends Controller
         return response()->json([
             'response' => $response,
         ]);
+        } catch (\Exception $e) {
+            Log::error('[Widget] Failed to send message', ['error' => $e->getMessage()]);
+            return $this->errorResponse('Failed to process message', 'MESSAGE_ERROR', 500);
+        }
     }
 
     /**
      * Stream a message response using SSE.
      */
-    public function streamMessage(Request $request): StreamedResponse
+    public function streamMessage(Request $request): JsonResponse|StreamedResponse
     {
         $validated = $request->validate([
             'api_key' => 'required|string',
@@ -188,13 +198,7 @@ class ChatController extends Controller
         $tenant = $this->findTenantByApiKey($apiKey);
 
         if (! $tenant) {
-            return response()->stream(function () {
-                echo 'data: '.json_encode(['error' => 'Invalid API key'])."\n\n";
-            }, 401, [
-                'Content-Type' => 'text/event-stream',
-                'Cache-Control' => 'no-cache',
-                'X-Accel-Buffering' => 'no',
-            ]);
+            return $this->errorResponse('Invalid API key', 'TENANT_NOT_FOUND', 401);
         }
 
         $conversation = Conversation::where('id', $conversationId)
@@ -202,13 +206,7 @@ class ChatController extends Controller
             ->first();
 
         if (! $conversation) {
-            return response()->stream(function () {
-                echo 'data: '.json_encode(['error' => 'Conversation not found'])."\n\n";
-            }, 404, [
-                'Content-Type' => 'text/event-stream',
-                'Cache-Control' => 'no-cache',
-                'X-Accel-Buffering' => 'no',
-            ]);
+            return $this->errorResponse('Conversation not found', 'CONVERSATION_NOT_FOUND', 404);
         }
 
         // Store user message
@@ -268,7 +266,7 @@ class ChatController extends Controller
         $tenant = $this->findTenantByApiKey($request->api_key);
 
         if (! $tenant) {
-            return response()->json(['error' => 'Invalid API key'], 401);
+            return $this->errorResponse('Invalid API key', 'TENANT_NOT_FOUND', 401);
         }
 
         $conversation = Conversation::where('id', $request->conversation_id)
@@ -276,7 +274,7 @@ class ChatController extends Controller
             ->first();
 
         if (! $conversation) {
-            return response()->json(['error' => 'Conversation not found'], 404);
+            return $this->errorResponse('Conversation not found', 'CONVERSATION_NOT_FOUND', 404);
         }
 
         /** @var array<string, mixed> $existingMetadata */
@@ -293,6 +291,17 @@ class ChatController extends Controller
         ]);
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * Return a standardized error JSON response.
+     */
+    private function errorResponse(string $message, string $code, int $status = 400): JsonResponse
+    {
+        return response()->json([
+            'error' => $message,
+            'code' => $code,
+        ], $status);
     }
 
     /**
