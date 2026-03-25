@@ -42,10 +42,12 @@
         state: {
             isOpen: false,
             isLoading: false,
+            sending: false,
             conversationId: null,
             sessionId: null,
             messages: [],
         },
+        container: null,
         elements: {},
 
         init: function(options) {
@@ -340,6 +342,25 @@
                     text-decoration: none;
                 }
 
+                .chatbot-reconnecting {
+                    text-align: center;
+                    padding: 4px 8px;
+                    font-size: 12px;
+                    color: #f59e0b;
+                    background: #fef3c7;
+                    border-radius: 4px;
+                    margin: 4px 12px;
+                }
+                .chatbot-offline-banner {
+                    text-align: center;
+                    padding: 6px 8px;
+                    font-size: 12px;
+                    color: #ef4444;
+                    background: #fef2f2;
+                    border-radius: 4px;
+                    margin: 4px 12px;
+                }
+
                 @media (max-width: 480px) {
                     .chatbot-container {
                         width: calc(100% - 20px);
@@ -412,6 +433,7 @@
                 <div class="chatbot-powered">Powered by <a href="https://abit.bt" target="_blank" rel="noopener">aBit Soft</a></div>
             `;
             this.elements.container = container;
+            this.container = container;
             this.elements.messages = container.querySelector('.chatbot-messages');
             this.elements.form = container.querySelector('.chatbot-input-form');
             this.elements.input = container.querySelector('.chatbot-input');
@@ -430,6 +452,11 @@
         },
 
         async initializeWidget() {
+            // Offline detection
+            window.addEventListener('offline', () => this.setOfflineState(true));
+            window.addEventListener('online', () => this.setOfflineState(false));
+            if (!navigator.onLine) this.setOfflineState(true);
+
             try {
                 const response = await this.apiCall('/api/v1/widget/init', {
                     method: 'POST',
@@ -494,8 +521,10 @@
 
         async sendMessage() {
             const message = this.elements.input.value.trim();
-            if (!message || this.state.isLoading) return;
+            if (!message || this.state.isLoading || this.state.sending) return;
 
+            this.state.sending = true;
+            const savedMessage = message;
             this.elements.input.value = '';
             this.addMessage(message, 'user');
             this.setLoading(true);
@@ -516,8 +545,10 @@
             } catch (error) {
                 console.error('[Chatbot] Failed to send message:', error);
                 this.hideTypingIndicator();
-                this.addMessage('Sorry, I couldn\'t process your message. Please try again.', 'bot');
+                this.elements.input.value = savedMessage;
+                this.addMessage('Sorry, I couldn\'t send your message. Please try again.', 'bot');
             } finally {
+                this.state.sending = false;
                 this.setLoading(false);
                 this.elements.input.focus();
             }
@@ -619,20 +650,98 @@
 
         async apiCall(endpoint, options = {}) {
             const url = this.config.baseUrl + endpoint;
-            const response = await fetch(url, {
-                ...options,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    ...options.headers
-                }
-            });
+            const timeout = options.timeout || 75000;
+            const maxRetries = options.retries ?? 2;
+            let lastError;
 
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
+            for (let attempt = 0; attempt <= maxRetries; attempt++) {
+                if (attempt > 0) {
+                    this.showReconnecting(true);
+                    const delay = attempt === 1 ? 1000 : 3000;
+                    await new Promise(r => setTimeout(r, delay));
+                }
+
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+                try {
+                    const response = await fetch(url, {
+                        ...options,
+                        signal: controller.signal,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            ...options.headers
+                        }
+                    });
+
+                    clearTimeout(timeoutId);
+                    this.showReconnecting(false);
+
+                    if (!response.ok) {
+                        if (response.status >= 400 && response.status < 500) {
+                            const body = await response.json().catch(() => ({}));
+                            throw new Error(body.error || `HTTP ${response.status}`);
+                        }
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+
+                    return response.json();
+                } catch (err) {
+                    clearTimeout(timeoutId);
+                    lastError = err;
+
+                    if (err.name === 'AbortError') {
+                        lastError = new Error('Request timed out');
+                        break;
+                    }
+                    if (err.message && err.message.startsWith('HTTP 4')) {
+                        break;
+                    }
+                }
             }
 
-            return response.json();
+            this.showReconnecting(false);
+            throw lastError;
+        },
+
+        showReconnecting(show) {
+            let indicator = this.container?.querySelector('.chatbot-reconnecting');
+            if (show && !indicator) {
+                indicator = document.createElement('div');
+                indicator.className = 'chatbot-reconnecting';
+                indicator.textContent = 'Reconnecting...';
+                const messagesContainer = this.container?.querySelector('.chatbot-messages');
+                if (messagesContainer) {
+                    messagesContainer.parentNode.insertBefore(indicator, messagesContainer.nextSibling);
+                }
+            } else if (!show && indicator) {
+                indicator.remove();
+            }
+        },
+
+        setOfflineState(offline) {
+            const input = this.container?.querySelector('.chatbot-input');
+            const sendBtn = this.container?.querySelector('.chatbot-send-btn');
+            let banner = this.container?.querySelector('.chatbot-offline-banner');
+
+            if (offline) {
+                if (input) input.disabled = true;
+                if (sendBtn) sendBtn.disabled = true;
+                if (!banner) {
+                    banner = document.createElement('div');
+                    banner.className = 'chatbot-offline-banner';
+                    banner.textContent = "You're offline";
+                    const messagesContainer = this.container?.querySelector('.chatbot-messages');
+                    if (messagesContainer) {
+                        messagesContainer.parentNode.insertBefore(banner, messagesContainer.nextSibling);
+                    }
+                }
+            } else {
+                if (input) input.disabled = false;
+                if (sendBtn) sendBtn.disabled = false;
+                if (banner) banner.remove();
+            }
         }
     };
 
