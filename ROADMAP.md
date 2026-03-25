@@ -1368,7 +1368,7 @@ Log::debug('[Dashboard] (NO $) Loading stats', ['tenant_id' => $tenant->id]);
 
 ---
 
-## Phase 11: Billing
+## Phase 11: Billing (COMPLETE)
 
 ### M11.0 ✅ Free Trial on Registration
 **Status**: Complete
@@ -1391,61 +1391,302 @@ Log::debug('[Dashboard] (NO $) Loading stats', ['tenant_id' => $tenant->id]);
 
 ---
 
-### M11.1 Set Up Stripe Cashier
-**Status**: Pending (Optional - Manual payment system in use)
+### M11.1 ✅ Plan Structure & Management
+**Status**: Complete
 
-**Subtasks**:
-1. Run Cashier migrations
-2. Configure Stripe keys
-3. Create billing portal
-4. Set up webhooks
+**Plan Tiers**:
+| Plan | Price | Tokens | Conversations | Knowledge Items | Leads |
+|------|-------|--------|---------------|-----------------|-------|
+| Free Trial | Nu. 0 | 50K | 100 | 10 | 50 |
+| Starter | Nu. 5,000/mo | 500K | 1,000 | 100 | 500 |
+| Business | Nu. 7,000/mo | 2M | Unlimited | Unlimited | Unlimited |
+| Enterprise | Contact Us | Custom | Custom | Custom | Custom |
 
-**Commands**:
-```bash
-php artisan vendor:publish --tag="cashier-migrations"
-php artisan migrate
-```
+**Admin Plan Management**:
+- Full CRUD for subscription plans
+- Toggle plan active/inactive status
+- Set `is_contact_sales` flag for Enterprise-type plans
 
-**Testing**:
-```bash
-# Use Stripe test mode
-# Manual: Create subscription, verify in Stripe dashboard
-```
+**Files Created**:
+- `app/Http/Controllers/Admin/PlanController.php`
+- `app/Http/Requests/Admin/StorePlanRequest.php`
+- `app/Http/Requests/Admin/UpdatePlanRequest.php`
+- `resources/js/Pages/Admin/Plans/Index.vue`
+- `resources/js/Pages/Admin/Plans/Create.vue`
+- `resources/js/Pages/Admin/Plans/Edit.vue`
 
-**Debug Checklist**:
-```php
-Log::debug('[Billing] (IS $) Creating subscription', [
-    'tenant_id' => $tenant->id,
-    'plan' => $plan,
-]);
-```
-- [ ] Stripe connection works
-- [ ] Subscriptions created
-- [ ] Webhooks received
-
-**Rules Reference**: `CLAUDE.md` → Security Requirements
+**Database Changes**:
+- Added `is_contact_sales` boolean to `plans` table
 
 ---
 
-## Phase 11: WordPress Plugin
+### M11.2 ✅ PDF Receipt Generation
+**Status**: Complete
 
-### M11.1-M11.6 Plugin Development
-**Status**: Pending
+**Implementation**:
+- Generate downloadable PDF receipts for approved transactions
+- Uses `barryvdh/laravel-dompdf` package
+- Receipt includes: transaction details, plan info, payment method, dates
 
-**Location**: `wordpress-plugin/chatbot-widget/`
+**Files Created**:
+- `app/Services/Billing/ReceiptService.php`
+- `resources/views/pdf/receipt.blade.php`
 
-**Files to Create**:
-- `chatbot-widget.php` (main plugin file)
-- `includes/class-chatbot-widget.php`
-- `admin/settings-page.php`
-- `public/js/widget.js`
-- `public/css/widget.css`
+**Files Modified**:
+- `app/Http/Controllers/Client/BillingController.php` (added `downloadReceipt()`)
+- `resources/js/Pages/Client/Billing/Transactions.vue` (added download button)
+
+**Route**: `GET /billing/transactions/{transaction}/receipt`
 
 ---
 
-## Phase 12: Testing & Polish
+### M11.3 ✅ Enterprise Contact Form
+**Status**: Complete
 
-### M12.1 Unit Tests
+**Implementation**:
+- Modal contact form for Enterprise plan inquiries
+- Stores inquiries in database for admin review
+- Email notification to admin on new inquiry
+
+**Files Created**:
+- `app/Models/EnterpriseInquiry.php`
+- `app/Http/Controllers/Client/EnterpriseInquiryController.php`
+- `app/Http/Controllers/Admin/EnterpriseInquiryController.php`
+- `app/Notifications/EnterpriseInquiryNotification.php`
+- `resources/js/Pages/Admin/Inquiries/Index.vue`
+- `database/migrations/xxxx_create_enterprise_inquiries_table.php`
+
+**Files Modified**:
+- `resources/js/Pages/Client/Billing/Plans.vue` (added modal)
+- `resources/js/Layouts/AdminLayout.vue` (added nav item)
+
+**Admin Features**:
+- View all enterprise inquiries
+- Filter by status (Pending, Contacted, Closed)
+- Add admin notes and update status
+
+---
+
+### M11.4 ✅ Direct Trial Activation
+**Status**: Complete
+
+**Implementation**:
+- Free Trial plan activates directly without going to subscribe page
+- Shows success notification after activation
+- 14-day trial period
+
+**Files Modified**:
+- `app/Http/Controllers/Client/BillingController.php` (added `activateTrial()`)
+- `resources/js/Pages/Client/Billing/Plans.vue` (direct activation button)
+
+**Route**: `POST /billing/activate-trial/{plan}`
+
+---
+
+### M11.5 ✅ Token Usage Tracking Fix
+**Status**: Complete
+
+**Issue**: Ollama returns `totalTokens: 0` but provides `promptTokens` and `completionTokens` separately.
+
+**Fix**: Calculate total from prompt + completion when totalTokens is 0.
+
+**Files Modified**:
+- `app/Services/LLM/ChatService.php` (`trackUsage()` method)
+
+**Token Tracking**:
+- Per-tenant usage tracking via `UsageRecord` model
+- Monthly aggregation for billing
+- Admin dashboard shows platform-wide totals (Groq cost)
+- Client dashboard shows usage vs plan limits
+
+---
+
+### M11.6 ✅ Bhutanese Bank Payment Methods
+**Status**: Complete
+
+**Implementation**:
+- Replaced generic payment methods with Bhutanese bank selection
+- Banks: Bank of Bhutan, Bhutan National Bank, Druk PNB Ltd, Bhutan Development Bank Ltd., T Bank Ltd, Dk.
+- Updated payment form, transaction display, and PDF receipt
+
+**Files Modified**:
+- `resources/js/Pages/Client/Billing/Subscribe.vue`
+- `resources/js/Pages/Client/Billing/Transactions.vue`
+- `resources/js/Pages/Admin/Transactions/Index.vue`
+- `resources/views/pdf/receipt.blade.php`
+- `app/Http/Controllers/Client/BillingController.php`
+
+---
+
+### M11.7 ✅ Reference Number Field
+**Status**: Complete
+
+**Implementation**:
+- Added 6-character alphanumeric reference number field to payment form
+- Stored in uppercase for consistency
+- Displayed on PDF receipt
+
+**Validation**: `required|string|size:6|alpha_num`
+
+**Files Created**:
+- `database/migrations/2025_12_04_113324_add_reference_number_to_transactions_table.php`
+
+**Files Modified**:
+- `app/Models/Transaction.php` (added to fillable)
+- `resources/js/Pages/Client/Billing/Subscribe.vue`
+- `app/Http/Controllers/Client/BillingController.php`
+- `resources/views/pdf/receipt.blade.php`
+
+---
+
+### M11.8 Stripe Integration (Future)
+**Status**: Pending (Optional - for international clients)
+
+**Notes**:
+- Current system uses manual payment verification
+- Stripe will be added when international clients need automated payments
+- Manual system works well for local BTN payments
+
+---
+
+## Phase 12: WordPress Plugin (COMPLETE)
+
+### M12.1 ✅ Plugin Core Structure
+**Status**: Complete
+
+**Location**: `/Users/sam/Dev/wordpress/abitchat/`
+
+**Files Created**:
+- `abitchat.php` - Main plugin file with WordPress headers
+- `includes/class-settings.php` - Settings management with WordPress Options API
+- `includes/class-widget-loader.php` - Frontend widget injection
+- `admin/class-admin.php` - Admin settings page
+- `admin/js/admin.js` - Admin JavaScript (media uploader, color picker)
+- `admin/css/admin.css` - Admin styles
+- `languages/abitchat.pot` - Translation template
+- `readme.txt` - WordPress.org readme
+- `uninstall.php` - Clean uninstall handler
+
+### M12.2 ✅ Admin Settings Page
+**Status**: Complete
+
+**Features**:
+- Connection settings (API key, base URL)
+- Test connection button with AJAX
+- Widget appearance (position, color, bot name, welcome message)
+- Bot avatar upload via WordPress Media Library
+- Custom launcher icon upload
+- Page targeting (all pages, include specific, exclude specific)
+- GDPR compliance settings
+- Visual previews for avatar and launcher icon
+
+### M12.3 ✅ Widget Integration
+**Status**: Complete
+
+**Features**:
+- Automatic widget injection via `wp_footer` action
+- Data attributes passed to chatbot.js script
+- GDPR-aware loading (deferred load after consent)
+- Integration with Cookiebot and Complianz plugins
+- Page targeting support
+
+### M12.4 ✅ Security & Best Practices
+**Status**: Complete
+
+**Implementation**:
+- Nonce verification on all AJAX requests
+- Capability checks (`manage_options`)
+- Input sanitization and output escaping
+- Secure API key storage
+- CSRF protection
+
+---
+
+## Phase 12.5: Widget Enhancements (COMPLETE)
+
+### M12.5.1 ✅ Custom Launcher Icon
+**Status**: Complete
+
+**Features**:
+- Upload custom icon via WordPress Media Library
+- Replaces default chat button icon
+- Maintains round shape (60x60px)
+- Proper hover and open states
+- Transparent background for custom icons
+
+**Files Modified**:
+- `public/widget/chatbot.js` - Added custom icon CSS and rendering
+- `admin/class-admin.php` - Added launcher icon field
+- `admin/js/admin.js` - Added launcher icon uploader
+- `admin/css/admin.css` - Added launcher icon preview styles
+- `includes/class-widget-loader.php` - Pass launcher icon to widget
+
+### M12.5.2 ✅ Auto-Focus on Bot Reply
+**Status**: Complete
+
+**Implementation**: Input field auto-focuses after bot finishes responding
+
+### M12.5.3 ✅ Bot Avatar in Messages
+**Status**: Complete
+
+**Features**:
+- Bot avatar displayed next to each bot message
+- Falls back to 🤖 emoji if no avatar set
+- Consistent sizing with header avatar
+- Works with typing indicator
+
+### M12.5.4 ✅ Branding Update
+**Status**: Complete
+
+**Changes**:
+- "Powered by" footer changed to "aBit Soft"
+- Links to https://abit.bt
+- Recommended avatar size note: 80x80px
+
+### M12.5.5 ✅ Visual Fixes
+**Status**: Complete
+
+**Issues Fixed**:
+- Header avatar overflow (added `overflow: hidden`)
+- Launcher icon aspect ratio (explicit 60x60px dimensions)
+- Launcher background showing around custom icon (transparent background)
+- Close button invisible when chat open with custom icon (restore background on open)
+
+---
+
+## Phase 12.6: WordPress.org Submission (IN PROGRESS)
+
+### Submission Preparation
+**Status**: ~85% Ready
+
+**Completed**:
+- ✅ Main plugin file with proper headers
+- ✅ readme.txt (WordPress.org format)
+- ✅ uninstall.php (cleanup on uninstall)
+- ✅ GPL v2 license declaration in headers
+- ✅ Translation support (.pot file)
+- ✅ Security (nonces, escaping, permissions)
+- ✅ GDPR compliance
+
+**Pending**:
+- ⏳ LICENSE.txt - Full GPL v2 license text
+- ⏳ .gitignore - Version control exclusions
+- ⏳ .distignore - Distribution exclusions
+- ⏳ /assets/ directory - Banner images, icons, screenshots
+
+**Submission Process**:
+1. Create remaining files (LICENSE.txt, .gitignore, .distignore)
+2. Create assets directory with required images
+3. Create ZIP package
+4. Submit to https://wordpress.org/plugins/developers/add/
+5. Wait for review (1-5 business days)
+6. Post-approval: Upload assets via SVN
+
+---
+
+## Phase 13: Testing & Polish
+
+### M13.1 Unit Tests
 **Status**: Pending
 
 **Tests to Create**:
@@ -1453,7 +1694,7 @@ Log::debug('[Billing] (IS $) Creating subscription', [
 - `tests/Unit/Services/Knowledge/RAGServiceTest.php`
 - `tests/Unit/Services/Leads/LeadScoringServiceTest.php`
 
-### M12.2 Feature Tests
+### M13.2 Feature Tests
 **Status**: Pending
 
 **Tests to Create**:
@@ -1461,7 +1702,7 @@ Log::debug('[Billing] (IS $) Creating subscription', [
 - `tests/Feature/Api/Widget/ChatTest.php`
 - `tests/Feature/Client/DashboardTest.php`
 
-### M12.3 Browser Tests
+### M13.3 Browser Tests
 **Status**: Pending
 
 **Commands**:
@@ -1469,6 +1710,57 @@ Log::debug('[Billing] (IS $) Creating subscription', [
 composer require laravel/dusk --dev
 php artisan dusk:install
 ```
+
+---
+
+## Phase 14: Data Encryption & Security
+
+### M14.1 Widget-to-Server Encryption
+**Status**: Pending
+
+**Objective**: Encrypt all data transmitted between the chatbot widget and the backend API for enhanced security.
+
+**Subtasks**:
+1. Implement end-to-end encryption for chat messages
+2. Encrypt visitor metadata and session data
+3. Secure API key transmission
+4. Encrypt lead capture data (email, phone, name)
+
+**Implementation Options**:
+- TLS/HTTPS enforcement (baseline)
+- Payload encryption using AES-256
+- Public/private key exchange for widget initialization
+- Encrypted WebSocket connections for streaming
+
+**Files to Create/Modify**:
+- `app/Services/Encryption/WidgetEncryptionService.php`
+- `public/widget/chatbot.js` (client-side encryption)
+- `app/Http/Middleware/DecryptWidgetPayload.php`
+- Widget API controllers
+
+**Security Considerations**:
+- Key rotation strategy
+- Secure key storage on client
+- Protection against replay attacks
+- CORS policy hardening
+
+### M14.2 Database Encryption
+**Status**: Pending
+
+**Subtasks**:
+1. Encrypt sensitive fields at rest (lead emails, phone numbers)
+2. Implement Laravel's encrypted casts for PII
+3. Secure API keys storage
+4. Audit logging for data access
+
+### M14.3 Security Audit
+**Status**: Pending
+
+**Subtasks**:
+1. OWASP Top 10 vulnerability scan
+2. Penetration testing
+3. Rate limiting review
+4. Input sanitization audit
 
 ---
 

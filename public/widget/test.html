@@ -68,9 +68,9 @@
         <h2>Embed Code</h2>
         <p>To add this chatbot to your website, add the following code before the closing <code>&lt;/body&gt;</code> tag:</p>
         <pre><code>&lt;script
-    src="http://localhost:8000/widget/chatbot.js"
+    src="http://127.0.0.1:8001/widget/chatbot.js"
     data-chatbot-key="<span class="highlight">YOUR_API_KEY</span>"
-    data-chatbot-url="http://localhost:8000"
+    data-chatbot-url="http://127.0.0.1:8001"
     data-chatbot-position="bottom-right"
     data-chatbot-color="#4F46E5"&gt;
 &lt;/script&gt;</code></pre>
@@ -131,7 +131,7 @@
             if (window.ChatbotWidget) {
                 window.ChatbotWidget.init({
                     apiKey: apiKey,
-                    baseUrl: 'http://localhost:8000',
+                    baseUrl: 'http://127.0.0.1:8001',
                     position: 'bottom-right',
                     primaryColor: '#4F46E5'
                 });

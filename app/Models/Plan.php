@@ -22,6 +22,7 @@ class Plan extends Model
         'leads_limit',
         'features',
         'is_active',
+        'is_contact_sales',
         'sort_order',
     ];
 
@@ -34,6 +35,7 @@ class Plan extends Model
         'leads_limit' => 'integer',
         'features' => 'array',
         'is_active' => 'boolean',
+        'is_contact_sales' => 'boolean',
         'sort_order' => 'integer',
     ];
 
@@ -70,10 +72,14 @@ class Plan extends Model
      */
     public function getFormattedPriceAttribute(): string
     {
+        if ($this->is_contact_sales) {
+            return 'Contact Us';
+        }
+
         if ($this->price == 0) {
             return 'Free';
         }
 
-        return '$'.number_format($this->price, 2).'/'.$this->billing_period;
+        return 'Nu. '.number_format($this->price, 0).'/'.$this->billing_period;
     }
 }

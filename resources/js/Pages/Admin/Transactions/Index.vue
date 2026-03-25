@@ -113,15 +113,22 @@ const getStatusVariant = (status) => {
     return variants[status] || 'secondary'
 }
 
-const getPaymentMethodLabel = (method) => {
+const getBankLabel = (bank) => {
     const labels = {
+        bob: 'Bank of Bhutan',
+        bnb: 'Bhutan National Bank',
+        dpnb: 'Druk PNB Ltd',
+        bdbl: 'Bhutan Development Bank Ltd.',
+        tbank: 'T Bank Ltd',
+        dk: 'Dk.',
+        // Legacy values for existing transactions
         bank_transfer: 'Bank Transfer',
         upi: 'UPI',
         card: 'Card',
         cash: 'Cash',
         other: 'Other',
     }
-    return labels[method] || method
+    return labels[bank] || bank
 }
 </script>
 
@@ -188,7 +195,7 @@ const getPaymentMethodLabel = (method) => {
                             <TableHead>Client</TableHead>
                             <TableHead>Plan</TableHead>
                             <TableHead>Transaction #</TableHead>
-                            <TableHead>Method</TableHead>
+                            <TableHead>Bank</TableHead>
                             <TableHead class="text-right">Amount</TableHead>
                             <TableHead>Date</TableHead>
                             <TableHead>Status</TableHead>
@@ -209,7 +216,7 @@ const getPaymentMethodLabel = (method) => {
                                 <span class="text-muted-foreground font-mono">{{ txn.transaction_number }}</span>
                             </TableCell>
                             <TableCell class="text-muted-foreground">
-                                {{ getPaymentMethodLabel(txn.payment_method) }}
+                                {{ getBankLabel(txn.payment_method) }}
                             </TableCell>
                             <TableCell class="text-right text-foreground font-medium">
                                 {{ formatCurrency(txn.amount) }}

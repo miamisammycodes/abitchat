@@ -19,8 +19,9 @@ const props = defineProps({
 
 const form = useForm({
   transaction_number: '',
+  reference_number: '',
   amount: props.plan.price,
-  payment_method: 'bank_transfer',
+  payment_method: 'bob',
   payment_date: new Date().toISOString().split('T')[0],
   notes: '',
 })
@@ -29,12 +30,13 @@ function submit() {
   form.post(route('client.billing.submit-payment', props.plan.id))
 }
 
-const paymentMethods = [
-  { value: 'bank_transfer', label: 'Bank Transfer' },
-  { value: 'upi', label: 'UPI' },
-  { value: 'card', label: 'Card' },
-  { value: 'cash', label: 'Cash' },
-  { value: 'other', label: 'Other' },
+const banks = [
+  { value: 'bob', label: 'Bank of Bhutan' },
+  { value: 'bnb', label: 'Bhutan National Bank' },
+  { value: 'dpnb', label: 'Druk PNB Ltd' },
+  { value: 'bdbl', label: 'Bhutan Development Bank Ltd.' },
+  { value: 'tbank', label: 'T Bank Ltd' },
+  { value: 'dk', label: 'Dk.' },
 ]
 </script>
 
@@ -111,9 +113,9 @@ const paymentMethods = [
                   <div>
                     <h3 class="font-medium">Payment Instructions</h3>
                     <ol class="text-sm text-muted-foreground space-y-1 list-decimal list-inside mt-2">
-                      <li>Make payment via bank transfer, UPI, or card</li>
+                      <li>Make payment via bank transfer to our account</li>
                       <li>Note the transaction/reference number</li>
-                      <li>Fill in the form below with your payment details</li>
+                      <li>Select your bank and fill in the form below</li>
                       <li>We'll verify and activate your plan within 24 hours</li>
                     </ol>
                   </div>
@@ -121,17 +123,35 @@ const paymentMethods = [
               </div>
 
               <form @submit.prevent="submit" class="space-y-4">
-                <div class="space-y-2">
-                  <Label for="transaction_number">Transaction/Reference Number *</Label>
-                  <Input
-                    id="transaction_number"
-                    v-model="form.transaction_number"
-                    required
-                    placeholder="e.g., TXN123456789"
-                  />
-                  <p v-if="form.errors.transaction_number" class="text-sm text-destructive">
-                    {{ form.errors.transaction_number }}
-                  </p>
+                <div class="grid grid-cols-2 gap-4">
+                  <div class="space-y-2">
+                    <Label for="transaction_number">Transaction Number *</Label>
+                    <Input
+                      id="transaction_number"
+                      v-model="form.transaction_number"
+                      required
+                      placeholder="e.g., TXN123456789"
+                    />
+                    <p v-if="form.errors.transaction_number" class="text-sm text-destructive">
+                      {{ form.errors.transaction_number }}
+                    </p>
+                  </div>
+
+                  <div class="space-y-2">
+                    <Label for="reference_number">Reference Number *</Label>
+                    <Input
+                      id="reference_number"
+                      v-model="form.reference_number"
+                      required
+                      maxlength="6"
+                      placeholder="e.g., AB1234"
+                      class="uppercase"
+                    />
+                    <p class="text-xs text-muted-foreground">6 characters (letters/numbers)</p>
+                    <p v-if="form.errors.reference_number" class="text-sm text-destructive">
+                      {{ form.errors.reference_number }}
+                    </p>
+                  </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
@@ -168,15 +188,15 @@ const paymentMethods = [
                 </div>
 
                 <div class="space-y-2">
-                  <Label for="payment_method">Payment Method *</Label>
+                  <Label for="payment_method">Bank *</Label>
                   <select
                     id="payment_method"
                     v-model="form.payment_method"
                     required
                     class="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground"
                   >
-                    <option v-for="method in paymentMethods" :key="method.value" :value="method.value">
-                      {{ method.label }}
+                    <option v-for="bank in banks" :key="bank.value" :value="bank.value">
+                      {{ bank.label }}
                     </option>
                   </select>
                   <p v-if="form.errors.payment_method" class="text-sm text-destructive">

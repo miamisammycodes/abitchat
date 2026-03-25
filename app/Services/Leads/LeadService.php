@@ -277,12 +277,18 @@ class LeadService
             $emailPos = strpos($content, $matches[0]);
             if ($emailPos > 0) {
                 $beforeEmail = trim(substr($content, 0, $emailPos));
-                // Get last word(s) before email as potential name
-                if (preg_match('/([A-Za-z]+(?:\s+[A-Za-z]+)?)\s*$/', $beforeEmail, $nameMatch)) {
+                // Get last word(s) before email as potential name (up to 3 words for full names)
+                if (preg_match('/([A-Za-z]+(?:\s+[A-Za-z]+){0,2})\s*$/', $beforeEmail, $nameMatch)) {
                     $potentialName = trim($nameMatch[1]);
                     // Validate it looks like a name (not common words)
-                    $excludeWords = ['my', 'is', 'am', 'the', 'and', 'or', 'to', 'from', 'at', 'for', 'it', 'its', 'yes', 'no', 'hi', 'hello', 'hey'];
-                    if (strlen($potentialName) >= 2 && ! in_array(strtolower($potentialName), $excludeWords)) {
+                    $excludeWords = ['my', 'is', 'am', 'the', 'and', 'or', 'to', 'from', 'at', 'for', 'it', 'its', 'yes', 'no', 'hi', 'hello', 'hey', 'email', 'mail', 'address', 'contact', 'me', 'i', 'im', 'reach', 'send', 'write', 'here', 'this', 'that', 'with', 'can', 'you', 'please', 'thanks', 'thank'];
+
+                    // Check each word in potential name - all must be valid
+                    $words = preg_split('/\s+/', strtolower($potentialName));
+                    $validWords = array_filter($words, fn ($w) => ! in_array($w, $excludeWords) && strlen($w) >= 2);
+
+                    // Only use as name if we have valid words and they weren't all filtered out
+                    if (count($validWords) > 0 && count($validWords) === count($words)) {
                         $info['name'] = ucwords(strtolower($potentialName));
                     }
                 }

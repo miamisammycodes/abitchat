@@ -17,6 +17,7 @@ import {
   ClipboardList,
   ChevronLeft,
   ChevronRight,
+  Download,
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -34,15 +35,22 @@ function getStatusVariant(status) {
   return variants[status] || 'secondary'
 }
 
-function getPaymentMethodLabel(method) {
+function getBankLabel(bank) {
   const labels = {
+    bob: 'Bank of Bhutan',
+    bnb: 'Bhutan National Bank',
+    dpnb: 'Druk PNB Ltd',
+    bdbl: 'Bhutan Development Bank Ltd.',
+    tbank: 'T Bank Ltd',
+    dk: 'Dk.',
+    // Legacy values for existing transactions
     bank_transfer: 'Bank Transfer',
     upi: 'UPI',
     card: 'Card',
     cash: 'Cash',
     other: 'Other',
   }
-  return labels[method] || method
+  return labels[bank] || bank
 }
 </script>
 
@@ -74,9 +82,10 @@ function getPaymentMethodLabel(method) {
                 <TableHead>Transaction</TableHead>
                 <TableHead>Plan</TableHead>
                 <TableHead>Amount</TableHead>
-                <TableHead>Method</TableHead>
+                <TableHead>Bank</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Date</TableHead>
+                <TableHead class="text-right">Receipt</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -90,7 +99,7 @@ function getPaymentMethodLabel(method) {
                 <TableCell class="font-medium">{{ transaction.plan?.name }}</TableCell>
                 <TableCell class="font-medium">Nu. {{ transaction.amount }}</TableCell>
                 <TableCell class="text-muted-foreground">
-                  {{ getPaymentMethodLabel(transaction.payment_method) }}
+                  {{ getBankLabel(transaction.payment_method) }}
                 </TableCell>
                 <TableCell>
                   <Badge :variant="getStatusVariant(transaction.status)" class="capitalize">
@@ -103,6 +112,17 @@ function getPaymentMethodLabel(method) {
                 <TableCell class="text-muted-foreground">
                   <div>{{ new Date(transaction.payment_date).toLocaleDateString() }}</div>
                   <div class="text-xs">Submitted: {{ new Date(transaction.created_at).toLocaleDateString() }}</div>
+                </TableCell>
+                <TableCell class="text-right">
+                  <a
+                    v-if="transaction.status === 'approved'"
+                    :href="route('client.billing.receipt', transaction.id)"
+                    class="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80"
+                  >
+                    <Download class="h-4 w-4" />
+                    Download
+                  </a>
+                  <span v-else class="text-muted-foreground text-sm">-</span>
                 </TableCell>
               </TableRow>
             </TableBody>

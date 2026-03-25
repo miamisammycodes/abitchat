@@ -4,13 +4,22 @@
  * Usage Method 1 (Data Attributes):
  * <script src="https://your-domain.com/widget/chatbot.js"
  *         data-chatbot-key="your-api-key"
+ *         data-chatbot-url="https://your-domain.com"
  *         data-chatbot-position="bottom-right"
- *         data-chatbot-color="#4F46E5"></script>
+ *         data-chatbot-color="#4F46E5"
+ *         data-chatbot-name="Assistant"
+ *         data-chatbot-welcome="Hello! How can I help?"
+ *         data-chatbot-avatar="https://example.com/avatar.png"
+ *         data-chatbot-launcher-icon="https://example.com/icon.png"></script>
  *
  * Usage Method 2 (JavaScript):
  * <script src="https://your-domain.com/widget/chatbot.js"></script>
  * <script>
- *   ChatbotWidget.init({ apiKey: 'your-api-key' });
+ *   ChatbotWidget.init({
+ *     apiKey: 'your-api-key',
+ *     botName: 'Assistant',
+ *     welcomeMessage: 'Hello!'
+ *   });
  * </script>
  */
 (function() {
@@ -28,6 +37,7 @@
             welcomeMessage: 'Hello! How can I help you today?',
             botName: 'Assistant',
             botAvatar: null,
+            launcherIcon: null,
         },
         state: {
             isOpen: false,
@@ -43,6 +53,13 @@
                 console.error('[Chatbot] API key is required');
                 return;
             }
+
+            // Track which options were explicitly provided (to not override from API)
+            this.userProvidedOptions = {
+                botName: !!options.botName,
+                welcomeMessage: !!options.welcomeMessage,
+                botAvatar: !!options.botAvatar,
+            };
 
             this.config = { ...this.config, ...options };
             this.config.baseUrl = options.baseUrl || this.detectBaseUrl();
@@ -94,7 +111,25 @@
                     height: 28px;
                     fill: white;
                 }
-                .chatbot-launcher.open svg.chat-icon { display: none; }
+                .chatbot-launcher.has-custom-icon {
+                    background: transparent;
+                    box-shadow: none;
+                    padding: 0;
+                }
+                .chatbot-launcher.has-custom-icon:hover {
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                }
+                .chatbot-launcher.has-custom-icon.open {
+                    background: ${this.config.primaryColor};
+                }
+                .chatbot-launcher img.custom-icon {
+                    width: 60px;
+                    height: 60px;
+                    object-fit: cover;
+                    border-radius: 50%;
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                }
+                .chatbot-launcher.open .chat-icon { display: none; }
                 .chatbot-launcher.open svg.close-icon { display: block; }
                 .chatbot-launcher svg.close-icon { display: none; }
 
@@ -145,6 +180,13 @@
                     align-items: center;
                     justify-content: center;
                     font-size: 18px;
+                    overflow: hidden;
+                    flex-shrink: 0;
+                }
+                .chatbot-header-avatar img {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
                 }
                 .chatbot-header-info h3 {
                     margin: 0;
@@ -167,6 +209,33 @@
                     background: #f9fafb;
                 }
 
+                .chatbot-message-row {
+                    display: flex;
+                    align-items: flex-end;
+                    gap: 8px;
+                    align-self: flex-start;
+                }
+                .chatbot-message-row.user {
+                    align-self: flex-end;
+                    flex-direction: row-reverse;
+                }
+                .chatbot-message-avatar {
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 50%;
+                    background: ${this.config.primaryColor};
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 14px;
+                    flex-shrink: 0;
+                    overflow: hidden;
+                }
+                .chatbot-message-avatar img {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                }
                 .chatbot-message {
                     max-width: 85%;
                     padding: 12px 16px;
@@ -177,7 +246,6 @@
                 }
                 .chatbot-message.bot {
                     background: white;
-                    align-self: flex-start;
                     border-bottom-left-radius: 4px;
                     box-shadow: 0 1px 2px rgba(0,0,0,0.05);
                 }
@@ -189,7 +257,6 @@
                 }
                 .chatbot-message.typing {
                     background: white;
-                    align-self: flex-start;
                     border-bottom-left-radius: 4px;
                 }
                 .chatbot-typing-indicator {
@@ -288,6 +355,10 @@
                         ${this.config.position === 'bottom-left' ? 'left: 16px;' : 'right: 16px;'}
                         bottom: 16px;
                     }
+                    .chatbot-launcher img.custom-icon {
+                        width: 56px;
+                        height: 56px;
+                    }
                 }
             `;
 
@@ -300,10 +371,20 @@
             // Create launcher button
             const launcher = document.createElement('button');
             launcher.className = 'chatbot-launcher';
-            launcher.innerHTML = `
-                <svg class="chat-icon" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
-                <svg class="close-icon" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-            `;
+
+            // Use custom launcher icon if provided, otherwise use default SVG
+            if (this.config.launcherIcon) {
+                launcher.classList.add('has-custom-icon');
+                launcher.innerHTML = `
+                    <img class="chat-icon custom-icon" src="${this.escapeHtml(this.config.launcherIcon)}" alt="" />
+                    <svg class="close-icon" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                `;
+            } else {
+                launcher.innerHTML = `
+                    <svg class="chat-icon" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+                    <svg class="close-icon" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                `;
+            }
             this.elements.launcher = launcher;
 
             // Create chat container
@@ -328,7 +409,7 @@
                         </button>
                     </form>
                 </div>
-                <div class="chatbot-powered">Powered by <a href="#">Chatbot</a></div>
+                <div class="chatbot-powered">Powered by <a href="https://abit.bt" target="_blank" rel="noopener">aBit Soft</a></div>
             `;
             this.elements.container = container;
             this.elements.messages = container.querySelector('.chatbot-messages');
@@ -356,9 +437,16 @@
                 });
 
                 if (response.success) {
-                    this.config.botName = response.config.name || this.config.botName;
-                    this.config.welcomeMessage = response.config.welcome_message || this.config.welcomeMessage;
-                    this.config.primaryColor = response.config.primary_color || this.config.primaryColor;
+                    // Only update from API if not explicitly provided by user
+                    if (!this.userProvidedOptions.botName && response.config.name) {
+                        this.config.botName = response.config.name;
+                    }
+                    if (!this.userProvidedOptions.welcomeMessage && response.config.welcome_message) {
+                        this.config.welcomeMessage = response.config.welcome_message;
+                    }
+                    if (response.config.primary_color) {
+                        this.config.primaryColor = response.config.primary_color;
+                    }
 
                     // Update header with new config
                     const headerName = this.elements.container.querySelector('.chatbot-header-info h3');
@@ -431,24 +519,52 @@
                 this.addMessage('Sorry, I couldn\'t process your message. Please try again.', 'bot');
             } finally {
                 this.setLoading(false);
+                this.elements.input.focus();
             }
         },
 
         addMessage: function(text, sender) {
-            const messageEl = document.createElement('div');
-            messageEl.className = `chatbot-message ${sender}`;
-            messageEl.innerHTML = this.formatMessage(text);
-            this.elements.messages.appendChild(messageEl);
+            if (sender === 'bot') {
+                // Bot message with avatar
+                const row = document.createElement('div');
+                row.className = 'chatbot-message-row';
+
+                const avatar = this.config.botAvatar
+                    ? `<img src="${this.escapeHtml(this.config.botAvatar)}" alt="" />`
+                    : '🤖';
+
+                row.innerHTML = `
+                    <div class="chatbot-message-avatar">${avatar}</div>
+                    <div class="chatbot-message bot">${this.formatMessage(text)}</div>
+                `;
+                this.elements.messages.appendChild(row);
+            } else {
+                // User message (no avatar)
+                const messageEl = document.createElement('div');
+                messageEl.className = `chatbot-message ${sender}`;
+                messageEl.innerHTML = this.formatMessage(text);
+                this.elements.messages.appendChild(messageEl);
+            }
             this.scrollToBottom();
             this.state.messages.push({ text, sender, timestamp: new Date() });
         },
 
         showTypingIndicator: function() {
-            const typing = document.createElement('div');
-            typing.className = 'chatbot-message typing';
-            typing.id = 'chatbot-typing';
-            typing.innerHTML = '<div class="chatbot-typing-indicator"><span></span><span></span><span></span></div>';
-            this.elements.messages.appendChild(typing);
+            const row = document.createElement('div');
+            row.className = 'chatbot-message-row';
+            row.id = 'chatbot-typing';
+
+            const avatar = this.config.botAvatar
+                ? `<img src="${this.escapeHtml(this.config.botAvatar)}" alt="" />`
+                : '🤖';
+
+            row.innerHTML = `
+                <div class="chatbot-message-avatar">${avatar}</div>
+                <div class="chatbot-message typing">
+                    <div class="chatbot-typing-indicator"><span></span><span></span><span></span></div>
+                </div>
+            `;
+            this.elements.messages.appendChild(row);
             this.scrollToBottom();
         },
 
@@ -527,15 +643,26 @@
         const baseUrl = script.getAttribute('data-chatbot-url');
         const position = script.getAttribute('data-chatbot-position');
         const color = script.getAttribute('data-chatbot-color');
+        const botName = script.getAttribute('data-chatbot-name');
+        const welcomeMessage = script.getAttribute('data-chatbot-welcome');
+        const botAvatar = script.getAttribute('data-chatbot-avatar');
+        const launcherIcon = script.getAttribute('data-chatbot-launcher-icon');
 
         if (apiKey) {
             document.addEventListener('DOMContentLoaded', function() {
-                ChatbotWidget.init({
+                const options = {
                     apiKey: apiKey,
                     baseUrl: baseUrl,
                     position: position || 'bottom-right',
                     primaryColor: color || '#4F46E5'
-                });
+                };
+                // Only add optional overrides if provided
+                if (botName) options.botName = botName;
+                if (welcomeMessage) options.welcomeMessage = welcomeMessage;
+                if (botAvatar) options.botAvatar = botAvatar;
+                if (launcherIcon) options.launcherIcon = launcherIcon;
+
+                ChatbotWidget.init(options);
             });
         }
     }

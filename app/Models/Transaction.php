@@ -13,6 +13,7 @@ class Transaction extends Model
         'tenant_id',
         'plan_id',
         'transaction_number',
+        'reference_number',
         'amount',
         'payment_method',
         'payment_date',

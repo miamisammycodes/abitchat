@@ -14,6 +14,8 @@ import {
   LogOut,
   Sun,
   Moon,
+  CreditCard,
+  MessageSquare,
 } from 'lucide-vue-next'
 import { useTheme } from '@/composables/useTheme'
 
@@ -34,7 +36,9 @@ const sidebarOpen = ref(false)
 const navigation = [
   { name: 'Dashboard', href: 'admin.dashboard', icon: LayoutDashboard },
   { name: 'Clients', href: 'admin.clients.index', icon: Building2 },
+  { name: 'Plans', href: 'admin.plans.index', icon: CreditCard },
   { name: 'Transactions', href: 'admin.transactions.index', icon: ClipboardList },
+  { name: 'Inquiries', href: 'admin.inquiries.index', icon: MessageSquare },
   { name: 'Activity Logs', href: 'admin.logs.index', icon: FileText },
 ]
 

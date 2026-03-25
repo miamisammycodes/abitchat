@@ -332,24 +332,33 @@ PROMPT,
             return;
         }
 
-        $totalTokens = property_exists($usage, 'totalTokens') ? (int) $usage->totalTokens : 0;
         $promptTokens = property_exists($usage, 'promptTokens') ? (int) $usage->promptTokens : 0;
         $completionTokens = property_exists($usage, 'completionTokens') ? (int) $usage->completionTokens : 0;
+        $totalTokens = property_exists($usage, 'totalTokens') ? (int) $usage->totalTokens : 0;
 
-        UsageRecord::create([
-            'tenant_id' => $tenant->id,
-            'type' => 'tokens',
-            'quantity' => $totalTokens,
-            'recorded_date' => now()->toDateString(),
-        ]);
+        // Ollama may not return totalTokens, so calculate from prompt + completion
+        if ($totalTokens === 0 && ($promptTokens > 0 || $completionTokens > 0)) {
+            $totalTokens = $promptTokens + $completionTokens;
+        }
 
-        Log::debug('[Usage] (NO $) Tokens tracked', [
-            'tenant_id' => $tenant->id,
-            'conversation_id' => $conversation->id,
-            'prompt_tokens' => $promptTokens,
-            'completion_tokens' => $completionTokens,
-            'total_tokens' => $totalTokens,
-        ]);
+        if ($totalTokens > 0) {
+            UsageRecord::create([
+                'tenant_id' => $tenant->id,
+                'type' => 'tokens',
+                'quantity' => $totalTokens,
+                'recorded_date' => now()->toDateString(),
+            ]);
+        }
+
+        if ($totalTokens > 0) {
+            Log::debug('[Usage] (NO $) Tokens tracked', [
+                'tenant_id' => $tenant->id,
+                'conversation_id' => $conversation->id,
+                'prompt_tokens' => $promptTokens,
+                'completion_tokens' => $completionTokens,
+                'total_tokens' => $totalTokens,
+            ]);
+        }
     }
 
     private function getFallbackResponse(): string

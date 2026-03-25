@@ -7,8 +7,10 @@ namespace App\Http\Controllers\Client;
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
 use App\Models\Transaction;
+use App\Services\Billing\ReceiptService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -74,8 +76,9 @@ class BillingController extends Controller
     {
         $validated = $request->validate([
             'transaction_number' => 'required|string|max:255',
+            'reference_number' => 'required|string|size:6|alpha_num',
             'amount' => 'required|numeric|min:0',
-            'payment_method' => 'required|in:bank_transfer,upi,card,cash,other',
+            'payment_method' => 'required|in:bob,bnb,dpnb,bdbl,tbank,dk',
             'payment_date' => 'required|date|before_or_equal:today',
             'notes' => 'nullable|string|max:1000',
         ]);
@@ -94,6 +97,7 @@ class BillingController extends Controller
             'tenant_id' => $tenant->id,
             'plan_id' => $plan->id,
             'transaction_number' => $validated['transaction_number'],
+            'reference_number' => strtoupper($validated['reference_number']),
             'amount' => $validated['amount'],
             'payment_method' => $validated['payment_method'],
             'payment_date' => $validated['payment_date'],
@@ -119,5 +123,53 @@ class BillingController extends Controller
                 ->latest()
                 ->paginate(20),
         ]);
+    }
+
+    /**
+     * Download receipt PDF for a transaction
+     */
+    public function downloadReceipt(Request $request, Transaction $transaction, ReceiptService $receiptService): HttpResponse
+    {
+        $tenant = $this->getTenant($request);
+
+        // Verify transaction belongs to tenant
+        if ($transaction->tenant_id !== $tenant->id) {
+            abort(403, 'Unauthorized access to this transaction.');
+        }
+
+        // Only allow downloading receipts for approved transactions
+        if ($transaction->status !== 'approved') {
+            abort(403, 'Receipt is only available for approved transactions.');
+        }
+
+        return $receiptService->downloadPdf($transaction);
+    }
+
+    /**
+     * Activate free trial for a tenant
+     */
+    public function activateTrial(Request $request, Plan $plan): RedirectResponse
+    {
+        $tenant = $this->getTenant($request);
+
+        // Verify this is a free plan
+        if ($plan->price > 0) {
+            return back()->with('error', 'This plan requires payment.');
+        }
+
+        // Check if tenant already has an active plan
+        if ($tenant->plan_id && !$tenant->isPlanExpired()) {
+            return back()->with('error', 'You already have an active plan.');
+        }
+
+        // Activate the trial
+        $tenant->update([
+            'plan_id' => $plan->id,
+            'plan_expires_at' => now()->addDays(14),
+        ]);
+
+        return redirect()
+            ->route('client.billing.index')
+            ->with('success', 'Your 14-day free trial has been activated! Enjoy exploring all the features.');
     }
 }
