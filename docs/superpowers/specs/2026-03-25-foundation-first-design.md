@@ -12,9 +12,9 @@
 
 | Package | From | To | Notes |
 |---------|------|----|-------|
-| `laravel/framework` | 12.x | 13.x | Follow upgrade guide, update config files |
+| `laravel/framework` | 12.x | 13.x | Follow upgrade guide, update config files. Verify PHP version requirement (may need PHP 8.3+) |
 | `laravel/tinker` | 2.x | 3.x | Minimal breaking changes |
-| `phpunit/phpunit` | 11.x | 13.x | Update test config, method signatures |
+| `phpunit/phpunit` | 11.x | 13.x | Two-major-version jump (11→12→13). Update test config, method signatures, check for deprecated assertions |
 | `barryvdh/laravel-debugbar` | 3.x | 4.x | Dev-only, low risk |
 | `prism-php/prism` | 0.98.5 | latest | Pre-1.0; audit ChatService for API changes |
 
@@ -41,7 +41,8 @@ Update Composer packages first (backend must work), then npm packages, then fix 
 ### PHPStan
 
 - Bump from level 4 to **level 6**
-- Fix the 1 existing error: nullsafe on non-nullable in `EnterpriseInquiryController`
+- Fix the 1 existing error: nullsafe on non-nullable in `EnterpriseInquiryController` (line 28)
+- Set `reportUnmatchedIgnoredErrors: true` so dead ignore patterns surface naturally after the level bump
 - Clean up overly broad `ignoreErrors` — keep only patterns that are genuinely unfixable (e.g., Eloquent relationship type inference), remove the rest and fix the underlying code
 - Fix all new errors surfaced by the level bump
 
@@ -64,6 +65,8 @@ Add Laravel policies for 4 core tenant-scoped resources:
 
 **Not adding:** Admin-side policies (admin is single-role superuser — middleware is sufficient).
 
+**Note:** Widget API endpoints have no authenticated user, so policies do not apply there. Widget API authorization remains via manual API key → tenant lookup in `ChatController`.
+
 ---
 
 ## 3. Caching Layer
@@ -78,7 +81,7 @@ Currently **zero** `Cache::` calls exist in the codebase. Every request hits the
 
 ### Usage Limit Checks
 
-- `CheckUsageLimits` middleware queries conversation count, lead count, and token usage on every widget API call
+- `CheckUsageLimits` middleware is registered but **not currently applied to any routes**. As a prerequisite, wire it up to widget API routes (and adapt it to work with API-key-based tenant lookup instead of `$request->user()`)
 - Cache current usage counters per tenant: `Cache::remember("tenant:{$id}:usage", 60, ...)` (1 min TTL)
 - Invalidate when a new conversation/lead/usage record is created
 
@@ -105,6 +108,7 @@ Call `Cache::forget()` in the relevant controller/service methods. No abstractio
 - Use Laravel's built-in `retry()` helper
 - Only retry on transient failures (network errors, 429 rate limits, 500/503 from provider)
 - Don't retry on 400/401/422 (bad request, auth, validation)
+- **Retry applies to `generateResponse()` only.** `streamResponse()` cannot be retried once chunks have been sent to the client — it keeps its existing single-attempt + fallback pattern
 - Keep existing fallback response as final safety net after all retries exhausted
 - Log each retry attempt with attempt number
 
@@ -116,11 +120,11 @@ Call `Cache::forget()` in the relevant controller/service methods. No abstractio
   ```
 - Add proper HTTP status codes consistently (some endpoints currently return 200 with error messages)
 - Add try-catch to `sendMessage()` and `startConversation()` which currently have none
-- Add 30-second request timeout for Prism calls
+- Keep the existing 60-second Prism timeout (already configured in ChatService) — this is appropriate for slower providers like Ollama in development
 
 ### Widget-Side Error Handling (chatbot.js)
 
-- Add timeout to `apiCall()` using `AbortController` (15 second timeout)
+- Add timeout to `apiCall()` using `AbortController` — **45 second timeout** for regular messages, **90 second timeout** for streaming (must exceed server-side 60s Prism timeout to avoid premature client-side aborts)
 - Surface user-friendly error messages based on error codes
 
 ---
@@ -147,8 +151,8 @@ Call `Cache::forget()` in the relevant controller/service methods. No abstractio
 
 ### Request Timeouts
 
-- 15s timeout for regular messages via `AbortController`
-- 30s timeout for streaming responses
+- 45s timeout for regular messages via `AbortController` (exceeds server-side 60s Prism timeout with margin)
+- 90s timeout for streaming responses (streams can legitimately take longer)
 
 ### Not Adding
 
@@ -165,7 +169,7 @@ Service workers, localStorage message queuing, or reconnection of streaming resp
 
 ### Add Missing Database Index
 
-- Add index on `usage_records(type, created_at)` — admin dashboard runs `UsageRecord::where('type', 'tokens')->sum('quantity')` which currently does a full table scan
+- Add index on `usage_records(type, recorded_date)` — admin dashboard runs `UsageRecord::where('type', 'tokens')->sum('quantity')` which cannot use the existing `(tenant_id, type, recorded_date)` composite index since the admin query does not filter by `tenant_id`
 - Simple migration, no data changes
 
 ### Scope Unbounded Queries
