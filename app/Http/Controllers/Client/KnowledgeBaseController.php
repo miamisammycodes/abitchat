@@ -22,6 +22,7 @@ class KnowledgeBaseController extends Controller
         $tenant = $this->getTenant();
 
         $items = KnowledgeItem::where('tenant_id', $tenant->id)
+            ->withCount('chunks')
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($item) {
@@ -30,7 +31,7 @@ class KnowledgeBaseController extends Controller
                     'title' => $item->title,
                     'type' => $item->type,
                     'status' => $item->status,
-                    'chunks_count' => $item->chunks()->count(),
+                    'chunks_count' => $item->chunks_count,
                     'created_at' => $item->created_at->format('M d, Y'),
                 ];
             });
@@ -112,6 +113,8 @@ class KnowledgeBaseController extends Controller
     {
         $this->authorizeItem($item);
 
+        $item->loadCount('chunks');
+
         return Inertia::render('Client/KnowledgeBase/Show', [
             'item' => [
                 'id' => $item->id,
@@ -121,7 +124,7 @@ class KnowledgeBaseController extends Controller
                 'source_url' => $item->source_url,
                 'status' => $item->status,
                 'metadata' => $item->metadata,
-                'chunks_count' => $item->chunks()->count(),
+                'chunks_count' => $item->chunks_count,
                 'created_at' => $item->created_at->format('M d, Y H:i'),
                 'updated_at' => $item->updated_at->format('M d, Y H:i'),
             ],
