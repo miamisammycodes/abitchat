@@ -241,6 +241,9 @@ class ChatController extends Controller
                 'content' => $fullResponse,
             ]);
 
+            // Invalidate usage cache after streaming completes
+            Cache::forget("tenant:{$tenant->id}:usage");
+
             echo 'data: '.json_encode(['done' => true])."\n\n";
             ob_flush();
             flush();
