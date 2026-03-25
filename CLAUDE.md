@@ -27,7 +27,7 @@ See `prd.md` for full product requirements.
 See `ROADMAP.md` for current build status.
 
 **Tech Stack:**
-- Backend: Laravel 12+, PHP 8.2+
+- Backend: Laravel 13+, PHP 8.3+
 - Frontend: Vue 3 (Composition API), Inertia.js, Tailwind CSS v4
 - Database: MySQL 8.0+, SQLite-vec (vectors), Redis
 - Multi-tenancy: Spatie Laravel Multitenancy
