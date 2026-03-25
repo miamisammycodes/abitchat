@@ -114,7 +114,7 @@ class KnowledgeBaseController extends Controller
 
     public function show(KnowledgeItem $item): Response
     {
-        $this->authorizeItem($item);
+        $this->authorize('view', $item);
 
         $item->loadCount('chunks');
 
@@ -136,7 +136,7 @@ class KnowledgeBaseController extends Controller
 
     public function edit(KnowledgeItem $item): Response
     {
-        $this->authorizeItem($item);
+        $this->authorize('view', $item);
 
         return Inertia::render('Client/KnowledgeBase/Edit', [
             'item' => [
@@ -151,7 +151,7 @@ class KnowledgeBaseController extends Controller
 
     public function update(Request $request, KnowledgeItem $item): RedirectResponse
     {
-        $this->authorizeItem($item);
+        $this->authorize('update', $item);
 
         $validated = $request->validate([
             'title' => 'required|string|max:255',
@@ -180,7 +180,7 @@ class KnowledgeBaseController extends Controller
 
     public function destroy(KnowledgeItem $item): RedirectResponse
     {
-        $this->authorizeItem($item);
+        $this->authorize('delete', $item);
 
         Log::debug('[Knowledge] (NO $) Deleting item', [
             'item_id' => $item->id,
@@ -203,7 +203,7 @@ class KnowledgeBaseController extends Controller
 
     public function reprocess(KnowledgeItem $item): RedirectResponse
     {
-        $this->authorizeItem($item);
+        $this->authorize('update', $item);
 
         $item->chunks()->delete();
         $item->update(['status' => 'pending']);
@@ -214,15 +214,6 @@ class KnowledgeBaseController extends Controller
 
         return redirect()->back()
             ->with('success', 'Knowledge item queued for reprocessing.');
-    }
-
-    private function authorizeItem(KnowledgeItem $item): void
-    {
-        $tenant = $this->getTenant();
-
-        if ($item->tenant_id !== $tenant->id) {
-            abort(403, 'Unauthorized');
-        }
     }
 
     private function clearKnowledgeCache(\App\Models\Tenant $tenant): void

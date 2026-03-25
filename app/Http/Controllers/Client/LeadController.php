@@ -77,12 +77,7 @@ class LeadController extends Controller
 
     public function show(Request $request, Lead $lead): InertiaResponse
     {
-        $tenant = $this->getTenant($request);
-
-        // Ensure lead belongs to tenant
-        if ($lead->tenant_id !== $tenant->id) {
-            abort(404);
-        }
+        $this->authorize('view', $lead);
 
         $lead->load([
             'conversation.messages' => fn ($q) => $q->orderBy('created_at', 'asc'),
@@ -96,11 +91,7 @@ class LeadController extends Controller
 
     public function update(Request $request, Lead $lead): RedirectResponse
     {
-        $tenant = $this->getTenant($request);
-
-        if ($lead->tenant_id !== $tenant->id) {
-            abort(404);
-        }
+        $this->authorize('update', $lead);
 
         $validated = $request->validate([
             'status' => 'sometimes|in:new,contacted,qualified,converted,lost',
@@ -132,11 +123,7 @@ class LeadController extends Controller
 
     public function destroy(Request $request, Lead $lead): RedirectResponse
     {
-        $tenant = $this->getTenant($request);
-
-        if ($lead->tenant_id !== $tenant->id) {
-            abort(404);
-        }
+        $this->authorize('delete', $lead);
 
         $lead->delete();
 
@@ -146,11 +133,7 @@ class LeadController extends Controller
 
     public function exportSingle(Request $request, Lead $lead): StreamedResponse
     {
-        $tenant = $this->getTenant($request);
-
-        if ($lead->tenant_id !== $tenant->id) {
-            abort(404);
-        }
+        $this->authorize('view', $lead);
 
         $lead->load(['conversation.messages']);
 

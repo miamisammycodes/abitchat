@@ -134,12 +134,7 @@ class BillingController extends Controller
      */
     public function downloadReceipt(Request $request, Transaction $transaction, ReceiptService $receiptService): HttpResponse
     {
-        $tenant = $this->getTenant($request);
-
-        // Verify transaction belongs to tenant
-        if ($transaction->tenant_id !== $tenant->id) {
-            abort(403, 'Unauthorized access to this transaction.');
-        }
+        $this->authorize('view', $transaction);
 
         // Only allow downloading receipts for approved transactions
         if ($transaction->status !== 'approved') {

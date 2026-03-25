@@ -6,11 +6,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Tenant;
 use App\Models\User;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 abstract class Controller
 {
+    use AuthorizesRequests;
     /**
      * Get the authenticated user as a User model.
      * Only use this in client routes where User is guaranteed.
