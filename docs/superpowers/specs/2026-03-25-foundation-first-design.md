@@ -124,7 +124,7 @@ Call `Cache::forget()` in the relevant controller/service methods. No abstractio
 
 ### Widget-Side Error Handling (chatbot.js)
 
-- Add timeout to `apiCall()` using `AbortController` — **45 second timeout** for regular messages, **90 second timeout** for streaming (must exceed server-side 60s Prism timeout to avoid premature client-side aborts)
+- Add timeout to `apiCall()` using `AbortController` — **75 second timeout** for regular messages, **90 second timeout** for streaming (must exceed server-side 60s Prism timeout to avoid premature client-side aborts)
 - Surface user-friendly error messages based on error codes
 
 ---
@@ -151,7 +151,7 @@ Call `Cache::forget()` in the relevant controller/service methods. No abstractio
 
 ### Request Timeouts
 
-- 45s timeout for regular messages via `AbortController` (exceeds server-side 60s Prism timeout with margin)
+- 75s timeout for regular messages via `AbortController` (exceeds server-side 60s Prism timeout with margin)
 - 90s timeout for streaming responses (streams can legitimately take longer)
 
 ### Not Adding
