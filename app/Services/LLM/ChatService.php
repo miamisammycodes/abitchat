@@ -62,24 +62,49 @@ class ChatService
         $messages[] = new UserMessage($userMessage);
 
         try {
-            $response = Prism::text()
-                ->using($this->provider, $this->model)
-                ->withSystemPrompt($systemPrompt)
-                ->withMessages($messages)
-                ->withClientOptions(['timeout' => 60])
-                ->asText();
+            $response = retry(
+                times: 3,
+                callback: function (int $attempt) use ($systemPrompt, $messages, $conversation) {
+                    if ($attempt > 1) {
+                        Log::warning('[LLM] (IS $) Retry attempt', [
+                            'conversation_id' => $conversation->id,
+                            'attempt' => $attempt,
+                        ]);
+                    }
 
-            // Track token usage
+                    return Prism::text()
+                        ->using($this->provider, $this->model)
+                        ->withSystemPrompt($systemPrompt)
+                        ->withMessages($messages)
+                        ->withClientOptions(['timeout' => 60])
+                        ->asText();
+                },
+                sleepMilliseconds: fn (int $attempt) => match ($attempt) {
+                    1 => 1000,
+                    2 => 2000,
+                    default => 4000,
+                },
+                when: function (\Throwable $e) {
+                    $message = $e->getMessage();
+                    return str_contains($message, '429')
+                        || str_contains($message, '500')
+                        || str_contains($message, '503')
+                        || str_contains($message, 'Connection')
+                        || str_contains($message, 'timeout')
+                        || str_contains($message, 'CURL');
+                },
+            );
+
             $this->trackUsage($tenant, $conversation, $response->usage);
 
             Log::debug('[LLM] (IS $) Response generated', [
                 'conversation_id' => $conversation->id,
-                'tokens' => $response->usage->promptTokens + $response->usage->completionTokens,
+                'tokens' => $response->usage?->totalTokens ?? 0,
             ]);
 
             return $response->text;
         } catch (\Exception $e) {
-            Log::error('[LLM] Response generation failed', [
+            Log::error('[LLM] Response generation failed after retries', [
                 'conversation_id' => $conversation->id,
                 'error' => $e->getMessage(),
             ]);
