@@ -84,6 +84,8 @@ class ChatController extends Controller
             ],
         ]);
 
+        Cache::forget("tenant:{$tenant->id}:usage");
+
         Log::debug('[Widget] (NO $) Conversation started', [
             'conversation_id' => $conversation->id,
             'tenant_id' => $tenant->id,
@@ -153,6 +155,8 @@ class ChatController extends Controller
             'role' => 'assistant',
             'content' => $response,
         ]);
+
+        Cache::forget("tenant:{$tenant->id}:usage");
 
         Log::debug('[Widget] (NO $) Message exchanged', [
             'conversation_id' => $conversation->id,
@@ -318,6 +322,8 @@ class ChatController extends Controller
             $lead = $this->leadService->captureFromConversation($conversation, $contactInfo);
 
             if ($lead) {
+                Cache::forget("tenant:{$conversation->tenant_id}:usage");
+
                 Log::debug('[Widget] (NO $) Lead captured from message', [
                     'conversation_id' => $conversation->id,
                     'lead_id' => $lead->id,

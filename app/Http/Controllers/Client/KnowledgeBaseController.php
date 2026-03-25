@@ -10,6 +10,7 @@ use App\Models\KnowledgeItem;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -101,6 +102,8 @@ class KnowledgeBaseController extends Controller
         // Dispatch job to process the knowledge item
         ProcessKnowledgeItem::dispatch($item);
 
+        $this->clearKnowledgeCache($tenant);
+
         Log::debug('[Knowledge] (NO $) Item created, processing queued', [
             'item_id' => $item->id,
         ]);
@@ -169,6 +172,8 @@ class KnowledgeBaseController extends Controller
             ProcessKnowledgeItem::dispatch($item);
         }
 
+        $this->clearKnowledgeCache($this->getTenant());
+
         return redirect()->route('client.knowledge.index')
             ->with('success', 'Knowledge item updated.');
     }
@@ -190,6 +195,8 @@ class KnowledgeBaseController extends Controller
         $item->chunks()->delete();
         $item->delete();
 
+        $this->clearKnowledgeCache($this->getTenant());
+
         return redirect()->route('client.knowledge.index')
             ->with('success', 'Knowledge item deleted.');
     }
@@ -203,6 +210,8 @@ class KnowledgeBaseController extends Controller
 
         ProcessKnowledgeItem::dispatch($item);
 
+        $this->clearKnowledgeCache($this->getTenant());
+
         return redirect()->back()
             ->with('success', 'Knowledge item queued for reprocessing.');
     }
@@ -214,5 +223,10 @@ class KnowledgeBaseController extends Controller
         if ($item->tenant_id !== $tenant->id) {
             abort(403, 'Unauthorized');
         }
+    }
+
+    private function clearKnowledgeCache(\App\Models\Tenant $tenant): void
+    {
+        Cache::increment("knowledge_version:{$tenant->id}");
     }
 }

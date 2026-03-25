@@ -6,6 +6,7 @@ namespace App\Services\Knowledge;
 
 use App\Models\KnowledgeChunk;
 use App\Models\Tenant;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class RetrievalService
@@ -21,44 +22,49 @@ class RetrievalService
      */
     public function retrieve(Tenant $tenant, string $query, int $limit = 5): array
     {
-        Log::debug('[RAG] (NO $) Retrieving context', [
-            'tenant_id' => $tenant->id,
-            'query_length' => strlen($query),
-        ]);
+        $version = Cache::get("knowledge_version:{$tenant->id}", 0);
+        $cacheKey = "knowledge:{$tenant->id}:v{$version}:" . md5($query);
 
-        // Get all chunks for this tenant with embeddings
-        $chunks = KnowledgeChunk::whereHas('knowledgeItem', function ($q) use ($tenant) {
-            $q->where('tenant_id', $tenant->id)
-                ->where('status', 'ready');
-        })
-            ->whereNotNull('embedding')
-            ->get()
-            ->map(function ($chunk) {
-                return [
-                    'id' => $chunk->id,
-                    'content' => $chunk->content,
-                    'embedding' => $chunk->embedding,
-                ];
+        return Cache::remember($cacheKey, 600, function () use ($tenant, $query, $limit) {
+            Log::debug('[RAG] (NO $) Retrieving context', [
+                'tenant_id' => $tenant->id,
+                'query_length' => strlen($query),
+            ]);
+
+            // Get all chunks for this tenant with embeddings
+            $chunks = KnowledgeChunk::whereHas('knowledgeItem', function ($q) use ($tenant) {
+                $q->where('tenant_id', $tenant->id)
+                    ->where('status', 'ready');
             })
-            ->toArray();
+                ->whereNotNull('embedding')
+                ->get()
+                ->map(function ($chunk) {
+                    return [
+                        'id' => $chunk->id,
+                        'content' => $chunk->content,
+                        'embedding' => $chunk->embedding,
+                    ];
+                })
+                ->toArray();
 
-        // If no chunks with embeddings, fall back to keyword search
-        if (empty($chunks)) {
-            Log::debug('[RAG] (NO $) No chunks with embeddings, using keyword fallback');
+            // If no chunks with embeddings, fall back to keyword search
+            if (empty($chunks)) {
+                Log::debug('[RAG] (NO $) No chunks with embeddings, using keyword fallback');
 
-            return $this->retrieveByKeywords($tenant, $query, $limit);
-        }
+                return $this->retrieveByKeywords($tenant, $query, $limit);
+            }
 
-        // Find similar chunks
-        $similar = $this->embeddingService->findSimilar($query, $chunks, $limit);
+            // Find similar chunks
+            $similar = $this->embeddingService->findSimilar($query, $chunks, $limit);
 
-        Log::debug('[RAG] (NO $) Retrieved chunks', [
-            'total_chunks' => count($chunks),
-            'similar_found' => count($similar),
-        ]);
+            Log::debug('[RAG] (NO $) Retrieved chunks', [
+                'total_chunks' => count($chunks),
+                'similar_found' => count($similar),
+            ]);
 
-        // Return just the content strings
-        return array_map(fn ($item) => $item['content'], $similar);
+            // Return just the content strings
+            return array_map(fn ($item) => $item['content'], $similar);
+        });
     }
 
     /**
