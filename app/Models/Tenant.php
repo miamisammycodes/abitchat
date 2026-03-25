@@ -7,6 +7,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Spatie\Multitenancy\Models\Tenant as BaseTenant;
 
@@ -49,6 +50,11 @@ class Tenant extends BaseTenant
             if (empty($tenant->slug)) {
                 $tenant->slug = Str::slug($tenant->name);
             }
+        });
+
+        static::saved(function (Tenant $tenant) {
+            Cache::forget("tenant:api_key:{$tenant->api_key}");
+            Cache::forget("tenant:{$tenant->id}:with_plan");
         });
     }
 

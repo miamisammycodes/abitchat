@@ -13,6 +13,7 @@ use App\Services\Leads\LeadService;
 use App\Services\LLM\ChatService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -34,7 +35,7 @@ class ChatController extends Controller
             'api_key' => 'required|string',
         ]);
 
-        $tenant = Tenant::where('api_key', $request->api_key)->first();
+        $tenant = $this->findTenantByApiKey($request->api_key);
 
         if (! $tenant) {
             return response()->json(['error' => 'Invalid API key'], 401);
@@ -64,7 +65,7 @@ class ChatController extends Controller
             'session_id' => 'nullable|string|max:64',
         ]);
 
-        $tenant = Tenant::where('api_key', $request->api_key)->first();
+        $tenant = $this->findTenantByApiKey($request->api_key);
 
         if (! $tenant) {
             return response()->json(['error' => 'Invalid API key'], 401);
@@ -112,7 +113,7 @@ class ChatController extends Controller
         /** @var string $message */
         $message = $validated['message'];
 
-        $tenant = Tenant::where('api_key', $apiKey)->first();
+        $tenant = $this->findTenantByApiKey($apiKey);
 
         if (! $tenant) {
             return response()->json(['error' => 'Invalid API key'], 401);
@@ -180,7 +181,7 @@ class ChatController extends Controller
         /** @var string $message */
         $message = $validated['message'];
 
-        $tenant = Tenant::where('api_key', $apiKey)->first();
+        $tenant = $this->findTenantByApiKey($apiKey);
 
         if (! $tenant) {
             return response()->stream(function () {
@@ -257,7 +258,7 @@ class ChatController extends Controller
             'conversation_id' => 'required|integer',
         ]);
 
-        $tenant = Tenant::where('api_key', $request->api_key)->first();
+        $tenant = $this->findTenantByApiKey($request->api_key);
 
         if (! $tenant) {
             return response()->json(['error' => 'Invalid API key'], 401);
@@ -285,6 +286,16 @@ class ChatController extends Controller
         ]);
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * Find tenant by API key with caching.
+     */
+    private function findTenantByApiKey(string $apiKey): ?Tenant
+    {
+        return Cache::remember("tenant:api_key:{$apiKey}", 300, function () use ($apiKey) {
+            return Tenant::where('api_key', $apiKey)->first();
+        });
     }
 
     /**

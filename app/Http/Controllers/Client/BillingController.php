@@ -10,6 +10,7 @@ use App\Models\Transaction;
 use App\Services\Billing\ReceiptService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Response as HttpResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -22,7 +23,10 @@ class BillingController extends Controller
     public function index(Request $request): Response
     {
         $tenant = $this->getTenant($request);
-        $tenant->load('currentPlan');
+        $tenant = Cache::remember("tenant:{$tenant->id}:with_plan", 300, function () use ($tenant) {
+            $tenant->load('currentPlan');
+            return $tenant;
+        });
 
         return Inertia::render('Client/Billing/Index', [
             'tenant' => $tenant,
