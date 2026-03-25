@@ -375,7 +375,7 @@ protected static function booted(): void
 
 Add `use Illuminate\Support\Facades\Cache;` import.
 
-- [ ] **Step 3: Verify cache works**
+- [ ] **Step 4: Verify cache works**
 
 ```bash
 php artisan tinker --execute="
@@ -388,11 +388,11 @@ php artisan tinker --execute="
 "
 ```
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add app/Http/Controllers/Api/V1/Widget/ChatController.php app/Models/Tenant.php
-git commit -m "perf: cache tenant lookups by API key (5 min TTL)"
+git add app/Http/Controllers/Api/V1/Widget/ChatController.php app/Models/Tenant.php app/Http/Controllers/Client/BillingController.php
+git commit -m "perf: cache tenant lookups by API key and plan (5 min TTL)"
 ```
 
 ---
