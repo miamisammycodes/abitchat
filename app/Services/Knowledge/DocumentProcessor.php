@@ -97,29 +97,38 @@ class DocumentProcessor
 
     private function extractTextFromHtml(string $html): string
     {
-        // Remove non-content elements entirely
-        $html = preg_replace('/<script\b[^>]*>(.*?)<\/script>/is', '', $html);
-        $html = preg_replace('/<style\b[^>]*>(.*?)<\/style>/is', '', $html);
-        $html = preg_replace('/<nav\b[^>]*>(.*?)<\/nav>/is', '', $html);
-        $html = preg_replace('/<header\b[^>]*>(.*?)<\/header>/is', '', $html);
-        $html = preg_replace('/<footer\b[^>]*>(.*?)<\/footer>/is', '', $html);
-        $html = preg_replace('/<svg\b[^>]*>(.*?)<\/svg>/is', '', $html);
-        $html = preg_replace('/<iframe\b[^>]*>(.*?)<\/iframe>/is', '', $html);
-        $html = preg_replace('/<form\b[^>]*>(.*?)<\/form>/is', '', $html);
-        $html = preg_replace('/<noscript\b[^>]*>(.*?)<\/noscript>/is', '', $html);
-        $html = preg_replace('/<aside\b[^>]*>(.*?)<\/aside>/is', '', $html);
+        // Use DOMDocument for proper HTML parsing
+        $dom = new \DOMDocument;
+        libxml_use_internal_errors(true);
+        $dom->loadHTML('<?xml encoding="UTF-8">' . $html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+        libxml_clear_errors();
 
-        // Remove hidden elements
-        $html = preg_replace('/<[^>]*(?:display\s*:\s*none|visibility\s*:\s*hidden|aria-hidden\s*=\s*"true")[^>]*>(.*?)<\/[^>]+>/is', '', $html);
+        // Remove non-content elements
+        $tagsToRemove = ['script', 'style', 'nav', 'header', 'footer', 'svg', 'iframe', 'form', 'noscript', 'aside', 'button', 'input', 'select', 'textarea'];
+        foreach ($tagsToRemove as $tag) {
+            $elements = $dom->getElementsByTagName($tag);
+            // Collect elements first (removing during iteration breaks the list)
+            $toRemove = [];
+            for ($i = 0; $i < $elements->length; $i++) {
+                $toRemove[] = $elements->item($i);
+            }
+            foreach ($toRemove as $element) {
+                $element->parentNode?->removeChild($element);
+            }
+        }
 
         // Remove HTML comments
-        $html = preg_replace('/<!--.*?-->/s', '', $html);
+        $xpath = new \DOMXPath($dom);
+        $comments = $xpath->query('//comment()');
+        if ($comments) {
+            foreach ($comments as $comment) {
+                $comment->parentNode?->removeChild($comment);
+            }
+        }
 
-        // Convert block elements to newlines
-        $html = preg_replace('/<(p|div|br|h[1-6]|li|tr|section|article)[^>]*>/i', "\n", $html);
-
-        // Strip remaining tags
-        $text = strip_tags($html);
+        // Extract text content — DOMDocument handles this cleanly
+        $body = $dom->getElementsByTagName('body')->item(0);
+        $text = $body ? $body->textContent : $dom->textContent;
 
         // Decode HTML entities
         $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
