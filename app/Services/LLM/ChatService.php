@@ -31,8 +31,8 @@ class ChatService
         };
 
         $this->model = match ($providerName) {
-            'groq' => (string) env('GROQ_MODEL', 'llama-3.1-8b-instant'),
-            'ollama' => (string) env('OLLAMA_MODEL', 'gemma3:4b'),
+            'groq' => (string) config('services.groq.model', 'llama-3.1-8b-instant'),
+            'ollama' => (string) config('services.ollama.model', 'gemma3:4b'),
             default => 'gemma3:4b',
         };
     }
@@ -195,7 +195,7 @@ class ChatService
                 ->where('role', 'assistant')
                 ->pluck('content')
                 ->implode(' ');
-            $contactRequested = preg_match('/email|phone|contact.*info|reach.*out|get.*back/i', $assistantMessages);
+            $contactRequested = preg_match('/(?:provide|share|give).*(?:name|email|phone|contact|number)|(?:how can (?:I|we) (?:reach|contact|get (?:back to|in touch)))/i', $assistantMessages);
         }
 
         // Build base prompt based on bot type
@@ -346,9 +346,11 @@ PROMPT,
     private function buildMessageHistory(Conversation $conversation): array
     {
         $messages = $conversation->messages()
-            ->orderBy('created_at', 'asc')
+            ->orderBy('created_at', 'desc')
             ->limit(20) // Keep context window manageable
-            ->get();
+            ->get()
+            ->reverse()
+            ->values();
 
         return $messages->map(function (Message $message) {
             if ($message->role === 'user') {

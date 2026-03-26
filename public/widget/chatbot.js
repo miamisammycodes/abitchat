@@ -630,6 +630,9 @@
             // Links
             html = html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
 
+            // Remove dangerous URL schemes
+            html = html.replace(/href="(?:javascript|data|vbscript):[^"]*"/gi, 'href="#"');
+
             return html;
         },
 

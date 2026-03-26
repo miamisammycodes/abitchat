@@ -37,15 +37,16 @@ class KnowledgeBaseController extends Controller
                 ];
             });
 
+        $statsByType = KnowledgeItem::where('tenant_id', $tenant->id)
+            ->selectRaw('type, COUNT(*) as count')
+            ->groupBy('type')
+            ->pluck('count', 'type');
+
         $stats = [
-            'documents' => KnowledgeItem::where('tenant_id', $tenant->id)
-                ->where('type', 'document')->count(),
-            'faqs' => KnowledgeItem::where('tenant_id', $tenant->id)
-                ->where('type', 'faq')->count(),
-            'webpages' => KnowledgeItem::where('tenant_id', $tenant->id)
-                ->where('type', 'webpage')->count(),
-            'text' => KnowledgeItem::where('tenant_id', $tenant->id)
-                ->where('type', 'text')->count(),
+            'documents' => $statsByType->get('document', 0),
+            'faqs' => $statsByType->get('faq', 0),
+            'webpages' => $statsByType->get('webpage', 0),
+            'text' => $statsByType->get('text', 0),
         ];
 
         return Inertia::render('Client/KnowledgeBase/Index', [

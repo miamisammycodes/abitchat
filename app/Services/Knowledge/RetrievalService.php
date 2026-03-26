@@ -87,7 +87,8 @@ class RetrievalService
         })
             ->where(function ($q) use ($keywords) {
                 foreach ($keywords as $keyword) {
-                    $q->orWhere('content', 'like', "%{$keyword}%");
+                    $escaped = str_replace(['%', '_'], ['\\%', '\\_'], $keyword);
+                    $q->orWhere('content', 'like', "%{$escaped}%");
                 }
             })
             ->limit($limit)

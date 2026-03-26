@@ -20,6 +20,4 @@ parameters:
         - '#Property App\\Models\\KnowledgeItem::\$metadata .* does not accept array#'
         # Unused methods may be used in future
         - '#Method App\\Services\\Leads\\LeadService::findExistingLead\(\) is unused#'
-        # env() calls outside config - acceptable in dev-only code paths
-        - '#Called .env. outside of the config directory#'
     reportUnmatchedIgnoredErrors: true
