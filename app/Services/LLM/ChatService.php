@@ -235,7 +235,8 @@ PROMPT;
 
 LEAD CAPTURE:
 When user shows buying interest (meeting, demo, quote, get started, pricing):
-- Ask for their name and email so the team can follow up
+- Ask for their name and phone number so the team can follow up
+- Do NOT ask for email
 - Only ask ONCE, don't repeat
 PROMPT;
             }
