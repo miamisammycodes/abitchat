@@ -36,7 +36,7 @@ class DocumentProcessor
 
     public function extractFromUrl(string $url): string
     {
-        Log::debug('[DocumentProcessor] (NO $) Extracting from URL', [
+        Log::debug('[DocumentProcessor] (IS $) Extracting from URL', [
             'url' => $url,
         ]);
 
@@ -104,7 +104,7 @@ class DocumentProcessor
         libxml_clear_errors();
 
         // Remove non-content elements
-        $tagsToRemove = ['script', 'style', 'nav', 'header', 'footer', 'svg', 'iframe', 'form', 'noscript', 'aside', 'button', 'input', 'select', 'textarea'];
+        $tagsToRemove = ['script', 'style', 'nav', 'header', 'footer', 'svg', 'iframe', 'form', 'noscript', 'aside', 'button', 'input', 'select', 'textarea', 'dialog', 'menu'];
         foreach ($tagsToRemove as $tag) {
             $elements = $dom->getElementsByTagName($tag);
             // Collect elements first (removing during iteration breaks the list)
