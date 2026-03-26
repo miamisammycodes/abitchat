@@ -348,7 +348,7 @@ PROMPT,
             }
 
             return new AssistantMessage($message->content);
-        })->toArray();
+        })->all();
     }
 
     private function trackUsage(Tenant $tenant, Conversation $conversation, mixed $usage): void
