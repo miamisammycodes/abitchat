@@ -97,17 +97,26 @@ class DocumentProcessor
 
     private function extractTextFromHtml(string $html): string
     {
-        // Remove script and style elements
+        // Remove non-content elements entirely
         $html = preg_replace('/<script\b[^>]*>(.*?)<\/script>/is', '', $html);
         $html = preg_replace('/<style\b[^>]*>(.*?)<\/style>/is', '', $html);
-
-        // Remove nav, header, footer elements
         $html = preg_replace('/<nav\b[^>]*>(.*?)<\/nav>/is', '', $html);
         $html = preg_replace('/<header\b[^>]*>(.*?)<\/header>/is', '', $html);
         $html = preg_replace('/<footer\b[^>]*>(.*?)<\/footer>/is', '', $html);
+        $html = preg_replace('/<svg\b[^>]*>(.*?)<\/svg>/is', '', $html);
+        $html = preg_replace('/<iframe\b[^>]*>(.*?)<\/iframe>/is', '', $html);
+        $html = preg_replace('/<form\b[^>]*>(.*?)<\/form>/is', '', $html);
+        $html = preg_replace('/<noscript\b[^>]*>(.*?)<\/noscript>/is', '', $html);
+        $html = preg_replace('/<aside\b[^>]*>(.*?)<\/aside>/is', '', $html);
+
+        // Remove hidden elements
+        $html = preg_replace('/<[^>]*(?:display\s*:\s*none|visibility\s*:\s*hidden|aria-hidden\s*=\s*"true")[^>]*>(.*?)<\/[^>]+>/is', '', $html);
+
+        // Remove HTML comments
+        $html = preg_replace('/<!--.*?-->/s', '', $html);
 
         // Convert block elements to newlines
-        $html = preg_replace('/<(p|div|br|h[1-6]|li)[^>]*>/i', "\n", $html);
+        $html = preg_replace('/<(p|div|br|h[1-6]|li|tr|section|article)[^>]*>/i', "\n", $html);
 
         // Strip remaining tags
         $text = strip_tags($html);
@@ -123,16 +132,17 @@ class DocumentProcessor
         // Normalize whitespace
         $text = preg_replace('/\r\n|\r/', "\n", $text);
 
-        // Replace multiple spaces with single space
+        // Replace multiple spaces/tabs with single space
         $text = preg_replace('/[ \t]+/', ' ', $text);
 
-        // Replace multiple newlines with double newline
-        $text = preg_replace('/\n{3,}/', "\n\n", $text);
-
-        // Trim whitespace from each line
+        // Trim whitespace from each line and remove empty lines
         $lines = explode("\n", $text);
         $lines = array_map('trim', $lines);
+        $lines = array_filter($lines, fn (string $line) => $line !== '');
+
+        // Rejoin and collapse excessive newlines
         $text = implode("\n", $lines);
+        $text = preg_replace('/\n{3,}/', "\n\n", $text);
 
         return trim($text);
     }
