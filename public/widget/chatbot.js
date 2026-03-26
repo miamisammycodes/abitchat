@@ -738,8 +738,8 @@
                     }
                 }
             } else {
-                if (input) input.disabled = false;
-                if (sendBtn) sendBtn.disabled = false;
+                if (input && !this.state.isLoading) input.disabled = false;
+                if (sendBtn && !this.state.sending) sendBtn.disabled = false;
                 if (banner) banner.remove();
             }
         }
