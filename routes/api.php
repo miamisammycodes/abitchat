@@ -15,8 +15,8 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-// Widget endpoints (public, API key auth)
-Route::prefix('v1/widget')->group(function () {
+// Widget endpoints (public, API key auth, rate limited, domain restricted)
+Route::prefix('v1/widget')->middleware(['throttle:60,1', 'validate.widget.domain'])->group(function () {
     Route::post('/init', [ChatController::class, 'init']);
     Route::post('/conversation', [ChatController::class, 'startConversation'])->middleware('check.limits:conversations');
     Route::post('/message', [ChatController::class, 'sendMessage'])->middleware('check.limits:tokens');

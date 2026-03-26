@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'check.limits' => \App\Http\Middleware\CheckUsageLimits::class,
+            'validate.widget.domain' => \App\Http\Middleware\ValidateWidgetDomain::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
