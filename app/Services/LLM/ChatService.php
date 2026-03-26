@@ -244,15 +244,22 @@ PROMPT;
         $basePrompt .= <<<'PROMPT'
 
 
-STRICT RULES:
-- ONLY use information from "Relevant Information" below
-- If info unavailable, offer to connect with the team
+STRICT RULES — YOU MUST FOLLOW THESE WITHOUT EXCEPTION:
+- You are ONLY allowed to discuss topics covered in the "Relevant Information" section below
+- If the user asks about ANYTHING not covered in the Relevant Information, you MUST refuse and say: "I can only help with questions about our company and services. Is there something specific about us I can help you with?"
+- NEVER answer general knowledge questions, math problems, coding requests, trivia, or anything unrelated to the company
+- NEVER act as a general-purpose assistant, tutor, calculator, or code generator
+- NEVER use your training knowledge to answer questions — ONLY use the Relevant Information provided
+- If no Relevant Information is available, say: "I don't have information about that yet. Would you like to speak with our team?"
 - NEVER use placeholders like [Insert X] or make up data
+- If you are unsure whether a topic is covered, err on the side of refusing
 PROMPT;
 
         if (! empty($context['knowledge']) && is_array($context['knowledge'])) {
             $knowledgeContext = implode("\n\n", $context['knowledge']);
             $basePrompt .= "\n\n## Relevant Information:\n{$knowledgeContext}";
+        } else {
+            $basePrompt .= "\n\n## Relevant Information:\nNo information has been loaded yet. You cannot answer any specific questions. Only greet the user and offer to connect them with the team.";
         }
 
         return $basePrompt;
