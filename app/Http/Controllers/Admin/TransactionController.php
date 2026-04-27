@@ -9,6 +9,7 @@ use App\Models\Transaction;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -37,6 +38,14 @@ class TransactionController extends Controller
         // Sort
         $sortField = (string) $request->input('sort', 'created_at');
         $sortDirection = (string) $request->input('direction', 'desc');
+        $allowedSorts = ['created_at', 'status', 'amount', 'transaction_number'];
+
+        if (!in_array($sortField, $allowedSorts, true)) {
+            $sortField = 'created_at';
+        }
+        if (!in_array($sortDirection, ['asc', 'desc'], true)) {
+            $sortDirection = 'desc';
+        }
 
         $query->orderBy($sortField, $sortDirection);
 
@@ -73,51 +82,71 @@ class TransactionController extends Controller
 
     public function approve(Request $request, Transaction $transaction): RedirectResponse
     {
-        if ($transaction->status !== 'pending') {
-            return back()->with('error', 'Transaction has already been processed.');
-        }
-
         $validated = $request->validate([
             'admin_notes' => 'nullable|string|max:1000',
         ]);
 
         $admin = Auth::guard('admin')->user();
 
-        $transaction->update([
-            'status' => 'approved',
-            'admin_notes' => $validated['admin_notes'] ?? null,
-            'approved_by' => $admin?->id,
-            'approved_at' => now(),
-        ]);
+        try {
+            DB::transaction(function () use ($transaction, $validated, $admin) {
+                $locked = Transaction::whereKey($transaction->id)->lockForUpdate()->first();
 
-        // Activate the plan for the tenant
-        $tenant = $transaction->tenant;
-        $tenant?->update([
-            'plan_id' => $transaction->plan_id,
-            'plan_expires_at' => now()->addMonth(), // Or based on plan billing period
-        ]);
+                if (!$locked || $locked->status !== 'pending') {
+                    throw new \RuntimeException('ALREADY_PROCESSED');
+                }
+
+                $locked->update([
+                    'status' => 'approved',
+                    'admin_notes' => $validated['admin_notes'] ?? null,
+                    'approved_by' => $admin?->id,
+                    'approved_at' => now(),
+                ]);
+
+                $locked->tenant?->update([
+                    'plan_id' => $locked->plan_id,
+                    'plan_expires_at' => now()->addMonth(),
+                ]);
+            });
+        } catch (\RuntimeException $e) {
+            if ($e->getMessage() === 'ALREADY_PROCESSED') {
+                return back()->with('error', 'Transaction has already been processed.');
+            }
+            throw $e;
+        }
 
         return back()->with('success', 'Transaction approved and plan activated.');
     }
 
     public function reject(Request $request, Transaction $transaction): RedirectResponse
     {
-        if ($transaction->status !== 'pending') {
-            return back()->with('error', 'Transaction has already been processed.');
-        }
-
         $validated = $request->validate([
             'admin_notes' => 'required|string|max:1000',
         ]);
 
         $admin = Auth::guard('admin')->user();
 
-        $transaction->update([
-            'status' => 'rejected',
-            'admin_notes' => $validated['admin_notes'],
-            'approved_by' => $admin?->id,
-            'approved_at' => now(),
-        ]);
+        try {
+            DB::transaction(function () use ($transaction, $validated, $admin) {
+                $locked = Transaction::whereKey($transaction->id)->lockForUpdate()->first();
+
+                if (!$locked || $locked->status !== 'pending') {
+                    throw new \RuntimeException('ALREADY_PROCESSED');
+                }
+
+                $locked->update([
+                    'status' => 'rejected',
+                    'admin_notes' => $validated['admin_notes'],
+                    'approved_by' => $admin?->id,
+                    'approved_at' => now(),
+                ]);
+            });
+        } catch (\RuntimeException $e) {
+            if ($e->getMessage() === 'ALREADY_PROCESSED') {
+                return back()->with('error', 'Transaction has already been processed.');
+            }
+            throw $e;
+        }
 
         return back()->with('success', 'Transaction rejected.');
     }

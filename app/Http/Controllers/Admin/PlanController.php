@@ -36,6 +36,14 @@ class PlanController extends Controller
         // Sort
         $sortField = (string) $request->input('sort', 'sort_order');
         $sortDirection = (string) $request->input('direction', 'asc');
+        $allowedSorts = ['sort_order', 'name', 'price', 'created_at', 'is_active'];
+
+        if (!in_array($sortField, $allowedSorts, true)) {
+            $sortField = 'sort_order';
+        }
+        if (!in_array($sortDirection, ['asc', 'desc'], true)) {
+            $sortDirection = 'asc';
+        }
 
         $query->orderBy($sortField, $sortDirection);
 

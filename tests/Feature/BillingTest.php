@@ -78,8 +78,9 @@ class BillingTest extends TestCase
 
         $response = $this->post("/billing/subscribe/{$plan->id}", [
             'transaction_number' => 'TXN123456789',
+            'reference_number' => 'ABC123',
             'amount' => 29.99,
-            'payment_method' => 'bank_transfer',
+            'payment_method' => 'bob',
             'payment_date' => now()->format('Y-m-d'),
         ]);
 
@@ -114,8 +115,9 @@ class BillingTest extends TestCase
         ]);
 
         $response = $this->post("/billing/subscribe/{$plan->id}", [
+            'reference_number' => 'ABC123',
             'amount' => 9.99,
-            'payment_method' => 'bank_transfer',
+            'payment_method' => 'bob',
             'payment_date' => now()->format('Y-m-d'),
         ]);
 
@@ -143,6 +145,7 @@ class BillingTest extends TestCase
 
         $response = $this->post("/billing/subscribe/{$plan->id}", [
             'transaction_number' => 'TXN-INVALID-TEST',
+            'reference_number' => 'ABC123',
             'amount' => 19.99,
             'payment_method' => 'bitcoin', // Invalid payment method
             'payment_date' => now()->format('Y-m-d'),
@@ -175,8 +178,9 @@ class BillingTest extends TestCase
             'tenant_id' => $this->tenant->id,
             'plan_id' => $plan->id,
             'transaction_number' => 'DUPLICATE-TXN-123',
+            'reference_number' => 'ABC123',
             'amount' => 29.99,
-            'payment_method' => 'bank_transfer',
+            'payment_method' => 'bob',
             'payment_date' => now(),
             'status' => 'pending',
         ]);
@@ -184,8 +188,9 @@ class BillingTest extends TestCase
         // Try to submit same transaction number
         $response = $this->post("/billing/subscribe/{$plan->id}", [
             'transaction_number' => 'DUPLICATE-TXN-123',
+            'reference_number' => 'XYZ789',
             'amount' => 29.99,
-            'payment_method' => 'bank_transfer',
+            'payment_method' => 'bob',
             'payment_date' => now()->format('Y-m-d'),
         ]);
 
@@ -213,8 +218,9 @@ class BillingTest extends TestCase
 
         $response = $this->post("/billing/subscribe/{$plan->id}", [
             'transaction_number' => 'TXN-FUTURE-DATE',
+            'reference_number' => 'ABC123',
             'amount' => 29.99,
-            'payment_method' => 'bank_transfer',
+            'payment_method' => 'bob',
             'payment_date' => now()->addDays(5)->format('Y-m-d'), // Future date
         ]);
 
@@ -254,8 +260,9 @@ class BillingTest extends TestCase
             'tenant_id' => $this->tenant->id,
             'plan_id' => $plan->id,
             'transaction_number' => 'MY-TXN-123',
+            'reference_number' => 'MYR123',
             'amount' => 49.99,
-            'payment_method' => 'bank_transfer',
+            'payment_method' => 'bob',
             'payment_date' => now(),
             'status' => 'pending',
         ]);
@@ -271,8 +278,9 @@ class BillingTest extends TestCase
             'tenant_id' => $otherTenant->id,
             'plan_id' => $plan->id,
             'transaction_number' => 'OTHER-TXN-456',
+            'reference_number' => 'OTH456',
             'amount' => 49.99,
-            'payment_method' => 'upi',
+            'payment_method' => 'bnb',
             'payment_date' => now(),
             'status' => 'approved',
         ]);
@@ -289,7 +297,7 @@ class BillingTest extends TestCase
     {
         $this->actingAsTenantUser();
 
-        $paymentMethods = ['bank_transfer', 'upi', 'card', 'cash', 'other'];
+        $paymentMethods = ['bob', 'bnb', 'dpnb', 'bdbl', 'tbank', 'dk'];
 
         foreach ($paymentMethods as $index => $method) {
             $plan = Plan::create([
@@ -309,6 +317,7 @@ class BillingTest extends TestCase
 
             $response = $this->post("/billing/subscribe/{$plan->id}", [
                 'transaction_number' => "TXN-{$method}-{$index}",
+                'reference_number' => 'REF' . str_pad((string) $index, 3, '0', STR_PAD_LEFT),
                 'amount' => 19.99,
                 'payment_method' => $method,
                 'payment_date' => now()->format('Y-m-d'),

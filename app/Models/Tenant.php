@@ -154,7 +154,7 @@ class Tenant extends BaseTenant
             'conversations' => $this->conversations()->whereMonth('created_at', now()->month)->count(),
             'knowledge_items' => $this->knowledgeItems()->count(),
             'leads' => $this->leads()->whereMonth('created_at', now()->month)->count(),
-            'tokens' => $this->usageRecords()->where('type', 'tokens')->whereMonth('created_at', now()->month)->sum('quantity'),
+            'tokens' => $this->usageRecords()->where('type', 'tokens')->whereMonth('recorded_date', now()->month)->sum('quantity'),
             default => 0,
         };
 
@@ -184,7 +184,7 @@ class Tenant extends BaseTenant
                 'limit' => $plan?->leads_limit ?? 0,
             ],
             'tokens' => [
-                'used' => (int) $this->usageRecords()->where('type', 'tokens')->whereMonth('created_at', now()->month)->sum('quantity'),
+                'used' => (int) $this->usageRecords()->where('type', 'tokens')->whereMonth('recorded_date', now()->month)->sum('quantity'),
                 'limit' => $plan?->tokens_limit ?? 0,
             ],
         ];

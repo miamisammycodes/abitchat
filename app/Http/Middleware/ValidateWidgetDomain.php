@@ -29,6 +29,13 @@ class ValidateWidgetDomain
             return $next($request); // Let other middleware handle invalid key
         }
 
+        if (! $tenant->isActive()) {
+            return response()->json([
+                'error' => 'Account is not active',
+                'code' => 'TENANT_INACTIVE',
+            ], 403);
+        }
+
         /** @var array<int, string> $allowedDomains */
         $allowedDomains = $tenant->settings['allowed_domains'] ?? [];
 

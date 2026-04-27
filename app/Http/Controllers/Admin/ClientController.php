@@ -47,9 +47,14 @@ class ClientController extends Controller
         $sortDirection = (string) $request->input('direction', 'desc');
         $allowedSorts = ['name', 'created_at', 'status', 'conversations_count', 'leads_count'];
 
-        if (in_array($sortField, $allowedSorts)) {
-            $query->orderBy($sortField, $sortDirection);
+        if (!in_array($sortField, $allowedSorts, true)) {
+            $sortField = 'created_at';
         }
+        if (!in_array($sortDirection, ['asc', 'desc'], true)) {
+            $sortDirection = 'desc';
+        }
+
+        $query->orderBy($sortField, $sortDirection);
 
         $clients = $query->paginate(20)->withQueryString();
 

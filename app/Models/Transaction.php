@@ -43,10 +43,10 @@ class Transaction extends Model
         return $this->belongsTo(Plan::class);
     }
 
-    /** @return BelongsTo<User, $this> */
+    /** @return BelongsTo<AdminUser, $this> */
     public function approvedBy(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'approved_by');
+        return $this->belongsTo(AdminUser::class, 'approved_by');
     }
 
     /** @param Builder<self> $query */

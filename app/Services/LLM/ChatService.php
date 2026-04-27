@@ -142,6 +142,8 @@ class ChatService
                 ->withClientOptions(['timeout' => 60])
                 ->asStream();
 
+            $promptTokens = 0;
+            $completionTokens = 0;
             $totalTokens = 0;
             $fullResponse = '';
 
@@ -153,17 +155,38 @@ class ChatService
                 }
 
                 if (property_exists($event, 'usage') && $event->usage) {
-                    $totalTokens = $event->usage->totalTokens ?? 0;
+                    $usage = $event->usage;
+                    if (property_exists($usage, 'promptTokens') && $usage->promptTokens) {
+                        $promptTokens = (int) $usage->promptTokens;
+                    }
+                    if (property_exists($usage, 'completionTokens') && $usage->completionTokens) {
+                        $completionTokens = (int) $usage->completionTokens;
+                    }
+                    if (property_exists($usage, 'totalTokens') && $usage->totalTokens) {
+                        $totalTokens = (int) $usage->totalTokens;
+                    }
                 }
             }
 
-            // Track usage after stream completes
+            // Ollama streams may omit totalTokens; fall back to prompt + completion
+            if ($totalTokens === 0 && ($promptTokens > 0 || $completionTokens > 0)) {
+                $totalTokens = $promptTokens + $completionTokens;
+            }
+
             if ($totalTokens > 0) {
                 UsageRecord::create([
                     'tenant_id' => $tenant->id,
                     'type' => 'tokens',
                     'quantity' => $totalTokens,
                     'recorded_date' => now()->toDateString(),
+                ]);
+
+                Log::debug('[Usage] (NO $) Stream tokens tracked', [
+                    'tenant_id' => $tenant->id,
+                    'conversation_id' => $conversation->id,
+                    'prompt_tokens' => $promptTokens,
+                    'completion_tokens' => $completionTokens,
+                    'total_tokens' => $totalTokens,
                 ]);
             }
         } catch (\Exception $e) {

@@ -55,9 +55,14 @@ class LeadController extends Controller
         $sortDirection = $request->input('direction', 'desc');
         $allowedSorts = ['created_at', 'score', 'name', 'status'];
 
-        if (in_array($sortField, $allowedSorts)) {
-            $query->orderBy($sortField, $sortDirection);
+        if (!in_array($sortField, $allowedSorts, true)) {
+            $sortField = 'created_at';
         }
+        if (!in_array($sortDirection, ['asc', 'desc'], true)) {
+            $sortDirection = 'desc';
+        }
+
+        $query->orderBy($sortField, $sortDirection);
 
         $leads = $query->paginate(20)->withQueryString();
 

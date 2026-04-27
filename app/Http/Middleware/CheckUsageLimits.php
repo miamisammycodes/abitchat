@@ -36,6 +36,17 @@ class CheckUsageLimits
             return response()->json(['error' => 'Unauthorized', 'code' => 'NO_TENANT'], 401);
         }
 
+        if (!$tenant->isActive()) {
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'error' => 'Account is not active',
+                    'code' => 'TENANT_INACTIVE',
+                ], 403);
+            }
+            return redirect()->route('client.billing.plans')
+                ->with('error', 'Your account is not active. Please contact support.');
+        }
+
         if (!$tenant->hasPlan() && !$tenant->isOnTrial()) {
             if ($request->wantsJson()) {
                 return response()->json([
@@ -45,10 +56,6 @@ class CheckUsageLimits
             }
             return redirect()->route('client.billing.plans')
                 ->with('error', 'Your trial has expired. Please subscribe to a plan to continue.');
-        }
-
-        if ($tenant->isOnTrial()) {
-            return $next($request);
         }
 
         $usage = Cache::remember("tenant:{$tenant->id}:usage", 60, function () use ($tenant) {
@@ -69,28 +76,31 @@ class CheckUsageLimits
                 'tokens' => $plan->tokens_limit,
                 'knowledge_items' => $plan->knowledge_items_limit,
             ];
+        } else {
+            // Trial tenants (or paid tenants without a plan record) get config-driven caps
+            $limits = config('billing.trial_limits', []);
+        }
 
-            $limit = $limits[$type] ?? null;
-            if ($limit !== null && $limit > 0 && ($usage[$type] ?? 0) >= $limit) {
-                $limitMessages = [
-                    'conversations' => 'You have reached your monthly conversation limit.',
-                    'knowledge_items' => 'You have reached your knowledge items limit.',
-                    'leads' => 'You have reached your monthly leads limit.',
-                    'tokens' => 'You have reached your monthly token limit.',
-                ];
-                $message = $limitMessages[$type] ?? 'You have reached your usage limit.';
+        $limit = $limits[$type] ?? null;
+        if ($limit !== null && $limit > 0 && ($usage[$type] ?? 0) >= $limit) {
+            $limitMessages = [
+                'conversations' => 'You have reached your monthly conversation limit.',
+                'knowledge_items' => 'You have reached your knowledge items limit.',
+                'leads' => 'You have reached your monthly leads limit.',
+                'tokens' => 'You have reached your monthly token limit.',
+            ];
+            $message = $limitMessages[$type] ?? 'You have reached your usage limit.';
 
-                if ($request->wantsJson()) {
-                    return response()->json([
-                        'error' => 'Limit reached',
-                        'message' => $message . ' Please upgrade your plan.',
-                        'code' => 'LIMIT_REACHED',
-                        'limit_type' => $type,
-                    ], 403);
-                }
-                return redirect()->route('client.billing.plans')
-                    ->with('error', $message . ' Please upgrade your plan.');
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'error' => 'Limit reached',
+                    'message' => $message . ' Please upgrade your plan.',
+                    'code' => 'LIMIT_REACHED',
+                    'limit_type' => $type,
+                ], 403);
             }
+            return redirect()->route('client.billing.plans')
+                ->with('error', $message . ' Please upgrade your plan.');
         }
 
         return $next($request);
