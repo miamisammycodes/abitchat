@@ -77,14 +77,18 @@ class RetrievalService
             return [];
         }
 
+        // pgsql has ILIKE; SQLite (used in tests) only has LIKE, which is
+        // case-insensitive for ASCII by default — good enough for the fallback.
+        $operator = DB::connection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
+
         return DB::table('knowledge_chunks as kc')
             ->join('knowledge_items as ki', 'ki.id', '=', 'kc.knowledge_item_id')
             ->where('ki.tenant_id', $tenant->id)
             ->where('ki.status', 'ready')
-            ->where(function ($q) use ($keywords) {
+            ->where(function ($q) use ($keywords, $operator) {
                 foreach ($keywords as $keyword) {
                     $escaped = str_replace(['%', '_'], ['\\%', '\\_'], $keyword);
-                    $q->orWhere('kc.content', 'ilike', "%{$escaped}%");
+                    $q->orWhere('kc.content', $operator, "%{$escaped}%");
                 }
             })
             ->limit($limit)
