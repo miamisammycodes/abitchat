@@ -18,12 +18,28 @@ import {
   ChevronDown,
   Sun,
   Moon,
+  AlertTriangle,
 } from 'lucide-vue-next'
 import { useTheme } from '@/composables/useTheme'
 
 const page = usePage()
 const user = computed(() => page.props.auth?.user)
 const tenant = computed(() => page.props.tenant)
+const usageWarnings = computed(() => page.props.usageWarnings ?? [])
+const usageStats = computed(() => page.props.usageStats ?? [])
+
+const formatNum = (n) => {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M'
+  if (n >= 1_000) return (n / 1_000).toFixed(1).replace(/\.0$/, '') + 'k'
+  return n.toLocaleString()
+}
+
+const barColor = (severity) => ({
+  ok: 'bg-emerald-500',
+  caution: 'bg-amber-500',
+  warning: 'bg-orange-500',
+  critical: 'bg-red-500',
+}[severity] ?? 'bg-emerald-500')
 
 const sidebarOpen = ref(false)
 const userMenuOpen = ref(false)
@@ -183,6 +199,71 @@ const getInitials = (name) => {
           </div>
         </div>
       </header>
+
+      <!-- Usage limit banners (only when at/over limit or near it) -->
+      <div v-if="usageWarnings.length" class="border-b">
+        <div
+          v-for="w in usageWarnings"
+          :key="w.type"
+          :class="[
+            'flex items-center gap-3 px-4 sm:px-6 py-3 text-sm border-b last:border-b-0',
+            w.severity === 'critical'
+              ? 'bg-destructive/10 text-destructive border-destructive/20'
+              : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
+          ]"
+        >
+          <AlertTriangle class="h-4 w-4 shrink-0" />
+          <div class="flex-1">
+            <span v-if="w.severity === 'critical'" class="font-medium">
+              You've reached your monthly {{ w.label }} limit ({{ w.used.toLocaleString() }} / {{ w.limit.toLocaleString() }}).
+              Visitors will see an unavailable message until you upgrade.
+            </span>
+            <span v-else class="font-medium">
+              You're at {{ w.percent }}% of your monthly {{ w.label }}
+              ({{ w.used.toLocaleString() }} / {{ w.limit.toLocaleString() }}).
+            </span>
+          </div>
+          <Link
+            href="/billing/plans"
+            class="font-medium underline underline-offset-2 hover:no-underline shrink-0"
+          >
+            Upgrade plan
+          </Link>
+        </div>
+      </div>
+
+      <!-- Compact always-visible usage strip -->
+      <Link
+        v-if="usageStats.length"
+        href="/billing"
+        class="block border-b bg-muted/30 hover:bg-muted/50 transition-colors"
+      >
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 sm:px-6 py-2 text-xs">
+          <div
+            v-for="s in usageStats"
+            :key="s.type"
+            class="flex items-center gap-2 min-w-0"
+          >
+            <span class="capitalize text-muted-foreground shrink-0">{{ s.label }}</span>
+            <div class="h-1.5 w-20 sm:w-28 rounded-full bg-muted overflow-hidden shrink-0">
+              <div
+                :class="['h-full rounded-full transition-all', barColor(s.severity)]"
+                :style="{ width: `${s.percent}%` }"
+              />
+            </div>
+            <span
+              :class="[
+                'tabular-nums shrink-0',
+                s.severity === 'critical' ? 'text-destructive font-medium' :
+                s.severity === 'warning' ? 'text-orange-600 dark:text-orange-400 font-medium' :
+                'text-muted-foreground'
+              ]"
+            >
+              {{ formatNum(s.used) }} / {{ formatNum(s.limit) }}
+            </span>
+          </div>
+        </div>
+      </Link>
 
       <!-- Page content -->
       <main class="p-4 sm:p-6 lg:p-8">

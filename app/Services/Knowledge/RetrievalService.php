@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Knowledge;
 
-use App\Models\KnowledgeChunk;
 use App\Models\Tenant;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class RetrievalService
@@ -16,7 +16,9 @@ class RetrievalService
     ) {}
 
     /**
-     * Retrieve relevant knowledge chunks for a query.
+     * Retrieve relevant knowledge chunks for a query using pgvector
+     * cosine-distance search, falling back to keyword LIKE if no
+     * embedding can be generated.
      *
      * @return array<string>
      */
@@ -31,39 +33,34 @@ class RetrievalService
                 'query_length' => strlen($query),
             ]);
 
-            // Get all chunks for this tenant with embeddings
-            $chunks = KnowledgeChunk::whereHas('knowledgeItem', function ($q) use ($tenant) {
-                $q->where('tenant_id', $tenant->id)
-                    ->where('status', 'ready');
-            })
-                ->whereNotNull('embedding')
-                ->get()
-                ->map(function ($chunk) {
-                    return [
-                        'id' => $chunk->id,
-                        'content' => $chunk->content,
-                        'embedding' => $chunk->embedding,
-                    ];
-                })
-                ->toArray();
+            $queryVector = $this->embeddingService->generate($query);
 
-            // If no chunks with embeddings, fall back to keyword search
-            if (empty($chunks)) {
-                Log::debug('[RAG] (NO $) No chunks with embeddings, using keyword fallback');
+            if ($queryVector === null) {
+                Log::debug('[RAG] (NO $) No query embedding, using keyword fallback');
 
                 return $this->retrieveByKeywords($tenant, $query, $limit);
             }
 
-            // Find similar chunks
-            $similar = $this->embeddingService->findSimilar($query, $chunks, $limit);
+            $rows = DB::table('knowledge_chunks as kc')
+                ->join('knowledge_items as ki', 'ki.id', '=', 'kc.knowledge_item_id')
+                ->where('ki.tenant_id', $tenant->id)
+                ->where('ki.status', 'ready')
+                ->whereNotNull('kc.embedding')
+                ->orderByRaw('kc.embedding <=> ?::vector', [$queryVector])
+                ->limit($limit)
+                ->pluck('kc.content');
+
+            if ($rows->isEmpty()) {
+                Log::debug('[RAG] (NO $) No vector matches, using keyword fallback');
+
+                return $this->retrieveByKeywords($tenant, $query, $limit);
+            }
 
             Log::debug('[RAG] (NO $) Retrieved chunks', [
-                'total_chunks' => count($chunks),
-                'similar_found' => count($similar),
+                'count' => $rows->count(),
             ]);
 
-            // Return just the content strings
-            return array_map(fn ($item) => $item['content'], $similar);
+            return $rows->all();
         });
     }
 
@@ -74,33 +71,30 @@ class RetrievalService
      */
     public function retrieveByKeywords(Tenant $tenant, string $query, int $limit = 5): array
     {
-        // Extract keywords from query
         $keywords = $this->extractKeywords($query);
 
         if (empty($keywords)) {
             return [];
         }
 
-        $chunks = KnowledgeChunk::whereHas('knowledgeItem', function ($q) use ($tenant) {
-            $q->where('tenant_id', $tenant->id)
-                ->where('status', 'ready');
-        })
+        return DB::table('knowledge_chunks as kc')
+            ->join('knowledge_items as ki', 'ki.id', '=', 'kc.knowledge_item_id')
+            ->where('ki.tenant_id', $tenant->id)
+            ->where('ki.status', 'ready')
             ->where(function ($q) use ($keywords) {
                 foreach ($keywords as $keyword) {
                     $escaped = str_replace(['%', '_'], ['\\%', '\\_'], $keyword);
-                    $q->orWhere('content', 'like', "%{$escaped}%");
+                    $q->orWhere('kc.content', 'ilike', "%{$escaped}%");
                 }
             })
             ->limit($limit)
-            ->get();
-
-        return $chunks->pluck('content')->toArray();
+            ->pluck('kc.content')
+            ->all();
     }
 
     /** @return array<int, string> */
     private function extractKeywords(string $text): array
     {
-        // Remove common stop words and extract significant words
         $stopWords = ['a', 'an', 'the', 'is', 'are', 'was', 'were', 'what', 'when', 'where', 'who', 'why', 'how', 'do', 'does', 'did', 'can', 'could', 'would', 'should', 'will', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'my', 'your', 'his', 'her', 'its', 'our', 'their', 'this', 'that', 'these', 'those', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by'];
 
         $words = preg_split('/\W+/', strtolower($text));

@@ -546,7 +546,24 @@
                 console.error('[Chatbot] Failed to send message:', error);
                 this.hideTypingIndicator();
                 this.elements.input.value = savedMessage;
-                this.addMessage('Sorry, I couldn\'t send your message. Please try again.', 'bot');
+
+                let userMessage;
+                switch (error.code) {
+                    case 'LIMIT_REACHED':
+                        userMessage = 'This chatbot is temporarily unavailable. Please reach out to us through our other channels.';
+                        break;
+                    case 'TENANT_INACTIVE':
+                    case 'NO_SUBSCRIPTION':
+                        userMessage = 'This chatbot is currently offline. Please contact us directly for assistance.';
+                        break;
+                    case 'DOMAIN_NOT_ALLOWED':
+                        userMessage = 'This chatbot is not authorized on this site.';
+                        break;
+                    default:
+                        userMessage = 'Sorry, I couldn\'t send your message. Please try again.';
+                }
+
+                this.addMessage(userMessage, 'bot');
             } finally {
                 this.state.sending = false;
                 this.setLoading(false);
@@ -684,7 +701,10 @@
                     if (!response.ok) {
                         if (response.status >= 400 && response.status < 500) {
                             const body = await response.json().catch(() => ({}));
-                            throw new Error(body.error || `HTTP ${response.status}`);
+                            const err = new Error(body.message || body.error || `HTTP ${response.status}`);
+                            err.status = response.status;
+                            err.code = body.code;
+                            throw err;
                         }
                         throw new Error(`HTTP ${response.status}`);
                     }

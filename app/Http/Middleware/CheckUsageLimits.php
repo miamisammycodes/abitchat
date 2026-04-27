@@ -20,6 +20,10 @@ class CheckUsageLimits
      */
     public function handle(Request $request, Closure $next, string $type): Response
     {
+        // Widget API endpoints are stateless and have no session to redirect to,
+        // so they must always receive structured JSON errors.
+        $isWidgetApi = $request->is('api/v1/widget/*');
+
         $user = $request->user();
         $tenant = $user?->tenant;
 
@@ -37,7 +41,7 @@ class CheckUsageLimits
         }
 
         if (!$tenant->isActive()) {
-            if ($request->wantsJson()) {
+            if ($isWidgetApi || $request->wantsJson()) {
                 return response()->json([
                     'error' => 'Account is not active',
                     'code' => 'TENANT_INACTIVE',
@@ -48,7 +52,7 @@ class CheckUsageLimits
         }
 
         if (!$tenant->hasPlan() && !$tenant->isOnTrial()) {
-            if ($request->wantsJson()) {
+            if ($isWidgetApi || $request->wantsJson()) {
                 return response()->json([
                     'error' => 'No active subscription',
                     'code' => 'NO_SUBSCRIPTION',
@@ -91,7 +95,7 @@ class CheckUsageLimits
             ];
             $message = $limitMessages[$type] ?? 'You have reached your usage limit.';
 
-            if ($request->wantsJson()) {
+            if ($isWidgetApi || $request->wantsJson()) {
                 return response()->json([
                     'error' => 'Limit reached',
                     'message' => $message . ' Please upgrade your plan.',
