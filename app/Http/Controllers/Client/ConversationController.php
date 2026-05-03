@@ -56,7 +56,18 @@ class ConversationController extends Controller
 
     public function show(Request $request, Conversation $conversation): InertiaResponse
     {
-        abort(501);
+        /** @var \App\Models\User $user */
+        $user = $request->user();
+        abort_if($conversation->tenant_id !== $user->tenant_id, 404);
+
+        $conversation->load([
+            'messages' => fn ($q) => $q->orderBy('created_at'),
+            'lead:id,name,email,score',
+        ]);
+
+        return Inertia::render('Client/Conversations/Show', [
+            'conversation' => $conversation,
+        ]);
     }
 
     public function archive(Request $request, Conversation $conversation): Response
