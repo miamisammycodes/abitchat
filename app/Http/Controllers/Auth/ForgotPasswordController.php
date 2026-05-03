@@ -31,12 +31,11 @@ class ForgotPasswordController extends Controller
             'email' => $request->email,
         ]);
 
-        $status = Password::sendResetLink(
-            $request->only('email')
-        );
+        // Always issue the same generic response regardless of whether the
+        // email is registered. Branching on $status would let an attacker
+        // enumerate valid accounts.
+        Password::sendResetLink($request->only('email'));
 
-        return $status === Password::RESET_LINK_SENT
-            ? back()->with('status', __($status))
-            : back()->withErrors(['email' => __($status)]);
+        return back()->with('status', __('passwords.sent'));
     }
 }
