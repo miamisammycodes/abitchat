@@ -1274,7 +1274,7 @@ Log::debug('[Dashboard] (NO $) Loading stats', ['tenant_id' => $tenant->id]);
 **Status**: Partial
 
 **Pages Implemented**:
-- M8.3: ❌ Conversation list & detail — **not built** (no controller, route, or Vue page)
+- M8.3: ✅ Conversation list & detail (`/conversations` + `/conversations/{id}`)
 - M8.4: ✅ Lead management (`/leads`)
 - M8.5: ✅ Knowledge base management (`/knowledge`)
 - M8.6: ⚠️ Chatbot settings — folded into Widget settings + Bot Personality (Phase 10), no standalone page
