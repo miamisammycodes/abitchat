@@ -223,11 +223,11 @@ class AnalyticsService
     {
         $startDate = now()->subDays($days)->startOfDay();
 
-        // Use strftime for SQLite compatibility (also works with MySQL if needed)
-        $driver = DB::connection()->getDriverName();
-        $hourExpression = $driver === 'sqlite'
-            ? "CAST(strftime('%H', created_at) AS INTEGER)"
-            : 'HOUR(created_at)';
+        $hourExpression = match (DB::connection()->getDriverName()) {
+            'sqlite' => "CAST(strftime('%H', created_at) AS INTEGER)",
+            'pgsql' => 'EXTRACT(HOUR FROM created_at)::int',
+            default => 'HOUR(created_at)',
+        };
 
         $data = Conversation::where('tenant_id', $tenant->id)
             ->where('created_at', '>=', $startDate)

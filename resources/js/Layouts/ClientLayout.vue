@@ -7,6 +7,7 @@ import { Separator } from '@/Components/ui/separator'
 import {
   LayoutDashboard,
   MessageSquare,
+  MessageCircle,
   BookOpen,
   Users,
   BarChart3,
@@ -49,6 +50,7 @@ const { theme, toggleTheme } = useTheme()
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Widget', href: '/widget-settings', icon: MessageSquare },
+  { name: 'Conversations', href: '/conversations', icon: MessageCircle },
   { name: 'Knowledge Base', href: '/knowledge', icon: BookOpen },
   { name: 'Leads', href: '/leads', icon: Users },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },

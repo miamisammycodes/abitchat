@@ -22,7 +22,7 @@
 
 ## Project Overview
 
-AI-Powered WordPress Chatbot SaaS built with Laravel 12+ (VILT Stack).
+AI-Powered WordPress Chatbot SaaS built with Laravel 13+ (VILT Stack).
 See `prd.md` for full product requirements.
 See `ROADMAP.md` for current build status.
 

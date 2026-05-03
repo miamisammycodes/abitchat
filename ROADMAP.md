@@ -272,20 +272,18 @@ php artisan make:model UsageRecord -m
 
 **Migration Schemas**:
 
-**conversations**:
+**conversations** (as actually shipped — the original example here listed `visitor_id`/`started_at`/`ended_at`/`lead_score`, but those never made it into the real migration):
 ```php
 Schema::create('conversations', function (Blueprint $table) {
     $table->id();
     $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
-    $table->string('visitor_id', 64);
-    $table->enum('status', ['active', 'ended', 'escalated'])->default('active');
-    $table->integer('lead_score')->default(0);
-    $table->json('metadata')->nullable(); // browser, location, referrer
-    $table->timestamp('started_at');
-    $table->timestamp('ended_at')->nullable();
+    $table->foreignId('lead_id')->nullable()->constrained()->nullOnDelete();
+    $table->string('session_id', 64)->index();
+    $table->enum('status', ['active', 'closed', 'archived'])->default('active');
+    $table->json('metadata')->nullable(); // user_agent, ip, started_at (ISO string)
     $table->timestamps();
+    $table->index(['tenant_id', 'session_id']);
     $table->index(['tenant_id', 'status']);
-    $table->index(['tenant_id', 'created_at']);
 });
 ```
 
@@ -346,7 +344,7 @@ Schema::create('knowledge_chunks', function (Blueprint $table) {
     $table->id();
     $table->foreignId('knowledge_item_id')->constrained()->cascadeOnDelete();
     $table->text('content');
-    $table->binary('embedding')->nullable(); // Will be handled by SQLite-vec
+    $table->binary('embedding')->nullable(); // Postgres pgvector column added in later migration
     $table->integer('chunk_index')->default(0);
     $table->timestamps();
     $table->index('knowledge_item_id');
@@ -919,23 +917,24 @@ php artisan test
 ---
 
 ### M5.4 ✅ Set Up Embeddings Service
-**Status**: Complete (using Ollama nomic-embed-text with JSON storage fallback)
+**Status**: Complete (Postgres + pgvector; embeddings via Ollama `nomic-embed-text`)
 
 **Subtasks**:
-1. Install sqlite-vec extension
+1. Enable pgvector extension on Postgres
 2. Create embedding service
-3. Store and query embeddings
-4. Implement vector similarity search
+3. Store embeddings as `vector` column on `knowledge_chunks`
+4. Implement cosine-distance similarity search (with keyword `ILIKE` fallback)
 
 **Commands**:
 ```bash
-# SQLite-vec installation varies by OS
-# See: https://github.com/asg017/sqlite-vec
+# Postgres extension (enabled by migration 2025_11_27_000000_enable_pgvector_extension)
+psql -c "CREATE EXTENSION IF NOT EXISTS vector;"
 ```
 
-**Files to Create**:
+**Files**:
 - `app/Services/Knowledge/EmbeddingService.php`
-- `app/Services/Knowledge/VectorSearchService.php`
+- `app/Services/Knowledge/RetrievalService.php` (cosine + keyword fallback)
+- `database/migrations/2025_11_27_000000_enable_pgvector_extension.php`
 
 **Testing**:
 ```bash
@@ -1271,34 +1270,39 @@ Log::debug('[Dashboard] (NO $) Loading stats', ['tenant_id' => $tenant->id]);
 
 ---
 
-### M8.3-M8.9 ✅ Dashboard Pages
-**Status**: Complete
+### M8.3-M8.9 Dashboard Pages
+**Status**: Partial
 
 **Pages Implemented**:
-- M8.3: ✅ Conversation list & detail
-- M8.4: ✅ Lead management
-- M8.5: ✅ Knowledge base management
-- M8.6: ✅ Chatbot settings
-- M8.7: ✅ Widget customization & preview
-- M8.8: ✅ Analytics
-- M8.9: ✅ Team management
+- M8.3: ✅ Conversation list & detail (`/conversations` + `/conversations/{id}`)
+- M8.4: ✅ Lead management (`/leads`)
+- M8.5: ✅ Knowledge base management (`/knowledge`)
+- M8.6: ⚠️ Chatbot settings — folded into Widget settings + Bot Personality (Phase 10), no standalone page
+- M8.7: ✅ Widget customization & preview (`/widget-settings`)
+- M8.8: ✅ Analytics (`/analytics`)
+- M8.9: ❌ Team management — **not built**
 
 ---
 
-## Phase 9: Admin Dashboard (COMPLETE)
+## Phase 9: Admin Dashboard (PARTIAL)
 
-### M9.1-M9.8 ✅ Admin Pages
-**Status**: Complete
+### M9.1-M9.8 Admin Pages
+**Status**: Partial
 
 **Pages Implemented**:
-- M9.1: ✅ Platform stats overview
-- M9.2: ✅ Client list & management
-- M9.3: ✅ Impersonate client
-- M9.4: ✅ Token usage monitoring
-- M9.5: ✅ System health
-- M9.6: ✅ Failed jobs
-- M9.7: ✅ Broadcasts
-- M9.8: ✅ Activity logs
+- M9.1: ✅ Platform stats overview (`/admin/dashboard`)
+- M9.2: ✅ Client list & management (`/admin/clients`, `/admin/clients/{client}`)
+- M9.3: ❌ Impersonate client — **not built** (no impersonation route or controller method)
+- M9.4: ⚠️ Token usage monitoring — surfaced on the admin Dashboard stats only; no dedicated page
+- M9.5: ❌ System health — **not built**
+- M9.6: ❌ Failed jobs — **not built**
+- M9.7: ❌ Broadcasts — **not built**
+- M9.8: ✅ Activity logs (`/admin/logs`, `ActivityLogController`)
+
+**Also shipped in Phase 11 (admin side, not originally listed in Phase 9):**
+- ✅ Plans CRUD (`/admin/plans`)
+- ✅ Transactions review/approve/reject (`/admin/transactions`)
+- ✅ Enterprise inquiries (`/admin/inquiries`)
 
 ---
 
@@ -1687,20 +1691,28 @@ Log::debug('[Dashboard] (NO $) Loading stats', ['tenant_id' => $tenant->id]);
 ## Phase 13: Testing & Polish
 
 ### M13.1 Unit Tests
-**Status**: Pending
+**Status**: Partial
 
-**Tests to Create**:
-- `tests/Unit/Services/LLM/ChatServiceTest.php`
-- `tests/Unit/Services/Knowledge/RAGServiceTest.php`
-- `tests/Unit/Services/Leads/LeadScoringServiceTest.php`
+**Tests Implemented**:
+- ✅ `tests/Unit/Services/LLM/ChatServiceTest.php`
+- ✅ `tests/Unit/Services/Knowledge/RetrievalServiceTest.php` (replaces planned RAGServiceTest)
+- ✅ `tests/Unit/Services/Knowledge/TextChunkerTest.php`
+- ✅ `tests/Unit/Services/Leads/LeadScoringServiceTest.php`
 
 ### M13.2 Feature Tests
-**Status**: Pending
+**Status**: Partial
 
-**Tests to Create**:
-- `tests/Feature/Auth/RegistrationTest.php`
-- `tests/Feature/Api/Widget/ChatTest.php`
+**Tests Implemented**:
+- ✅ `tests/Feature/Auth/RegistrationTest.php`
+- ✅ `tests/Feature/Auth/LoginTest.php`
+- ✅ `tests/Feature/WidgetApiTest.php`
+- ✅ `tests/Feature/KnowledgeBaseTest.php`
+- ✅ `tests/Feature/LeadManagementTest.php`
+- ✅ `tests/Feature/BillingTest.php`
+
+**Still Missing**:
 - `tests/Feature/Client/DashboardTest.php`
+- Conversation flow tests
 
 ### M13.3 Browser Tests
 **Status**: Pending

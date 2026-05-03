@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Middleware;
 
 use App\Models\Tenant;
+use App\Services\Usage\UsageTracker;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -12,6 +13,8 @@ use Symfony\Component\HttpFoundation\Response;
 
 class CheckUsageLimits
 {
+    public function __construct(private readonly UsageTracker $tracker) {}
+
     /**
      * Handle an incoming request.
      *
@@ -20,93 +23,76 @@ class CheckUsageLimits
      */
     public function handle(Request $request, Closure $next, string $type): Response
     {
-        // Widget API endpoints are stateless and have no session to redirect to,
-        // so they must always receive structured JSON errors.
-        $isWidgetApi = $request->is('api/v1/widget/*');
+        $isJson = $request->is('api/v1/widget/*') || $request->wantsJson();
 
-        $user = $request->user();
-        $tenant = $user?->tenant;
-
-        // Fallback: look up tenant by API key for widget routes
-        if (!$tenant && $request->has('api_key')) {
-            $tenant = Cache::remember(
-                "tenant:api_key:{$request->input('api_key')}",
-                300,
-                fn () => Tenant::where('api_key', $request->input('api_key'))->first()
-            );
-        }
-
-        if (!$tenant) {
+        $tenant = $this->resolveTenant($request);
+        if (! $tenant) {
             return response()->json(['error' => 'Unauthorized', 'code' => 'NO_TENANT'], 401);
         }
 
-        if (!$tenant->isActive()) {
-            if ($isWidgetApi || $request->wantsJson()) {
-                return response()->json([
-                    'error' => 'Account is not active',
-                    'code' => 'TENANT_INACTIVE',
-                ], 403);
-            }
-            return redirect()->route('client.billing.plans')
-                ->with('error', 'Your account is not active. Please contact support.');
+        if (! $tenant->isActive()) {
+            return $this->reject($isJson, 'Account is not active', 'TENANT_INACTIVE', 403);
         }
 
-        if (!$tenant->hasPlan() && !$tenant->isOnTrial()) {
-            if ($isWidgetApi || $request->wantsJson()) {
-                return response()->json([
-                    'error' => 'No active subscription',
-                    'code' => 'NO_SUBSCRIPTION',
-                ], 403);
-            }
-            return redirect()->route('client.billing.plans')
-                ->with('error', 'Your trial has expired. Please subscribe to a plan to continue.');
+        if (! $tenant->hasPlan() && ! $tenant->isOnTrial()) {
+            return $this->reject(
+                $isJson,
+                'Your trial has expired. Please subscribe to a plan to continue.',
+                'NO_SUBSCRIPTION',
+                403,
+            );
         }
 
-        $usage = Cache::remember("tenant:{$tenant->id}:usage", 60, function () use ($tenant) {
-            return [
-                'conversations' => $tenant->conversations()->whereMonth('created_at', now()->month)->count(),
-                'leads' => $tenant->leads()->whereMonth('created_at', now()->month)->count(),
-                'tokens' => $tenant->usageRecords()->where('type', 'tokens')
-                    ->whereMonth('recorded_date', now()->month)->sum('quantity'),
-                'knowledge_items' => $tenant->knowledgeItems()->count(),
-            ];
-        });
-
-        $plan = $tenant->currentPlan;
-        if ($plan) {
-            $limits = [
-                'conversations' => $plan->conversations_limit,
-                'leads' => $plan->leads_limit,
-                'tokens' => $plan->tokens_limit,
-                'knowledge_items' => $plan->knowledge_items_limit,
-            ];
-        } else {
-            // Trial tenants (or paid tenants without a plan record) get config-driven caps
-            $limits = config('billing.trial_limits', []);
-        }
-
-        $limit = $limits[$type] ?? null;
-        if ($limit !== null && $limit > 0 && ($usage[$type] ?? 0) >= $limit) {
-            $limitMessages = [
+        $remaining = $this->tracker->remaining($tenant, $type);
+        if ($remaining === 0) {
+            $messages = [
                 'conversations' => 'You have reached your monthly conversation limit.',
                 'knowledge_items' => 'You have reached your knowledge items limit.',
                 'leads' => 'You have reached your monthly leads limit.',
                 'tokens' => 'You have reached your monthly token limit.',
             ];
-            $message = $limitMessages[$type] ?? 'You have reached your usage limit.';
+            $message = ($messages[$type] ?? 'You have reached your usage limit.')
+                .' Please upgrade your plan.';
 
-            if ($isWidgetApi || $request->wantsJson()) {
-                return response()->json([
-                    'error' => 'Limit reached',
-                    'message' => $message . ' Please upgrade your plan.',
-                    'code' => 'LIMIT_REACHED',
-                    'limit_type' => $type,
-                ], 403);
-            }
-            return redirect()->route('client.billing.plans')
-                ->with('error', $message . ' Please upgrade your plan.');
+            return $this->reject($isJson, $message, 'LIMIT_REACHED', 403, ['limit_type' => $type]);
         }
 
         return $next($request);
+    }
+
+    private function resolveTenant(Request $request): ?Tenant
+    {
+        $tenant = $request->user()?->tenant;
+        if ($tenant) {
+            return $tenant;
+        }
+
+        $apiKey = $request->input('api_key');
+        if (! $apiKey) {
+            return null;
+        }
+
+        return Cache::remember(
+            "tenant:api_key:{$apiKey}",
+            300,
+            fn () => Tenant::where('api_key', $apiKey)->first(),
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    private function reject(bool $isJson, string $message, string $code, int $status, array $extra = []): Response
+    {
+        if ($isJson) {
+            return response()->json([
+                'error' => $code === 'LIMIT_REACHED' ? 'Limit reached' : $message,
+                'message' => $message,
+                'code' => $code,
+                ...$extra,
+            ], $status);
+        }
+
+        return redirect()->route('client.billing.plans')->with('error', $message);
     }
 }

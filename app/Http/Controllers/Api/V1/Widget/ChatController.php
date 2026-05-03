@@ -364,9 +364,11 @@ class ChatController extends Controller
      */
     private function extractName(string $content): ?string
     {
-        // Common patterns for name introduction
+        // Only match explicit name introductions. Patterns like "I'm" / "I am"
+        // were dropped because they match high-frequency phrases such as
+        // "I'm interested in…" and capture the next words as a name.
         $patterns = [
-            '/(?:my name is|i\'m|i am|this is|call me)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i',
+            '/(?:my name is|this is|call me)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i',
             '/^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+here/im',
         ];
 

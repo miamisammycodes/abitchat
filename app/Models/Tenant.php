@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -13,6 +14,7 @@ use Spatie\Multitenancy\Models\Tenant as BaseTenant;
 
 class Tenant extends BaseTenant
 {
+    use HasFactory;
     use SoftDeletes;
 
     protected $fillable = [
@@ -121,72 +123,25 @@ class Tenant extends BaseTenant
     }
 
     /**
-     * Check if tenant has reached a specific limit
-     */
-    public function hasReachedLimit(string $type): bool
-    {
-        $plan = $this->currentPlan;
-
-        if (! $plan) {
-            return true; // No plan = limit reached
-        }
-
-        $limitField = match ($type) {
-            'conversations' => 'conversations_limit',
-            'knowledge_items' => 'knowledge_items_limit',
-            'leads' => 'leads_limit',
-            'tokens' => 'tokens_limit',
-            default => null,
-        };
-
-        if (! $limitField) {
-            return false;
-        }
-
-        $limit = $plan->{$limitField};
-
-        // -1 means unlimited
-        if ($limit === -1) {
-            return false;
-        }
-
-        $currentUsage = match ($type) {
-            'conversations' => $this->conversations()->whereMonth('created_at', now()->month)->count(),
-            'knowledge_items' => $this->knowledgeItems()->count(),
-            'leads' => $this->leads()->whereMonth('created_at', now()->month)->count(),
-            'tokens' => $this->usageRecords()->where('type', 'tokens')->whereMonth('recorded_date', now()->month)->sum('quantity'),
-            default => 0,
-        };
-
-        return $currentUsage >= $limit;
-    }
-
-    /**
-     * Get current usage stats
+     * Bundled current-month usage + plan/trial limits, used by the Inertia
+     * layout and the billing page. All accounting goes through UsageTracker.
      *
-     * @return array<string, array<string, int>>
+     * @return array<string, array{used: int, limit: int}>
      */
     public function getUsageStats(): array
     {
-        $plan = $this->currentPlan;
+        /** @var \App\Services\Usage\UsageTracker $tracker */
+        $tracker = app(\App\Services\Usage\UsageTracker::class);
+        $usage = $tracker->monthlyUsage($this);
+        $limits = $tracker->limitsFor($this);
 
-        return [
-            'conversations' => [
-                'used' => $this->conversations()->whereMonth('created_at', now()->month)->count(),
-                'limit' => $plan?->conversations_limit ?? 0,
-            ],
-            'knowledge_items' => [
-                'used' => $this->knowledgeItems()->count(),
-                'limit' => $plan?->knowledge_items_limit ?? 0,
-            ],
-            'leads' => [
-                'used' => $this->leads()->whereMonth('created_at', now()->month)->count(),
-                'limit' => $plan?->leads_limit ?? 0,
-            ],
-            'tokens' => [
-                'used' => (int) $this->usageRecords()->where('type', 'tokens')->whereMonth('recorded_date', now()->month)->sum('quantity'),
-                'limit' => $plan?->tokens_limit ?? 0,
-            ],
-        ];
+        $out = [];
+        foreach (\App\Services\Usage\UsageTracker::TYPES as $type) {
+            $out[$type] = [
+                'used' => (int) ($usage[$type] ?? 0),
+                'limit' => (int) ($limits[$type] ?? 0),
+            ];
+        }
+        return $out;
     }
 }

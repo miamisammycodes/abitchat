@@ -9,6 +9,7 @@ use App\Models\Lead;
 use App\Models\Message;
 use App\Models\Tenant;
 use App\Services\LLM\ChatService;
+use App\Services\Usage\UsageTracker;
 use ReflectionClass;
 use Tests\TestCase;
 
@@ -26,7 +27,7 @@ class ChatServiceTest extends TestCase
     {
         parent::setUp();
 
-        $this->service = new ChatService();
+        $this->service = new ChatService(app(UsageTracker::class));
         $this->createTenantWithUser();
     }
 

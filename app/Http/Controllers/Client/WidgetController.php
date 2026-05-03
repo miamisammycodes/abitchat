@@ -24,6 +24,7 @@ class WidgetController extends Controller
                 'settings' => $tenant->settings ?? [],
             ],
             'embedUrl' => config('app.url').'/widget/chatbot.js',
+            'apiUrl' => config('app.url'),
         ]);
     }
 
