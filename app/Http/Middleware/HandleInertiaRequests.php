@@ -40,6 +40,7 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $admin = Auth::guard('admin')->user();
+        $tenant = $request->user()?->tenant;
 
         return [
             ...parent::share($request),
@@ -52,6 +53,11 @@ class HandleInertiaRequests extends Middleware
                     'role' => $admin->role,
                 ] : null,
             ],
+            'tenant' => $tenant ? [
+                'id' => $tenant->id,
+                'name' => $tenant->name,
+                'slug' => $tenant->slug,
+            ] : null,
             'ziggy' => fn () => [
                 ...(new Ziggy)->toArray(),
                 'location' => $request->url(),

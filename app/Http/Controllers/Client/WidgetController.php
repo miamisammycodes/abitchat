@@ -23,8 +23,8 @@ class WidgetController extends Controller
                 'api_key' => $tenant->api_key,
                 'settings' => $tenant->settings ?? [],
             ],
-            'embedUrl' => config('app.url').'/widget/chatbot.js',
-            'apiUrl' => config('app.url'),
+            'embedUrl' => $request->getSchemeAndHttpHost().'/widget/chatbot.js',
+            'apiUrl' => $request->getSchemeAndHttpHost(),
         ]);
     }
 
