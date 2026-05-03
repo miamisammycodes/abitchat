@@ -99,4 +99,51 @@ class ConversationsShowTest extends TestCase
         $this->put("/conversations/{$conv->id}/archive")->assertNotFound();
         $this->assertSame('active', $conv->fresh()->status);
     }
+
+    public function test_export_streams_txt_with_correct_filename(): void
+    {
+        $this->actingAsTenantUser();
+        $conv = Conversation::factory()->for($this->tenant)->create();
+        Message::factory()->for($conv)->create([
+            'content' => 'Hi there', 'created_at' => '2026-05-03 10:32:14',
+        ]);
+
+        $response = $this->get("/conversations/{$conv->id}/export");
+        $response->assertOk();
+        $response->assertHeader('content-type', 'text/plain; charset=UTF-8');
+        $this->assertStringContainsString(
+            "attachment; filename=conversation-{$conv->id}.txt",
+            $response->headers->get('content-disposition'),
+        );
+    }
+
+    public function test_export_contains_visitor_and_assistant_lines_in_order(): void
+    {
+        $this->actingAsTenantUser();
+        $conv = Conversation::factory()->for($this->tenant)->create();
+        Message::factory()->for($conv)->create([
+            'content' => 'What services?', 'created_at' => '2026-05-03 10:32:14',
+        ]);
+        Message::factory()->for($conv)->fromAssistant()->create([
+            'content' => 'We build websites', 'created_at' => '2026-05-03 10:32:18',
+        ]);
+
+        $body = $this->get("/conversations/{$conv->id}/export")->streamedContent();
+
+        $this->assertStringContainsString('[10:32:14] Visitor: What services?', $body);
+        $this->assertStringContainsString('[10:32:18] Assistant: We build websites', $body);
+        $this->assertLessThan(
+            strpos($body, 'We build websites'),
+            strpos($body, 'What services?'),
+        );
+    }
+
+    public function test_export_404s_on_cross_tenant(): void
+    {
+        $this->actingAsTenantUser();
+        $other = Tenant::factory()->create();
+        $conv = Conversation::factory()->for($other)->create();
+
+        $this->get("/conversations/{$conv->id}/export")->assertNotFound();
+    }
 }

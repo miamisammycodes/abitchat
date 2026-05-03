@@ -96,6 +96,22 @@ class ConversationController extends Controller
 
     public function export(Request $request, Conversation $conversation): StreamedResponse
     {
-        abort(501);
+        /** @var \App\Models\User $user */
+        $user = $request->user();
+        abort_if($conversation->tenant_id !== $user->tenant_id, 404);
+
+        $filename = "conversation-{$conversation->id}.txt";
+
+        return response()->streamDownload(function () use ($conversation): void {
+            echo "Conversation #{$conversation->id}\n";
+            echo 'Started: '.$conversation->created_at->format('Y-m-d H:i:s')."\n";
+            echo "Status: {$conversation->status}\n\n";
+
+            foreach ($conversation->messages()->orderBy('created_at')->get() as $message) {
+                $role = $message->role === 'assistant' ? 'Assistant' : 'Visitor';
+                $time = $message->created_at->format('H:i:s');
+                echo "[{$time}] {$role}: {$message->content}\n";
+            }
+        }, $filename, ['Content-Type' => 'text/plain; charset=UTF-8']);
     }
 }
