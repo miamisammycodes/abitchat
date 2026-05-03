@@ -144,6 +144,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::put('inquiries/{inquiry}', [AdminEnterpriseInquiryController::class, 'update'])->name('inquiries.update');
 
         // Activity Logs
-        Route::get('logs', [AdminActivityLogController::class, 'index'])->name('logs.index');
+        Route::get('activity-logs', [AdminActivityLogController::class, 'index'])->name('logs.index');
     });
 });
