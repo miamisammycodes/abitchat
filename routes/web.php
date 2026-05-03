@@ -13,6 +13,7 @@ use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\Client\AnalyticsController;
 use App\Http\Controllers\Client\BillingController;
+use App\Http\Controllers\Client\ConversationController;
 use App\Http\Controllers\Client\DashboardController;
 use App\Http\Controllers\Client\EnterpriseInquiryController;
 use App\Http\Controllers\Client\KnowledgeBaseController;
@@ -80,6 +81,14 @@ Route::middleware('auth')->group(function () {
         Route::get('/{lead}/export', [LeadController::class, 'exportSingle'])->name('export-single');
         Route::put('/{lead}', [LeadController::class, 'update'])->name('update');
         Route::delete('/{lead}', [LeadController::class, 'destroy'])->name('destroy');
+    });
+
+    Route::prefix('conversations')->name('client.conversations.')->group(function () {
+        Route::get('/', [ConversationController::class, 'index'])->name('index');
+        Route::get('/{conversation}', [ConversationController::class, 'show'])->name('show');
+        Route::get('/{conversation}/export', [ConversationController::class, 'export'])->name('export');
+        Route::put('/{conversation}/archive', [ConversationController::class, 'archive'])->name('archive');
+        Route::put('/{conversation}/unarchive', [ConversationController::class, 'unarchive'])->name('unarchive');
     });
 
     // Analytics
