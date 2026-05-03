@@ -15,10 +15,16 @@ class DashboardController extends Controller
     {
         $tenant = $this->getTenant();
 
+        $planLabel = match (true) {
+            $tenant->hasPlan() => $tenant->currentPlan->name,
+            $tenant->isOnTrial() => 'Trial',
+            default => 'No plan',
+        };
+
         return Inertia::render('Client/Dashboard', [
             'tenant' => [
                 'name' => $tenant->name,
-                'plan' => $tenant->plan,
+                'plan' => $planLabel,
                 'api_key' => substr($tenant->api_key, 0, 8).'...',
             ],
             'stats' => [
