@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Conversation;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -15,7 +16,42 @@ class ConversationController extends Controller
 {
     public function index(Request $request): InertiaResponse
     {
-        abort(501);
+        /** @var \App\Models\User $user */
+        $user = $request->user();
+        $tenant = $user->tenant;
+
+        $conversations = Conversation::forTenant($tenant)
+            ->withStatus($request->string('status')->toString() ?: null)
+            ->createdBetween(
+                $request->string('from')->toString() ?: null,
+                $request->string('to')->toString() ?: null,
+            )
+            ->when($request->boolean('has_lead'), fn ($q) => $q->whereNotNull('lead_id'))
+            ->withCount('messages')
+            ->with([
+                // Qualified columns: latestMessage relation does a self-join which
+                // makes unqualified conversation_id ambiguous.
+                'latestMessage' => fn ($q) => $q->select([
+                    'messages.id',
+                    'messages.conversation_id',
+                    'messages.content',
+                    'messages.created_at',
+                ]),
+                'lead:id,name,email',
+            ])
+            ->latest('created_at')
+            ->paginate(25)
+            ->withQueryString();
+
+        return Inertia::render('Client/Conversations/Index', [
+            'conversations' => $conversations,
+            'filters' => [
+                'status' => $request->string('status')->toString() ?: null,
+                'from' => $request->string('from')->toString() ?: null,
+                'to' => $request->string('to')->toString() ?: null,
+                'has_lead' => $request->boolean('has_lead'),
+            ],
+        ]);
     }
 
     public function show(Request $request, Conversation $conversation): InertiaResponse
