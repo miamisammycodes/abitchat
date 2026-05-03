@@ -24,6 +24,7 @@ const route = useRoute()
 const props = defineProps({
   tenant: Object,
   embedUrl: String,
+  apiUrl: String,
 })
 
 const page = usePage()
@@ -43,7 +44,7 @@ const embedCode = computed(() => {
   return `<script
     src="${props.embedUrl}"
     data-chatbot-key="${props.tenant.api_key}"
-    data-chatbot-url="${page.props.ziggy?.url || window.location.origin}"
+    data-chatbot-url="${props.apiUrl}"
     data-chatbot-position="${form.position}"
     data-chatbot-color="${form.primary_color}">
 <\/script>`
