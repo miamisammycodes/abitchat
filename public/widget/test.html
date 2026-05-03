@@ -68,9 +68,9 @@
         <h2>Embed Code</h2>
         <p>To add this chatbot to your website, add the following code before the closing <code>&lt;/body&gt;</code> tag:</p>
         <pre><code>&lt;script
-    src="http://chatbot.test/widget/chatbot.js"
+    src="<span id="embed-base"></span>/widget/chatbot.js"
     data-chatbot-key="<span class="highlight">YOUR_API_KEY</span>"
-    data-chatbot-url="http://chatbot.test"
+    data-chatbot-url="<span id="embed-base-2"></span>"
     data-chatbot-position="bottom-right"
     data-chatbot-color="#4F46E5"&gt;
 &lt;/script&gt;</code></pre>
@@ -109,6 +109,9 @@
     <!-- Chatbot Widget will be loaded dynamically -->
     <script src="./chatbot.js"></script>
     <script>
+        document.getElementById('embed-base').textContent = window.location.origin;
+        document.getElementById('embed-base-2').textContent = window.location.origin;
+
         function loadWidget() {
             const apiKey = document.getElementById('apiKeyInput').value.trim();
             const statusEl = document.getElementById('testStatus');
@@ -131,7 +134,7 @@
             if (window.ChatbotWidget) {
                 window.ChatbotWidget.init({
                     apiKey: apiKey,
-                    baseUrl: 'http://chatbot.test',
+                    baseUrl: window.location.origin,
                     position: 'bottom-right',
                     primaryColor: '#4F46E5'
                 });
