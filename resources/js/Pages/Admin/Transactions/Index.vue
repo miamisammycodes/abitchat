@@ -93,7 +93,7 @@ const rejectTransaction = () => {
 }
 
 const formatCurrency = (amount) => {
-    return 'Nu. ' + new Intl.NumberFormat('en-IN').format(amount || 0)
+    return 'Nu. ' + Number(amount || 0).toLocaleString('en-US')
 }
 
 const formatDate = (date) => {

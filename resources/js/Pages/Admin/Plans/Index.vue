@@ -62,14 +62,14 @@ const formatCurrency = (amount) => {
     if (amount === 0 || amount === '0.00') {
         return 'Free'
     }
-    return 'Nu. ' + new Intl.NumberFormat('en-IN').format(amount || 0)
+    return 'Nu. ' + Number(amount || 0).toLocaleString('en-US')
 }
 
 const formatLimit = (limit) => {
     if (limit === -1) {
         return 'Unlimited'
     }
-    return new Intl.NumberFormat('en-IN').format(limit)
+    return Number(limit).toLocaleString('en-US')
 }
 </script>
 
