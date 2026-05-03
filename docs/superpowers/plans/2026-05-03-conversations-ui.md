@@ -2,9 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the client-facing Conversations dashboard pages (list + detail + archive + export) so tenants can review what their chatbot has been saying. Drop four unused columns from the `conversations` table while we're already in this area.
+**Goal:** Build the client-facing Conversations dashboard pages (list + detail + archive + export) so tenants can review what their chatbot has been saying.
 
 **Architecture:** Inertia + Vue 3 pages backed by a single `Client/ConversationController` with five actions. Filtering and pagination handled server-side via Eloquent scopes on the `Conversation` model. Tenant scoping enforced explicitly per-query (`->where('tenant_id', auth()->user()->tenant_id)`), matching the existing `LeadController` pattern. Export streams a `.txt` via `response()->streamDownload()`. No new packages.
+
+**Note (2026-05-03):** Original Task 1 (drop four "unused" columns from `conversations`) was removed after discovering the columns never existed in the table — only in the stale ROADMAP M2.5 schema example. Tasks renumbered 1–10. See spec change log.
 
 **Tech Stack:** Laravel 13 (Eloquent, Inertia adapter), Vue 3 (Composition API, `<script setup>`), Tailwind CSS v4, Postgres + pgvector (existing), PHPUnit 13.
 
@@ -15,7 +17,6 @@
 ## File inventory (locked in spec)
 
 **New:**
-- `database/migrations/2026_05_03_140000_drop_unused_columns_from_conversations_table.php`
 - `database/factories/ConversationFactory.php`
 - `database/factories/MessageFactory.php`
 - `app/Http/Controllers/Client/ConversationController.php`
@@ -28,88 +29,13 @@
 **Modified:**
 - `routes/web.php`
 - `app/Models/Conversation.php`
+- `app/Models/Message.php`
 - `resources/js/Layouts/ClientLayout.vue`
 - `ROADMAP.md`
 
 ---
 
-## Task 1: Drop unused columns from `conversations`
-
-**Files:**
-- Create: `database/migrations/2026_05_03_140000_drop_unused_columns_from_conversations_table.php`
-
-- [ ] **Step 1: Write the migration**
-
-Create `database/migrations/2026_05_03_140000_drop_unused_columns_from_conversations_table.php`:
-
-```php
-<?php
-
-declare(strict_types=1);
-
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
-
-return new class extends Migration
-{
-    public function up(): void
-    {
-        Schema::table('conversations', function (Blueprint $table) {
-            $table->dropColumn(['visitor_id', 'started_at', 'ended_at', 'lead_score']);
-        });
-    }
-
-    public function down(): void
-    {
-        Schema::table('conversations', function (Blueprint $table) {
-            $table->string('visitor_id', 64)->nullable();
-            $table->timestamp('started_at')->nullable();
-            $table->timestamp('ended_at')->nullable();
-            $table->integer('lead_score')->default(0);
-        });
-    }
-};
-```
-
-- [ ] **Step 2: Run the migration on dev Postgres**
-
-Run: `php artisan migrate`
-Expected: `2026_05_03_140000_drop_unused_columns_from_conversations_table ........... XX.XXms DONE`
-
-- [ ] **Step 3: Verify columns are gone**
-
-Run:
-```
-php artisan tinker --execute="echo json_encode(\Schema::getColumnListing('conversations'));"
-```
-Expected: array containing `id, tenant_id, lead_id, session_id, status, metadata, created_at, updated_at` and **NOT** containing `visitor_id`, `started_at`, `ended_at`, `lead_score`.
-
-- [ ] **Step 4: Confirm existing tests still pass**
-
-Run: `php artisan test`
-Expected: 127 passed (same as before this plan started).
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add database/migrations/2026_05_03_140000_drop_unused_columns_from_conversations_table.php
-git commit -m "$(cat <<'EOF'
-refactor: drop four unused columns from conversations table
-
-visitor_id, started_at, ended_at, lead_score were defined in the original
-M2.5 schema but no production code path writes them. The widget controller
-writes metadata.started_at (a JSON key) instead. All four columns are NULL
-across existing rows, so no backfill is needed.
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
-EOF
-)"
-```
-
----
-
-## Task 2: Add Conversation + Message factories
+## Task 1: Add Conversation + Message factories
 
 **Files:**
 - Create: `database/factories/ConversationFactory.php`
@@ -263,7 +189,7 @@ EOF
 
 ---
 
-## Task 3: Conversation model — scopes, relation, fillable trim (TDD)
+## Task 2: Conversation model — scopes, relation (TDD)
 
 **Files:**
 - Test: `tests/Unit/Models/ConversationTest.php`
@@ -520,7 +446,7 @@ EOF
 
 ---
 
-## Task 4: Routes + empty controller stub
+## Task 3: Routes + empty controller stub
 
 **Files:**
 - Create: `app/Http/Controllers/Client/ConversationController.php`
@@ -620,7 +546,7 @@ EOF
 
 ---
 
-## Task 5: Index action (TDD)
+## Task 4: Index action (TDD)
 
 **Files:**
 - Test: `tests/Feature/Client/ConversationsIndexTest.php`
@@ -833,7 +759,7 @@ EOF
 
 ---
 
-## Task 6: Show action (TDD)
+## Task 5: Show action (TDD)
 
 **Files:**
 - Test: `tests/Feature/Client/ConversationsShowTest.php`
@@ -971,7 +897,7 @@ EOF
 
 ---
 
-## Task 7: Archive / unarchive actions (TDD)
+## Task 6: Archive / unarchive actions (TDD)
 
 **Files:**
 - Modify: `tests/Feature/Client/ConversationsShowTest.php`
@@ -1055,7 +981,7 @@ Update the imports/return types: change the method signatures' return type from 
 - [ ] **Step 4: Run to verify they pass**
 
 Run: `php artisan test tests/Feature/Client/ConversationsShowTest.php`
-Expected: 7 PASS (4 from Task 6 + 3 new).
+Expected: 7 PASS (4 from Task 5 + 3 new).
 
 - [ ] **Step 5: Run full suite**
 
@@ -1079,7 +1005,7 @@ EOF
 
 ---
 
-## Task 8: Export action (TDD)
+## Task 7: Export action (TDD)
 
 **Files:**
 - Modify: `tests/Feature/Client/ConversationsShowTest.php`
@@ -1173,7 +1099,7 @@ public function export(Request $request, Conversation $conversation): StreamedRe
 - [ ] **Step 4: Run to verify they pass**
 
 Run: `php artisan test tests/Feature/Client/ConversationsShowTest.php`
-Expected: 10 PASS (7 from Tasks 6+7 + 3 new).
+Expected: 10 PASS (7 from Tasks 5+6 + 3 new).
 
 - [ ] **Step 5: Run full suite**
 
@@ -1198,7 +1124,7 @@ EOF
 
 ---
 
-## Task 9: Vue Index page + sidebar nav
+## Task 8: Vue Index page + sidebar nav
 
 **Files:**
 - Create: `resources/js/Pages/Client/Conversations/Index.vue`
@@ -1390,7 +1316,7 @@ Start the server if not running: `php artisan serve --port=8001` (already runnin
 In a browser at `http://127.0.0.1:8001/login`, log in as `test@example.com` / `password`. Click "Conversations" in the sidebar. Verify:
 - Page renders with the filter strip
 - Existing conversations from dev DB appear in the table
-- Clicking a row navigates to `/conversations/{id}` (will 501 / abort until Task 10 — that's fine)
+- Clicking a row navigates to `/conversations/{id}` (will 501 / abort until Task 9 — that's fine)
 - Filters change the URL query string and the visible rows
 
 - [ ] **Step 5: Commit**
@@ -1411,7 +1337,7 @@ EOF
 
 ---
 
-## Task 10: Vue Show page (transcript + sidebar)
+## Task 9: Vue Show page (transcript + sidebar)
 
 **Files:**
 - Create: `resources/js/Pages/Client/Conversations/Show.vue`
@@ -1629,7 +1555,7 @@ EOF
 
 ---
 
-## Task 11: Final verification + ROADMAP flip
+## Task 10: Final verification + ROADMAP flip
 
 **Files:**
 - Modify: `ROADMAP.md`
@@ -1687,10 +1613,9 @@ EOF
 
 ## Done
 
-- 11 commits, one per task
+- 10 commits, one per task
 - 152 PHPUnit tests passing (+25 net)
 - M8.3 shipped end-to-end with archive + export
-- 4 dead columns dropped from `conversations`
 
 Out-of-scope items the spec explicitly deferred:
 - Per-message tokens / retrieved chunks display

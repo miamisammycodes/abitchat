@@ -2,7 +2,7 @@
 
 **Status:** Approved, ready for implementation planning
 **Roadmap item:** M8.3 — Conversation list & detail (was marked "❌ not built" in `ROADMAP.md`)
-**Approach chosen:** Read layer + data hygiene (drop unused columns)
+**Approach chosen:** Originally "Read layer + data hygiene" (Approach 2); collapsed to "Read layer only" (Approach 1) at implementation time after discovering the four "unused columns" never actually existed in the `conversations` table — they only ever appeared in the stale ROADMAP M2.5 schema example. No migration is needed. See change log at the bottom of this doc.
 
 ## Goal
 
@@ -15,7 +15,6 @@ In scope:
 - Detail page with full transcript and metadata sidebar
 - Archive / unarchive a conversation (soft action, reversible)
 - Export a single conversation as plain text
-- Drop four unused columns from `conversations` while we're already in this area
 
 Explicitly out of scope (pushed to follow-ups):
 - Hard delete of conversations or messages
@@ -86,31 +85,6 @@ Status: closed
 - New scopes: `scopeForTenant`, `scopeWithStatus`, `scopeCreatedBetween`
 
 `scopeWithStatus` accepts: an explicit status (`active`/`closed`/`archived`) → exact match; `'all'` → no filter (includes archived); `null` or missing → default of "active OR closed", excluding archived. The dropdown's default selection corresponds to the third case.
-
-## Schema migration
-
-`database/migrations/2026_05_03_140000_drop_unused_columns_from_conversations_table.php`:
-
-```php
-public function up(): void {
-    Schema::table('conversations', function (Blueprint $t) {
-        $t->dropColumn(['visitor_id', 'started_at', 'ended_at', 'lead_score']);
-    });
-}
-
-public function down(): void {
-    Schema::table('conversations', function (Blueprint $t) {
-        $t->string('visitor_id', 64)->nullable();
-        $t->timestamp('started_at')->nullable();
-        $t->timestamp('ended_at')->nullable();
-        $t->integer('lead_score')->default(0);
-    });
-}
-```
-
-These four columns exist in the original `create_conversations_table` migration but no production code path writes them. The widget controller writes `metadata.started_at` (a JSON key, not the column). They are NULL/empty across all existing rows, so no backfill is needed. SQLite test env handles `dropColumn` via Laravel 13's table-rebuild fallback.
-
-The `UsageTrackerTest` fixtures pass `visitor_id` and `started_at` to `Conversation::create([...])`, but those keys are silently dropped today (not in `$fillable`); after the migration, the same drop-keys behavior continues. No test changes needed.
 
 ## Frontend
 
@@ -205,7 +179,6 @@ Three new test files.
 
 **New:**
 - `app/Http/Controllers/Client/ConversationController.php`
-- `database/migrations/2026_05_03_140000_drop_unused_columns_from_conversations_table.php`
 - `database/factories/ConversationFactory.php`
 - `database/factories/MessageFactory.php`
 - `resources/js/Pages/Client/Conversations/Index.vue`
@@ -216,6 +189,11 @@ Three new test files.
 
 **Modified:**
 - `routes/web.php` — five new routes inside the `auth` group
-- `app/Models/Conversation.php` — `$fillable` trim, scopes, `latestMessage` relation
+- `app/Models/Conversation.php` — scopes, `latestMessage` relation, `HasFactory` trait (`$fillable` already matches the real schema, no change needed)
+- `app/Models/Message.php` — `HasFactory` trait
 - `resources/js/Layouts/ClientLayout.vue` — one navigation entry
-- `ROADMAP.md` — flip M8.3 from `❌ not built` to `✅`
+- `ROADMAP.md` — flip M8.3 from `❌ not built` to `✅`; correct the M2.5 schema example separately
+
+## Change log
+
+- **2026-05-03** — During implementation, discovered the `conversations` table never had the four columns (`visitor_id`, `started_at`, `ended_at`, `lead_score`) the spec proposed dropping. The actual `create_conversations_table` migration only ever created `id, tenant_id, lead_id, session_id, status, metadata, timestamps`. The earlier "verification" via `$conversation->visitor_id` was misled by Eloquent's `__get` returning `null` for unknown attributes. Plan Task 1 (the migration) was deleted; Approach 2 collapsed to Approach 1 in practice. ROADMAP M2.5's schema example is being corrected separately.
