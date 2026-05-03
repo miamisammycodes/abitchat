@@ -16,6 +16,14 @@ class ConversationController extends Controller
 {
     public function index(Request $request): InertiaResponse
     {
+        $request->validate([
+            'status' => ['nullable', 'string', 'in:active,closed,archived,all'],
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date'],
+            'has_lead' => ['nullable'],
+            'page' => ['nullable', 'integer', 'min:1'],
+        ]);
+
         /** @var \App\Models\User $user */
         $user = $request->user();
         $tenant = $user->tenant;
