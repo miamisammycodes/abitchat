@@ -7,7 +7,7 @@ namespace App\Services\LLM;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\Tenant;
-use App\Models\UsageRecord;
+use App\Services\Usage\UsageTracker;
 use Illuminate\Support\Facades\Log;
 use Prism\Prism\Enums\Provider;
 use Prism\Prism\Facades\Prism;
@@ -20,7 +20,7 @@ class ChatService
 
     private string $model;
 
-    public function __construct()
+    public function __construct(private readonly UsageTracker $usageTracker)
     {
         $providerName = config('app.env') === 'production' ? 'groq' : 'ollama';
 
@@ -168,27 +168,7 @@ class ChatService
                 }
             }
 
-            // Ollama streams may omit totalTokens; fall back to prompt + completion
-            if ($totalTokens === 0 && ($promptTokens > 0 || $completionTokens > 0)) {
-                $totalTokens = $promptTokens + $completionTokens;
-            }
-
-            if ($totalTokens > 0) {
-                UsageRecord::create([
-                    'tenant_id' => $tenant->id,
-                    'type' => 'tokens',
-                    'quantity' => $totalTokens,
-                    'recorded_date' => now()->toDateString(),
-                ]);
-
-                Log::debug('[Usage] (NO $) Stream tokens tracked', [
-                    'tenant_id' => $tenant->id,
-                    'conversation_id' => $conversation->id,
-                    'prompt_tokens' => $promptTokens,
-                    'completion_tokens' => $completionTokens,
-                    'total_tokens' => $totalTokens,
-                ]);
-            }
+            $this->usageTracker->recordTokens($tenant, $conversation, $promptTokens, $completionTokens, $totalTokens);
         } catch (\Exception $e) {
             Log::error('[LLM] Stream failed', [
                 'conversation_id' => $conversation->id,
@@ -394,29 +374,7 @@ PROMPT,
         $completionTokens = property_exists($usage, 'completionTokens') ? (int) $usage->completionTokens : 0;
         $totalTokens = property_exists($usage, 'totalTokens') ? (int) $usage->totalTokens : 0;
 
-        // Ollama may not return totalTokens, so calculate from prompt + completion
-        if ($totalTokens === 0 && ($promptTokens > 0 || $completionTokens > 0)) {
-            $totalTokens = $promptTokens + $completionTokens;
-        }
-
-        if ($totalTokens > 0) {
-            UsageRecord::create([
-                'tenant_id' => $tenant->id,
-                'type' => 'tokens',
-                'quantity' => $totalTokens,
-                'recorded_date' => now()->toDateString(),
-            ]);
-        }
-
-        if ($totalTokens > 0) {
-            Log::debug('[Usage] (NO $) Tokens tracked', [
-                'tenant_id' => $tenant->id,
-                'conversation_id' => $conversation->id,
-                'prompt_tokens' => $promptTokens,
-                'completion_tokens' => $completionTokens,
-                'total_tokens' => $totalTokens,
-            ]);
-        }
+        $this->usageTracker->recordTokens($tenant, $conversation, $promptTokens, $completionTokens, $totalTokens);
     }
 
     private function getFallbackResponse(): string

@@ -11,9 +11,10 @@ class UsageRecord extends Model
 {
     protected $fillable = [
         'tenant_id',
+        'conversation_id',
         'type',
         'quantity',
-        'recorded_date',
+        'period',
         'metadata',
     ];
 
@@ -22,7 +23,6 @@ class UsageRecord extends Model
     {
         return [
             'quantity' => 'integer',
-            'recorded_date' => 'date',
             'metadata' => 'array',
         ];
     }
@@ -31,6 +31,12 @@ class UsageRecord extends Model
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
+    }
+
+    /** @return BelongsTo<Conversation, $this> */
+    public function conversation(): BelongsTo
+    {
+        return $this->belongsTo(Conversation::class);
     }
 
     public function isTokenUsage(): bool
