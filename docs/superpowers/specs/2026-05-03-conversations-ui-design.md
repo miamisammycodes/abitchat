@@ -85,7 +85,7 @@ Status: closed
 - New `latestMessage()` relation: `hasOne(Message::class)->latestOfMany()`
 - New scopes: `scopeForTenant`, `scopeWithStatus`, `scopeCreatedBetween`
 
-The default `withStatus` argument is `'all'`, which the scope expands to "active OR closed" — explicitly excluding `archived`. To see archived conversations, the user picks `Archived` in the status filter.
+`scopeWithStatus` accepts: an explicit status (`active`/`closed`/`archived`) → exact match; `'all'` → no filter (includes archived); `null` or missing → default of "active OR closed", excluding archived. The dropdown's default selection corresponds to the third case.
 
 ## Schema migration
 
@@ -128,7 +128,7 @@ The `UsageTrackerTest` fixtures pass `visitor_id` and `started_at` to `Conversat
 
 Filter strip above the table, query-string driven (`?status=active&from=2026-04-01&has_lead=1`):
 
-- **Status select** — All / Active / Closed / Archived
+- **Status select** — Active+Closed (default) / Active / Closed / Archived / All. Default deliberately excludes archived; the "All" option includes archived.
 - **Date range** — two date inputs (`from`, `to`), both optional
 - **Has-lead toggle** — Off / On
 
@@ -187,7 +187,7 @@ Three new test files.
 **`tests/Unit/Models/ConversationTest.php`** — ~3 cases:
 - `forTenant`, `withStatus`, `createdBetween` scopes return expected ids
 - `latestMessage` relation returns the most recent message (regression: not the first)
-- Default index excludes archived (acts on the `withStatus('all')` semantics)
+- Default index (no status param) excludes archived; `?status=all` includes archived; `?status=archived` returns only archived
 
 **Factories:** `database/factories/ConversationFactory.php` and `MessageFactory.php` are absent today; both will be added since the new tests need readable setup.
 
