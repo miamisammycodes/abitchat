@@ -6,8 +6,8 @@ namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
 use App\Models\Conversation;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -70,14 +70,28 @@ class ConversationController extends Controller
         ]);
     }
 
-    public function archive(Request $request, Conversation $conversation): Response
+    public function archive(Request $request, Conversation $conversation): RedirectResponse
     {
-        abort(501);
+        /** @var \App\Models\User $user */
+        $user = $request->user();
+        abort_if($conversation->tenant_id !== $user->tenant_id, 404);
+
+        $conversation->update(['status' => 'archived']);
+
+        return redirect()->route('client.conversations.index')
+            ->with('success', 'Conversation archived.');
     }
 
-    public function unarchive(Request $request, Conversation $conversation): Response
+    public function unarchive(Request $request, Conversation $conversation): RedirectResponse
     {
-        abort(501);
+        /** @var \App\Models\User $user */
+        $user = $request->user();
+        abort_if($conversation->tenant_id !== $user->tenant_id, 404);
+
+        $conversation->update(['status' => 'active']);
+
+        return redirect()->route('client.conversations.index')
+            ->with('success', 'Conversation restored.');
     }
 
     public function export(Request $request, Conversation $conversation): StreamedResponse

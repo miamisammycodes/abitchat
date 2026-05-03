@@ -67,4 +67,36 @@ class ConversationsShowTest extends TestCase
 
         $this->get("/conversations/{$conv->id}")->assertNotFound();
     }
+
+    public function test_archive_flips_status_to_archived(): void
+    {
+        $this->actingAsTenantUser();
+        $conv = Conversation::factory()->for($this->tenant)->create(['status' => 'active']);
+
+        $this->put("/conversations/{$conv->id}/archive")
+            ->assertRedirect('/conversations');
+
+        $this->assertSame('archived', $conv->fresh()->status);
+    }
+
+    public function test_unarchive_flips_archived_back_to_active(): void
+    {
+        $this->actingAsTenantUser();
+        $conv = Conversation::factory()->for($this->tenant)->archived()->create();
+
+        $this->put("/conversations/{$conv->id}/unarchive")
+            ->assertRedirect('/conversations');
+
+        $this->assertSame('active', $conv->fresh()->status);
+    }
+
+    public function test_archive_404s_on_cross_tenant(): void
+    {
+        $this->actingAsTenantUser();
+        $other = Tenant::factory()->create();
+        $conv = Conversation::factory()->for($other)->create(['status' => 'active']);
+
+        $this->put("/conversations/{$conv->id}/archive")->assertNotFound();
+        $this->assertSame('active', $conv->fresh()->status);
+    }
 }
