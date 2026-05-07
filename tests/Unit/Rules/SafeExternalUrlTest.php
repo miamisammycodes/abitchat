@@ -1,0 +1,48 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Unit\Rules;
+
+use App\Rules\SafeExternalUrl;
+use Illuminate\Support\Facades\Validator;
+use Tests\TestCase;
+
+class SafeExternalUrlTest extends TestCase
+{
+    private function fails(string $url): bool
+    {
+        $validator = Validator::make(
+            ['url' => $url],
+            ['url' => [new SafeExternalUrl]]
+        );
+
+        return $validator->fails();
+    }
+
+    public function test_loopback_ipv4_rejected(): void
+    {
+        $this->assertTrue($this->fails('http://127.0.0.1/admin'));
+    }
+
+    public function test_aws_metadata_ip_rejected(): void
+    {
+        $this->assertTrue($this->fails('http://169.254.169.254/latest/meta-data/'));
+    }
+
+    public function test_rfc1918_private_ip_rejected(): void
+    {
+        $this->assertTrue($this->fails('http://10.0.0.1/'));
+    }
+
+    public function test_public_url_passes(): void
+    {
+        $this->assertFalse($this->fails('https://example.com/page'));
+    }
+
+    public function test_hostname_resolving_to_private_ip_rejected(): void
+    {
+        // localhost typically resolves to 127.0.0.1 (or ::1) on every system.
+        $this->assertTrue($this->fails('http://localhost/admin'));
+    }
+}

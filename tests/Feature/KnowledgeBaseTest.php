@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\KnowledgeItem;
+use App\Models\Tenant;
+use Illuminate\Support\Facades\Bus;
 use Tests\TestCase;
 
 class KnowledgeBaseTest extends TestCase
@@ -12,6 +14,21 @@ class KnowledgeBaseTest extends TestCase
         $response = $this->get('/knowledge');
 
         $response->assertRedirect('/login');
+    }
+
+    public function test_webpage_url_rejects_private_address(): void
+    {
+        $this->actingAsTenantUser();
+        Bus::fake();
+
+        $response = $this->post('/knowledge', [
+            'title' => 'SSRF probe',
+            'type' => 'webpage',
+            'source_url' => 'http://169.254.169.254/latest/meta-data/',
+        ]);
+
+        $response->assertSessionHasErrors('source_url');
+        $this->assertDatabaseMissing('knowledge_items', ['title' => 'SSRF probe']);
     }
 
     public function test_knowledge_base_index_can_be_rendered(): void
@@ -28,7 +45,7 @@ class KnowledgeBaseTest extends TestCase
         $this->actingAsTenantUser();
 
         // Mock the job dispatch to avoid tenant issues in tests
-        \Illuminate\Support\Facades\Bus::fake();
+        Bus::fake();
 
         $response = $this->post('/knowledge', [
             'title' => 'Test Text Item',
@@ -67,7 +84,7 @@ class KnowledgeBaseTest extends TestCase
         $this->actingAsTenantUser();
 
         // Mock the job dispatch to avoid tenant issues in tests
-        \Illuminate\Support\Facades\Bus::fake();
+        Bus::fake();
 
         $item = KnowledgeItem::create([
             'tenant_id' => $this->tenant->id,
@@ -117,7 +134,7 @@ class KnowledgeBaseTest extends TestCase
         $this->actingAsTenantUser();
 
         // Create another tenant with knowledge item
-        $otherTenant = \App\Models\Tenant::create([
+        $otherTenant = Tenant::create([
             'name' => 'Other Company',
             'slug' => 'other-company',
             'status' => 'active',
