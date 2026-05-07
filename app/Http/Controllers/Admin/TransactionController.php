@@ -90,7 +90,10 @@ class TransactionController extends Controller
 
         try {
             DB::transaction(function () use ($transaction, $validated, $admin) {
-                $locked = Transaction::whereKey($transaction->id)->lockForUpdate()->first();
+                $locked = Transaction::with(['tenant', 'plan'])
+                    ->whereKey($transaction->id)
+                    ->lockForUpdate()
+                    ->first();
 
                 if (! $locked || $locked->status !== 'pending') {
                     throw new \RuntimeException('ALREADY_PROCESSED');
@@ -103,15 +106,8 @@ class TransactionController extends Controller
                     'approved_at' => now(),
                 ]);
 
-                $tenant = $locked->tenant;
-                if ($tenant) {
-                    $base = $tenant->plan_expires_at && $tenant->plan_expires_at->isFuture()
-                        ? $tenant->plan_expires_at
-                        : now();
-                    $tenant->update([
-                        'plan_id' => $locked->plan_id,
-                        'plan_expires_at' => $base->copy()->addMonth(),
-                    ]);
+                if ($locked->tenant && $locked->plan) {
+                    $locked->tenant->extendPlan($locked->plan);
                 }
             });
         } catch (\RuntimeException $e) {

@@ -200,8 +200,12 @@ function regenerateApiKey() {
               <p v-if="form.errors.allowed_domains" class="text-sm text-destructive mt-2">
                 {{ form.errors.allowed_domains }}
               </p>
-              <p v-for="(msg, idx) in Object.entries(form.errors).filter(([k]) => k.startsWith('allowed_domains.'))" :key="idx" class="text-sm text-destructive mt-2">
-                {{ msg[1] }}
+              <p
+                v-for="[key, msg] in Object.entries(form.errors).filter(([k]) => k.startsWith('allowed_domains.'))"
+                :key="key"
+                class="text-sm text-destructive mt-2"
+              >
+                {{ msg }}
               </p>
             </CardContent>
           </Card>

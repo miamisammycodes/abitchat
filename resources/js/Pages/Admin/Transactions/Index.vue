@@ -92,44 +92,12 @@ const rejectTransaction = () => {
     })
 }
 
-const formatCurrency = (amount) => {
-    return 'Nu. ' + Number(amount || 0).toLocaleString('en-US')
-}
-
-const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-    })
-}
-
-const getStatusVariant = (status) => {
-    const variants = {
-        pending: 'warning',
-        approved: 'success',
-        rejected: 'destructive',
-    }
-    return variants[status] || 'secondary'
-}
-
-const getBankLabel = (bank) => {
-    const labels = {
-        bob: 'Bank of Bhutan',
-        bnb: 'Bhutan National Bank',
-        dpnb: 'Druk PNB Ltd',
-        bdbl: 'Bhutan Development Bank Ltd.',
-        tbank: 'T Bank Ltd',
-        dk: 'Dk.',
-        // Legacy values for existing transactions
-        bank_transfer: 'Bank Transfer',
-        upi: 'UPI',
-        card: 'Card',
-        cash: 'Cash',
-        other: 'Other',
-    }
-    return labels[bank] || bank
-}
+import {
+    formatCurrency,
+    formatDate,
+    getStatusVariant,
+    getBankLabel,
+} from '@/utils/transactions'
 </script>
 
 <template>

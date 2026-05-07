@@ -21,9 +21,11 @@ class ValidateWidgetDomain
             return $next($request); // Let other middleware handle missing key
         }
 
-        // Get tenant (use cached version if available)
-        $cached = Cache::get("tenant:api_key:{$apiKey}");
-        $tenant = $cached instanceof Tenant ? $cached : Tenant::where('api_key', $apiKey)->first();
+        $tenant = Cache::remember(
+            "tenant:api_key:{$apiKey}",
+            300,
+            fn () => Tenant::where('api_key', $apiKey)->first(),
+        );
 
         if (! $tenant) {
             return $next($request); // Let other middleware handle invalid key

@@ -8,6 +8,13 @@ import { Button } from '@/Components/ui/button'
 import { Label } from '@/Components/ui/label'
 import { Badge } from '@/Components/ui/badge'
 import { Textarea } from '@/Components/ui/textarea'
+import {
+    formatCurrency,
+    formatDate,
+    formatDateTime,
+    getStatusVariant,
+    getBankLabel,
+} from '@/utils/transactions'
 
 const route = useRoute()
 const page = usePage()
@@ -40,48 +47,6 @@ const rejectTransaction = () => {
     })
 }
 
-const formatCurrency = (amount) => 'Nu. ' + Number(amount || 0).toLocaleString('en-US')
-
-const formatDate = (date) => {
-    if (!date) return '—'
-    return new Date(date).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-    })
-}
-
-const formatDateTime = (date) => {
-    if (!date) return '—'
-    return new Date(date).toLocaleString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-    })
-}
-
-const getStatusVariant = (status) => {
-    const variants = {
-        pending: 'warning',
-        approved: 'success',
-        rejected: 'destructive',
-    }
-    return variants[status] || 'secondary'
-}
-
-const getBankLabel = (bank) => {
-    const labels = {
-        bob: 'Bank of Bhutan',
-        bnb: 'Bhutan National Bank',
-        dpnb: 'Druk PNB',
-        bdbl: 'BDBL',
-        tbank: 'T-Bank',
-        dk: 'DK Bank',
-    }
-    return labels[bank] || bank
-}
 </script>
 
 <template>

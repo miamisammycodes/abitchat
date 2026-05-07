@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Services\Usage\UsageTracker;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -122,6 +123,18 @@ class Tenant extends BaseTenant
         return $this->plan_id !== null && ! $this->isPlanExpired();
     }
 
+    public function extendPlan(Plan $plan, int $months = 1): void
+    {
+        $base = $this->plan_expires_at && $this->plan_expires_at->isFuture()
+            ? $this->plan_expires_at
+            : now();
+
+        $this->update([
+            'plan_id' => $plan->id,
+            'plan_expires_at' => $base->copy()->addMonths($months),
+        ]);
+    }
+
     /**
      * Bundled current-month usage + plan/trial limits, used by the Inertia
      * layout and the billing page. All accounting goes through UsageTracker.
@@ -130,18 +143,19 @@ class Tenant extends BaseTenant
      */
     public function getUsageStats(): array
     {
-        /** @var \App\Services\Usage\UsageTracker $tracker */
-        $tracker = app(\App\Services\Usage\UsageTracker::class);
+        /** @var UsageTracker $tracker */
+        $tracker = app(UsageTracker::class);
         $usage = $tracker->monthlyUsage($this);
         $limits = $tracker->limitsFor($this);
 
         $out = [];
-        foreach (\App\Services\Usage\UsageTracker::TYPES as $type) {
+        foreach (UsageTracker::TYPES as $type) {
             $out[$type] = [
                 'used' => (int) ($usage[$type] ?? 0),
                 'limit' => (int) ($limits[$type] ?? 0),
             ];
         }
+
         return $out;
     }
 }
