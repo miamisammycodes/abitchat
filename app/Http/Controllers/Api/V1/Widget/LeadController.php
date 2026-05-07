@@ -57,25 +57,25 @@ class LeadController extends Controller
         }
 
         if ($existingLead) {
-            // Update existing lead with new info
-            /** @var array<string, mixed> $existingCustomFields */
-            $existingCustomFields = $existingLead->custom_fields ?? [];
-            /** @var array<string, mixed> $newCustomFields */
-            $newCustomFields = $request->custom_fields ?? [];
-            $existingLead->update([
-                'name' => $request->name ?? $existingLead->name,
-                'phone' => $request->phone ?? $existingLead->phone,
-                'company' => $request->company ?? $existingLead->company,
-                'custom_fields' => array_merge($existingCustomFields, $newCustomFields),
-            ]);
+            // Only fill blank fields. Never overwrite values already on record
+            // with attacker-controlled input from the widget. custom_fields are
+            // intentionally not merged from widget input on duplicate match.
+            $updates = [];
+            foreach (['name', 'phone', 'company'] as $field) {
+                if (empty($existingLead->{$field}) && filled($request->input($field))) {
+                    $updates[$field] = $request->input($field);
+                }
+            }
 
-            // Update conversation reference
+            if ($updates !== []) {
+                $existingLead->update($updates);
+            }
+
             $conversation->update(['lead_id' => $existingLead->id]);
 
-            // Recalculate score
             $this->scoringService->updateLeadScore($existingLead);
 
-            Log::debug('[Lead] (NO $) Existing lead updated', [
+            Log::debug('[Lead] (NO $) Existing lead reattached to conversation', [
                 'lead_id' => $existingLead->id,
                 'conversation_id' => $conversation->id,
             ]);
@@ -83,7 +83,6 @@ class LeadController extends Controller
             return response()->json([
                 'success' => true,
                 'lead_id' => $existingLead->id,
-                'is_new' => false,
             ]);
         }
 
@@ -115,7 +114,6 @@ class LeadController extends Controller
         return response()->json([
             'success' => true,
             'lead_id' => $lead->id,
-            'is_new' => true,
         ]);
     }
 }

@@ -40,10 +40,10 @@ class TransactionController extends Controller
         $sortDirection = (string) $request->input('direction', 'desc');
         $allowedSorts = ['created_at', 'status', 'amount', 'transaction_number'];
 
-        if (!in_array($sortField, $allowedSorts, true)) {
+        if (! in_array($sortField, $allowedSorts, true)) {
             $sortField = 'created_at';
         }
-        if (!in_array($sortDirection, ['asc', 'desc'], true)) {
+        if (! in_array($sortDirection, ['asc', 'desc'], true)) {
             $sortDirection = 'desc';
         }
 
@@ -92,7 +92,7 @@ class TransactionController extends Controller
             DB::transaction(function () use ($transaction, $validated, $admin) {
                 $locked = Transaction::whereKey($transaction->id)->lockForUpdate()->first();
 
-                if (!$locked || $locked->status !== 'pending') {
+                if (! $locked || $locked->status !== 'pending') {
                     throw new \RuntimeException('ALREADY_PROCESSED');
                 }
 
@@ -103,10 +103,16 @@ class TransactionController extends Controller
                     'approved_at' => now(),
                 ]);
 
-                $locked->tenant?->update([
-                    'plan_id' => $locked->plan_id,
-                    'plan_expires_at' => now()->addMonth(),
-                ]);
+                $tenant = $locked->tenant;
+                if ($tenant) {
+                    $base = $tenant->plan_expires_at && $tenant->plan_expires_at->isFuture()
+                        ? $tenant->plan_expires_at
+                        : now();
+                    $tenant->update([
+                        'plan_id' => $locked->plan_id,
+                        'plan_expires_at' => $base->copy()->addMonth(),
+                    ]);
+                }
             });
         } catch (\RuntimeException $e) {
             if ($e->getMessage() === 'ALREADY_PROCESSED') {
@@ -130,7 +136,7 @@ class TransactionController extends Controller
             DB::transaction(function () use ($transaction, $validated, $admin) {
                 $locked = Transaction::whereKey($transaction->id)->lockForUpdate()->first();
 
-                if (!$locked || $locked->status !== 'pending') {
+                if (! $locked || $locked->status !== 'pending') {
                     throw new \RuntimeException('ALREADY_PROCESSED');
                 }
 

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Plan;
+use App\Models\Tenant;
 use App\Models\Transaction;
 use Tests\TestCase;
 
@@ -13,6 +14,37 @@ class BillingTest extends TestCase
         $response = $this->get('/billing');
 
         $response->assertRedirect('/login');
+    }
+
+    public function test_subscribe_to_inactive_plan_returns_404(): void
+    {
+        $this->actingAsTenantUser();
+
+        $plan = Plan::create([
+            'name' => 'Retired',
+            'slug' => 'retired-plan',
+            'description' => 'Old plan',
+            'price' => 9.99,
+            'billing_period' => 'month',
+            'conversations_limit' => 10,
+            'messages_per_conversation' => 20,
+            'knowledge_items_limit' => 10,
+            'tokens_limit' => 10000,
+            'leads_limit' => 100,
+            'is_active' => false,
+            'sort_order' => 99,
+        ]);
+
+        $this->get("/billing/subscribe/{$plan->id}")->assertStatus(404);
+        $this->post("/billing/subscribe/{$plan->id}", [
+            'transaction_number' => 'TXN-RETIRED',
+            'reference_number' => 'ABC123',
+            'amount' => 9.99,
+            'payment_method' => 'bob',
+            'payment_date' => now()->format('Y-m-d'),
+        ])->assertStatus(404);
+
+        $this->assertDatabaseMissing('transactions', ['transaction_number' => 'TXN-RETIRED']);
     }
 
     public function test_billing_page_can_be_rendered(): void
@@ -268,7 +300,7 @@ class BillingTest extends TestCase
         ]);
 
         // Create another tenant with transaction
-        $otherTenant = \App\Models\Tenant::create([
+        $otherTenant = Tenant::create([
             'name' => 'Other Billing Company',
             'slug' => 'other-billing',
             'status' => 'active',
@@ -317,7 +349,7 @@ class BillingTest extends TestCase
 
             $response = $this->post("/billing/subscribe/{$plan->id}", [
                 'transaction_number' => "TXN-{$method}-{$index}",
-                'reference_number' => 'REF' . str_pad((string) $index, 3, '0', STR_PAD_LEFT),
+                'reference_number' => 'REF'.str_pad((string) $index, 3, '0', STR_PAD_LEFT),
                 'amount' => 19.99,
                 'payment_method' => $method,
                 'payment_date' => now()->format('Y-m-d'),

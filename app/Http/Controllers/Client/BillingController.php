@@ -10,8 +10,8 @@ use App\Models\Transaction;
 use App\Services\Billing\ReceiptService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -25,6 +25,7 @@ class BillingController extends Controller
         $tenant = $this->getTenant($request);
         $tenant = Cache::remember("tenant:{$tenant->id}:with_plan", 300, function () use ($tenant) {
             $tenant->load('currentPlan');
+
             return $tenant;
         });
 
@@ -59,6 +60,8 @@ class BillingController extends Controller
      */
     public function subscribe(Request $request, Plan $plan): Response
     {
+        abort_if(! $plan->is_active, 404);
+
         $tenant = $this->getTenant($request);
 
         // Check if there's already a pending transaction for this plan
@@ -78,6 +81,8 @@ class BillingController extends Controller
      */
     public function submitPayment(Request $request, Plan $plan): RedirectResponse
     {
+        abort_if(! $plan->is_active, 404);
+
         $validated = $request->validate([
             'transaction_number' => 'required|string|max:255',
             'reference_number' => 'required|string|size:6|alpha_num',
@@ -157,7 +162,7 @@ class BillingController extends Controller
         }
 
         // Check if tenant already has an active plan
-        if ($tenant->plan_id && !$tenant->isPlanExpired()) {
+        if ($tenant->plan_id && ! $tenant->isPlanExpired()) {
             return back()->with('error', 'You already have an active plan.');
         }
 

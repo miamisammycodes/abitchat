@@ -17,6 +17,7 @@ import {
   RefreshCw,
   MessageSquare,
   Send,
+  AlertTriangle,
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -35,6 +36,11 @@ const form = useForm({
   position: props.tenant.settings?.position || 'bottom-right',
   bot_name: props.tenant.settings?.bot_name || props.tenant.name,
   offline_message: props.tenant.settings?.offline_message || 'We are currently offline. Please leave a message.',
+  allowed_domains_text: (props.tenant.settings?.allowed_domains || []).join('\n'),
+})
+
+const hasAllowedDomains = computed(() => {
+  return (props.tenant.settings?.allowed_domains || []).length > 0
 })
 
 const showApiKey = ref(false)
@@ -63,7 +69,19 @@ function copyApiKey() {
 }
 
 function saveSettings() {
-  form.put(route('client.widget.update'))
+  form
+    .transform((data) => ({
+      welcome_message: data.welcome_message,
+      primary_color: data.primary_color,
+      position: data.position,
+      bot_name: data.bot_name,
+      offline_message: data.offline_message,
+      allowed_domains: data.allowed_domains_text
+        .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean),
+    }))
+    .put(route('client.widget.update'))
 }
 
 function regenerateApiKey() {
@@ -88,6 +106,14 @@ function regenerateApiKey() {
       <Alert v-if="page.props.flash?.success" variant="success" class="border-green-200 bg-green-50 text-green-800">
         <Check class="h-4 w-4" />
         <AlertDescription>{{ page.props.flash.success }}</AlertDescription>
+      </Alert>
+
+      <Alert v-if="!hasAllowedDomains" class="border-amber-300 bg-amber-50 text-amber-900">
+        <AlertTriangle class="h-4 w-4" />
+        <AlertDescription>
+          <strong>Your widget will not load on any site yet.</strong>
+          Add the domain(s) where you'll embed the widget under <em>Allowed Domains</em> below.
+        </AlertDescription>
       </Alert>
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -151,6 +177,32 @@ function regenerateApiKey() {
                 <RefreshCw class="h-4 w-4 mr-2" />
                 Regenerate API Key
               </Button>
+            </CardContent>
+          </Card>
+
+          <!-- Allowed Domains Card -->
+          <Card>
+            <CardHeader>
+              <CardTitle>Allowed Domains</CardTitle>
+              <CardDescription>
+                One domain per line. The widget will only load when embedded on these sites.
+                Subdomains are matched automatically (e.g. <code class="bg-muted px-1 rounded text-xs">example.com</code> allows <code class="bg-muted px-1 rounded text-xs">www.example.com</code>).
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Textarea
+                id="allowed_domains_text"
+                v-model="form.allowed_domains_text"
+                :rows="4"
+                placeholder="example.com&#10;shop.example.com"
+                class="font-mono text-sm"
+              />
+              <p v-if="form.errors.allowed_domains" class="text-sm text-destructive mt-2">
+                {{ form.errors.allowed_domains }}
+              </p>
+              <p v-for="(msg, idx) in Object.entries(form.errors).filter(([k]) => k.startsWith('allowed_domains.'))" :key="idx" class="text-sm text-destructive mt-2">
+                {{ msg[1] }}
+              </p>
             </CardContent>
           </Card>
 

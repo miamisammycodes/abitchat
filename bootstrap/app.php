@@ -1,5 +1,9 @@
 <?php
 
+use App\Http\Middleware\CheckUsageLimits;
+use App\Http\Middleware\ForceJsonResponse;
+use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\ValidateWidgetDomain;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -13,12 +17,16 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
-            \App\Http\Middleware\HandleInertiaRequests::class,
+            HandleInertiaRequests::class,
+        ]);
+
+        $middleware->api(prepend: [
+            ForceJsonResponse::class,
         ]);
 
         $middleware->alias([
-            'check.limits' => \App\Http\Middleware\CheckUsageLimits::class,
-            'validate.widget.domain' => \App\Http\Middleware\ValidateWidgetDomain::class,
+            'check.limits' => CheckUsageLimits::class,
+            'validate.widget.domain' => ValidateWidgetDomain::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
