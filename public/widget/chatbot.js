@@ -659,7 +659,10 @@
         escapeHtml: function(text) {
             const div = document.createElement('div');
             div.textContent = text;
-            return div.innerHTML;
+            // textContent serialization handles <, >, & but not quotes —
+            // escape them so the same helper is safe in attribute contexts
+            // (e.g. <img src="${escapeHtml(url)}">).
+            return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         },
 
         getSessionId: function() {
