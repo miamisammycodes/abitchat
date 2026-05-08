@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Client;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -51,6 +52,10 @@ class WidgetController extends Controller
     public function regenerateApiKey(Request $request): RedirectResponse
     {
         $tenant = $this->getTenant($request);
+        $oldKey = $tenant->api_key;
+
+        Cache::forget("tenant:api_key:{$oldKey}");
+
         $tenant->update([
             'api_key' => bin2hex(random_bytes(32)),
         ]);

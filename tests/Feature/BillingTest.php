@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Plan;
+use App\Models\Tenant;
 use App\Models\Transaction;
 use Tests\TestCase;
 
@@ -13,6 +14,91 @@ class BillingTest extends TestCase
         $response = $this->get('/billing');
 
         $response->assertRedirect('/login');
+    }
+
+    public function test_trial_cannot_be_activated_twice_even_after_expiry(): void
+    {
+        $this->actingAsTenantUser();
+
+        $freePlan = Plan::create([
+            'name' => 'Free',
+            'slug' => 'free',
+            'description' => 'Free trial plan',
+            'price' => 0,
+            'billing_period' => 'month',
+            'conversations_limit' => 100,
+            'messages_per_conversation' => 50,
+            'knowledge_items_limit' => 10,
+            'tokens_limit' => 50000,
+            'leads_limit' => 50,
+            'is_active' => true,
+            'sort_order' => 0,
+        ]);
+
+        $this->post("/billing/activate-trial/{$freePlan->id}")
+            ->assertRedirect();
+
+        $this->tenant->refresh();
+        $this->assertNotNull($this->tenant->trial_activated_at);
+
+        $this->tenant->update(['plan_expires_at' => now()->subDay()]);
+
+        $response = $this->post("/billing/activate-trial/{$freePlan->id}");
+
+        $response->assertSessionHas('error');
+    }
+
+    public function test_first_trial_activation_succeeds(): void
+    {
+        $this->actingAsTenantUser();
+
+        $freePlan = Plan::create([
+            'name' => 'Free',
+            'slug' => 'free',
+            'description' => 'Free trial plan',
+            'price' => 0,
+            'billing_period' => 'month',
+            'conversations_limit' => 100,
+            'messages_per_conversation' => 50,
+            'knowledge_items_limit' => 10,
+            'tokens_limit' => 50000,
+            'leads_limit' => 50,
+            'is_active' => true,
+            'sort_order' => 0,
+        ]);
+
+        $response = $this->post("/billing/activate-trial/{$freePlan->id}");
+
+        $response->assertRedirect(route('client.billing.index'));
+        $this->tenant->refresh();
+        $this->assertSame($freePlan->id, $this->tenant->plan_id);
+        $this->assertNotNull($this->tenant->trial_activated_at);
+    }
+
+    public function test_paid_plan_cannot_be_activated_via_trial_route(): void
+    {
+        $this->actingAsTenantUser();
+
+        $paidPlan = Plan::create([
+            'name' => 'Pro',
+            'slug' => 'pro-trial-route',
+            'description' => 'Paid plan',
+            'price' => 29.99,
+            'billing_period' => 'month',
+            'conversations_limit' => 1000,
+            'messages_per_conversation' => 50,
+            'knowledge_items_limit' => 100,
+            'tokens_limit' => 500000,
+            'leads_limit' => 500,
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $response = $this->post("/billing/activate-trial/{$paidPlan->id}");
+
+        $response->assertSessionHas('error');
+        $this->tenant->refresh();
+        $this->assertNull($this->tenant->trial_activated_at);
     }
 
     public function test_billing_page_can_be_rendered(): void
@@ -268,7 +354,7 @@ class BillingTest extends TestCase
         ]);
 
         // Create another tenant with transaction
-        $otherTenant = \App\Models\Tenant::create([
+        $otherTenant = Tenant::create([
             'name' => 'Other Billing Company',
             'slug' => 'other-billing',
             'status' => 'active',
@@ -317,7 +403,7 @@ class BillingTest extends TestCase
 
             $response = $this->post("/billing/subscribe/{$plan->id}", [
                 'transaction_number' => "TXN-{$method}-{$index}",
-                'reference_number' => 'REF' . str_pad((string) $index, 3, '0', STR_PAD_LEFT),
+                'reference_number' => 'REF'.str_pad((string) $index, 3, '0', STR_PAD_LEFT),
                 'amount' => 19.99,
                 'payment_method' => $method,
                 'payment_date' => now()->format('Y-m-d'),

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Services\Usage\UsageTracker;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -28,6 +29,7 @@ class Tenant extends BaseTenant
         'status',
         'settings',
         'trial_ends_at',
+        'trial_activated_at',
         'bot_type',
         'bot_tone',
         'bot_custom_instructions',
@@ -37,6 +39,7 @@ class Tenant extends BaseTenant
         'settings' => 'array',
         'trial_ends_at' => 'datetime',
         'plan_expires_at' => 'datetime',
+        'trial_activated_at' => 'datetime',
     ];
 
     protected $hidden = [
@@ -55,7 +58,6 @@ class Tenant extends BaseTenant
         });
 
         static::saved(function (Tenant $tenant) {
-            Cache::forget("tenant:api_key:{$tenant->api_key}");
             Cache::forget("tenant:{$tenant->id}:with_plan");
         });
     }
@@ -130,18 +132,19 @@ class Tenant extends BaseTenant
      */
     public function getUsageStats(): array
     {
-        /** @var \App\Services\Usage\UsageTracker $tracker */
-        $tracker = app(\App\Services\Usage\UsageTracker::class);
+        /** @var UsageTracker $tracker */
+        $tracker = app(UsageTracker::class);
         $usage = $tracker->monthlyUsage($this);
         $limits = $tracker->limitsFor($this);
 
         $out = [];
-        foreach (\App\Services\Usage\UsageTracker::TYPES as $type) {
+        foreach (UsageTracker::TYPES as $type) {
             $out[$type] = [
                 'used' => (int) ($usage[$type] ?? 0),
                 'limit' => (int) ($limits[$type] ?? 0),
             ];
         }
+
         return $out;
     }
 }
