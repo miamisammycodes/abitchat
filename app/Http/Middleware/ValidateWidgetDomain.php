@@ -21,9 +21,11 @@ class ValidateWidgetDomain
             return $next($request); // Let other middleware handle missing key
         }
 
-        // Get tenant (use cached version if available)
-        $cached = Cache::get("tenant:api_key:{$apiKey}");
-        $tenant = $cached instanceof Tenant ? $cached : Tenant::where('api_key', $apiKey)->first();
+        $tenant = Cache::remember(
+            "tenant:api_key:{$apiKey}",
+            300,
+            fn () => Tenant::where('api_key', $apiKey)->first(),
+        );
 
         if (! $tenant) {
             return $next($request); // Let other middleware handle invalid key
@@ -39,14 +41,8 @@ class ValidateWidgetDomain
         /** @var array<int, string> $allowedDomains */
         $allowedDomains = $tenant->settings['allowed_domains'] ?? [];
 
-        // If no domains configured, allow all (open access)
-        if (empty($allowedDomains)) {
-            return $next($request);
-        }
-
-        // In production, reject requests without Origin when domains are configured
-        // Browsers always send Origin on cross-origin requests, so missing Origin
-        // means server-side script trying to bypass domain restriction
+        // No origin: in production we always require it; in non-production we
+        // allow it through for curl/Postman/server-side test convenience.
         if (! $origin) {
             if (app()->environment('production')) {
                 return response()->json([
@@ -55,8 +51,16 @@ class ValidateWidgetDomain
                 ], 403);
             }
 
-            // In dev/local, allow requests without Origin (curl, Postman)
             return $next($request);
+        }
+
+        // Closed by default: an Origin was sent but the tenant hasn't configured
+        // any allowed domains, so reject — they need to add their site explicitly.
+        if (empty($allowedDomains)) {
+            return response()->json([
+                'error' => 'No allowed domains configured for this widget. Add your site domain in widget settings.',
+                'code' => 'DOMAIN_NOT_ALLOWED',
+            ], 403);
         }
 
         // Parse the origin domain
@@ -76,7 +80,7 @@ class ValidateWidgetDomain
             $domain = strtolower(trim($domain));
 
             // Exact match or subdomain match (e.g., "example.com" allows "www.example.com")
-            if ($originHost === $domain || str_ends_with($originHost, '.' . $domain)) {
+            if ($originHost === $domain || str_ends_with($originHost, '.'.$domain)) {
                 return $next($request);
             }
         }

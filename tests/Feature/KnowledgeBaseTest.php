@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\KnowledgeItem;
+use App\Models\Plan;
 use App\Models\Tenant;
 use Illuminate\Support\Facades\Bus;
 use Tests\TestCase;
@@ -14,6 +15,48 @@ class KnowledgeBaseTest extends TestCase
         $response = $this->get('/knowledge');
 
         $response->assertRedirect('/login');
+    }
+
+    public function test_create_blocked_when_knowledge_items_limit_reached(): void
+    {
+        $this->actingAsTenantUser();
+        Bus::fake();
+
+        $plan = Plan::create([
+            'name' => 'Tiny',
+            'slug' => 'tiny-knowledge',
+            'description' => 'Tiny',
+            'price' => 0,
+            'billing_period' => 'month',
+            'conversations_limit' => 100,
+            'messages_per_conversation' => 50,
+            'knowledge_items_limit' => 1,
+            'tokens_limit' => 1000,
+            'leads_limit' => 10,
+            'is_active' => true,
+            'sort_order' => 0,
+        ]);
+        $this->tenant->update([
+            'plan_id' => $plan->id,
+            'plan_expires_at' => now()->addDays(7),
+        ]);
+
+        KnowledgeItem::create([
+            'tenant_id' => $this->tenant->id,
+            'title' => 'Existing',
+            'type' => 'text',
+            'content' => 'x',
+            'status' => 'ready',
+        ]);
+
+        $response = $this->post('/knowledge', [
+            'title' => 'Should be blocked',
+            'type' => 'text',
+            'content' => 'y',
+        ]);
+
+        $response->assertRedirect(route('client.billing.plans'));
+        $this->assertDatabaseMissing('knowledge_items', ['title' => 'Should be blocked']);
     }
 
     public function test_webpage_url_rejects_private_address(): void

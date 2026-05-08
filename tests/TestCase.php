@@ -2,7 +2,7 @@
 
 namespace Tests;
 
-use App\Models\Admin;
+use App\Models\AdminUser as Admin;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -30,6 +30,7 @@ abstract class TestCase extends BaseTestCase
             'name' => 'Test Company',
             'slug' => 'test-company',
             'status' => 'active',
+            'trial_ends_at' => now()->addDays(14),
         ]);
 
         $this->user = User::create([

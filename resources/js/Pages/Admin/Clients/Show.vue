@@ -231,6 +231,9 @@ const getStatusVariant = (status) => {
                                 </div>
                             </label>
                         </div>
+                        <p v-if="botPersonalityForm.errors.bot_type" class="text-sm text-destructive">
+                            {{ botPersonalityForm.errors.bot_type }}
+                        </p>
                     </div>
 
                     <!-- Bot Tone -->
@@ -244,6 +247,9 @@ const getStatusVariant = (status) => {
                                 {{ tone.label }} - {{ tone.description }}
                             </option>
                         </select>
+                        <p v-if="botPersonalityForm.errors.bot_tone" class="text-sm text-destructive">
+                            {{ botPersonalityForm.errors.bot_tone }}
+                        </p>
                     </div>
 
                     <!-- Custom Instructions -->
@@ -254,6 +260,9 @@ const getStatusVariant = (status) => {
                             :rows="4"
                             placeholder="Add any additional instructions for how the bot should behave..."
                         />
+                        <p v-if="botPersonalityForm.errors.bot_custom_instructions" class="text-sm text-destructive">
+                            {{ botPersonalityForm.errors.bot_custom_instructions }}
+                        </p>
                         <p class="text-xs text-muted-foreground">
                             These instructions will be added to guide the bot's responses. Max 2000 characters.
                         </p>
@@ -329,12 +338,15 @@ const getStatusVariant = (status) => {
                     <form @submit.prevent="updateStatus">
                         <select
                             v-model="statusForm.status"
-                            class="w-full h-9 rounded-md bg-background border px-3 text-sm text-foreground mb-4"
+                            class="w-full h-9 rounded-md bg-background border px-3 text-sm text-foreground mb-2"
                         >
                             <option value="active">Active</option>
                             <option value="inactive">Inactive</option>
                             <option value="suspended">Suspended</option>
                         </select>
+                        <p v-if="statusForm.errors.status" class="text-sm text-destructive mb-4">
+                            {{ statusForm.errors.status }}
+                        </p>
                         <div class="flex justify-end space-x-3">
                             <Button
                                 type="button"
@@ -371,6 +383,9 @@ const getStatusVariant = (status) => {
                                     {{ p.name }} - {{ formatCurrency(p.price) }}/{{ p.billing_period }}
                                 </option>
                             </select>
+                            <p v-if="planForm.errors.plan_id" class="text-sm text-destructive mt-1">
+                                {{ planForm.errors.plan_id }}
+                            </p>
                         </div>
                         <div class="mb-4">
                             <Label class="mb-1">Expires At</Label>
@@ -378,6 +393,9 @@ const getStatusVariant = (status) => {
                                 v-model="planForm.expires_at"
                                 type="date"
                             />
+                            <p v-if="planForm.errors.expires_at" class="text-sm text-destructive mt-1">
+                                {{ planForm.errors.expires_at }}
+                            </p>
                         </div>
                         <div class="flex justify-end space-x-3">
                             <Button

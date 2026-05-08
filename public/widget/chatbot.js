@@ -414,7 +414,7 @@
             container.innerHTML = `
                 <div class="chatbot-header">
                     <div class="chatbot-header-avatar">
-                        ${this.config.botAvatar ? `<img src="${this.config.botAvatar}" alt="">` : '🤖'}
+                        ${this.config.botAvatar ? `<img src="${this.escapeHtml(this.config.botAvatar)}" alt="">` : '🤖'}
                     </div>
                     <div class="chatbot-header-info">
                         <h3>${this.escapeHtml(this.config.botName)}</h3>
@@ -644,11 +644,14 @@
             // Line breaks
             html = html.replace(/\n/g, '<br>');
 
-            // Links
-            html = html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
-
-            // Remove dangerous URL schemes
-            html = html.replace(/href="(?:javascript|data|vbscript):[^"]*"/gi, 'href="#"');
+            // Links — allowlist safe URL schemes only; otherwise render text only.
+            html = html.replace(/\[(.*?)\]\((.*?)\)/g, function (_match, label, url) {
+                const trimmed = (url || '').replace(/^[\s -]+/, '').toLowerCase();
+                if (trimmed.indexOf('http://') === 0 || trimmed.indexOf('https://') === 0 || trimmed.indexOf('mailto:') === 0) {
+                    return '<a href="' + url + '" target="_blank" rel="noopener">' + label + '</a>';
+                }
+                return label;
+            });
 
             return html;
         },
@@ -656,7 +659,10 @@
         escapeHtml: function(text) {
             const div = document.createElement('div');
             div.textContent = text;
-            return div.innerHTML;
+            // textContent serialization handles <, >, & but not quotes —
+            // escape them so the same helper is safe in attribute contexts
+            // (e.g. <img src="${escapeHtml(url)}">).
+            return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         },
 
         getSessionId: function() {

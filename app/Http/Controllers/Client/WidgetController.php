@@ -37,12 +37,21 @@ class WidgetController extends Controller
             'position' => 'nullable|in:bottom-right,bottom-left',
             'bot_name' => 'nullable|string|max:50',
             'offline_message' => 'nullable|string|max:500',
+            'allowed_domains' => 'nullable|array|max:50',
+            'allowed_domains.*' => 'string|max:253|regex:/^[a-z0-9.-]+$/i',
         ]);
 
         $tenant = $this->getTenant($request);
 
         $settings = $tenant->settings ?? [];
-        $settings = array_merge($settings, $validated);
+        $domains = collect($validated['allowed_domains'] ?? [])
+            ->map(fn (string $d) => strtolower(trim($d)))
+            ->filter()
+            ->values()
+            ->all();
+        unset($validated['allowed_domains']);
+
+        $settings = array_merge($settings, $validated, ['allowed_domains' => $domains]);
 
         $tenant->update(['settings' => $settings]);
 

@@ -124,6 +124,18 @@ class Tenant extends BaseTenant
         return $this->plan_id !== null && ! $this->isPlanExpired();
     }
 
+    public function extendPlan(Plan $plan, int $months = 1): void
+    {
+        $base = $this->plan_expires_at && $this->plan_expires_at->isFuture()
+            ? $this->plan_expires_at
+            : now();
+
+        $this->update([
+            'plan_id' => $plan->id,
+            'plan_expires_at' => $base->copy()->addMonths($months),
+        ]);
+    }
+
     /**
      * Bundled current-month usage + plan/trial limits, used by the Inertia
      * layout and the billing page. All accounting goes through UsageTracker.

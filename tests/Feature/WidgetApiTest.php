@@ -59,6 +59,40 @@ class WidgetApiTest extends TestCase
         $response->assertJsonValidationErrors('api_key');
     }
 
+    public function test_foreign_origin_rejected_when_allowed_domains_empty(): void
+    {
+        $response = $this->withHeaders(['Origin' => 'https://attacker.example'])
+            ->postJson('/api/v1/widget/init', ['api_key' => $this->apiKey]);
+
+        $response->assertStatus(403)
+            ->assertJsonPath('code', 'DOMAIN_NOT_ALLOWED');
+    }
+
+    public function test_matching_origin_allowed_when_in_allowed_domains(): void
+    {
+        $this->widgetTenant->update(['settings' => ['allowed_domains' => ['shop.example']]]);
+
+        $response = $this->withHeaders(['Origin' => 'https://shop.example'])
+            ->postJson('/api/v1/widget/init', ['api_key' => $this->apiKey]);
+
+        $response->assertStatus(200);
+    }
+
+    public function test_widget_validation_errors_return_json_even_without_accept_header(): void
+    {
+        $response = $this->call(
+            'POST',
+            '/api/v1/widget/init',
+            [],
+            [],
+            [],
+            ['HTTP_CONTENT_TYPE' => 'application/json']
+        );
+
+        $response->assertStatus(422);
+        $this->assertJson($response->getContent());
+    }
+
     public function test_widget_init_rejects_invalid_api_key(): void
     {
         $response = $this->postJson('/api/v1/widget/init', [

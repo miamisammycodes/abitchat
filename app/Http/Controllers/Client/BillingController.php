@@ -62,6 +62,8 @@ class BillingController extends Controller
      */
     public function subscribe(Request $request, Plan $plan): Response
     {
+        abort_if(! $plan->is_active, 404);
+
         $tenant = $this->getTenant($request);
 
         // Check if there's already a pending transaction for this plan
@@ -81,6 +83,8 @@ class BillingController extends Controller
      */
     public function submitPayment(Request $request, Plan $plan): RedirectResponse
     {
+        abort_if(! $plan->is_active, 404);
+
         $validated = $request->validate([
             'transaction_number' => 'required|string|max:255',
             'reference_number' => 'required|string|size:6|alpha_num',

@@ -58,7 +58,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('knowledge')->name('client.knowledge.')->group(function () {
         Route::get('/', [KnowledgeBaseController::class, 'index'])->name('index');
         Route::get('/create', [KnowledgeBaseController::class, 'create'])->name('create');
-        Route::post('/', [KnowledgeBaseController::class, 'store'])->name('store');
+        Route::post('/', [KnowledgeBaseController::class, 'store'])->middleware('check.limits:knowledge_items')->name('store');
         Route::get('/{item}', [KnowledgeBaseController::class, 'show'])->name('show');
         Route::get('/{item}/edit', [KnowledgeBaseController::class, 'edit'])->name('edit');
         Route::put('/{item}', [KnowledgeBaseController::class, 'update'])->name('update');
