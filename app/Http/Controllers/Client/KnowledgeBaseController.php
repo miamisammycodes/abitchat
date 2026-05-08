@@ -7,9 +7,10 @@ namespace App\Http\Controllers\Client;
 use App\Http\Controllers\Controller;
 use App\Jobs\ProcessKnowledgeItem;
 use App\Models\KnowledgeItem;
+use App\Models\Tenant;
+use App\Rules\SafeExternalUrl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -68,7 +69,7 @@ class KnowledgeBaseController extends Controller
             'type' => 'required|in:document,faq,webpage,text',
             'title' => 'required|string|max:255',
             'content' => 'required_if:type,faq,text|nullable|string',
-            'source_url' => 'required_if:type,webpage|nullable|url',
+            'source_url' => ['required_if:type,webpage', 'nullable', 'url', new SafeExternalUrl],
             'file' => 'required_if:type,document|nullable|file|mimes:pdf,doc,docx,txt,md|max:10240',
         ]);
 
@@ -157,7 +158,7 @@ class KnowledgeBaseController extends Controller
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'content' => 'nullable|string',
-            'source_url' => 'nullable|url',
+            'source_url' => ['nullable', 'url', new SafeExternalUrl],
         ]);
 
         $item->update([
@@ -217,7 +218,7 @@ class KnowledgeBaseController extends Controller
             ->with('success', 'Knowledge item queued for reprocessing.');
     }
 
-    private function clearKnowledgeCache(\App\Models\Tenant $tenant): void
+    private function clearKnowledgeCache(Tenant $tenant): void
     {
         Cache::increment("knowledge_version:{$tenant->id}");
     }

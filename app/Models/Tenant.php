@@ -29,6 +29,7 @@ class Tenant extends BaseTenant
         'status',
         'settings',
         'trial_ends_at',
+        'trial_activated_at',
         'bot_type',
         'bot_tone',
         'bot_custom_instructions',
@@ -38,6 +39,7 @@ class Tenant extends BaseTenant
         'settings' => 'array',
         'trial_ends_at' => 'datetime',
         'plan_expires_at' => 'datetime',
+        'trial_activated_at' => 'datetime',
     ];
 
     protected $hidden = [
@@ -56,7 +58,6 @@ class Tenant extends BaseTenant
         });
 
         static::saved(function (Tenant $tenant) {
-            Cache::forget("tenant:api_key:{$tenant->api_key}");
             Cache::forget("tenant:{$tenant->id}:with_plan");
         });
     }

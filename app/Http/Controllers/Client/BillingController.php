@@ -6,12 +6,14 @@ namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
+use App\Models\Tenant;
 use App\Models\Transaction;
 use App\Services\Billing\ReceiptService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -154,26 +156,32 @@ class BillingController extends Controller
      */
     public function activateTrial(Request $request, Plan $plan): RedirectResponse
     {
-        $tenant = $this->getTenant($request);
-
-        // Verify this is a free plan
         if ($plan->price > 0) {
             return back()->with('error', 'This plan requires payment.');
         }
 
-        // Check if tenant already has an active plan
-        if ($tenant->plan_id && ! $tenant->isPlanExpired()) {
-            return back()->with('error', 'You already have an active plan.');
-        }
+        $tenant = $this->getTenant($request);
 
-        // Activate the trial
-        $tenant->update([
-            'plan_id' => $plan->id,
-            'plan_expires_at' => now()->addDays(14),
-        ]);
+        return DB::transaction(function () use ($tenant, $plan) {
+            $locked = Tenant::whereKey($tenant->id)->lockForUpdate()->first();
 
-        return redirect()
-            ->route('client.billing.index')
-            ->with('success', 'Your 14-day free trial has been activated! Enjoy exploring all the features.');
+            if ($locked->trial_activated_at !== null) {
+                return back()->with('error', 'Your free trial has already been used.');
+            }
+
+            if ($locked->plan_id && ! $locked->isPlanExpired()) {
+                return back()->with('error', 'You already have an active plan.');
+            }
+
+            $locked->update([
+                'plan_id' => $plan->id,
+                'plan_expires_at' => now()->addDays(14),
+                'trial_activated_at' => now(),
+            ]);
+
+            return redirect()
+                ->route('client.billing.index')
+                ->with('success', 'Your 14-day free trial has been activated! Enjoy exploring all the features.');
+        });
     }
 }

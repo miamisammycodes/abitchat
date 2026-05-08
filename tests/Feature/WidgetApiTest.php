@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Conversation;
 use App\Models\Tenant;
+use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
 class WidgetApiTest extends TestCase
@@ -25,6 +27,28 @@ class WidgetApiTest extends TestCase
 
         // Tenant creates api_key automatically via boot method
         $this->apiKey = $this->widgetTenant->api_key;
+    }
+
+    public function test_old_api_key_invalidated_immediately_after_regenerate(): void
+    {
+        $user = User::create([
+            'name' => 'Owner',
+            'email' => 'owner-'.uniqid().'@example.com',
+            'password' => bcrypt('password'),
+            'tenant_id' => $this->widgetTenant->id,
+        ]);
+
+        $oldKey = $this->apiKey;
+        Cache::put("tenant:api_key:{$oldKey}", $this->widgetTenant, 300);
+
+        $this->actingAs($user)
+            ->post('/widget-settings/regenerate-key')
+            ->assertRedirect();
+
+        $response = $this->postJson('/api/v1/widget/init', ['api_key' => $oldKey]);
+
+        $response->assertStatus(401)
+            ->assertJsonPath('code', 'TENANT_NOT_FOUND');
     }
 
     public function test_widget_init_requires_api_key(): void

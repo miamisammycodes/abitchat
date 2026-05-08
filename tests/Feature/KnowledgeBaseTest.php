@@ -59,6 +59,21 @@ class KnowledgeBaseTest extends TestCase
         $this->assertDatabaseMissing('knowledge_items', ['title' => 'Should be blocked']);
     }
 
+    public function test_webpage_url_rejects_private_address(): void
+    {
+        $this->actingAsTenantUser();
+        Bus::fake();
+
+        $response = $this->post('/knowledge', [
+            'title' => 'SSRF probe',
+            'type' => 'webpage',
+            'source_url' => 'http://169.254.169.254/latest/meta-data/',
+        ]);
+
+        $response->assertSessionHasErrors('source_url');
+        $this->assertDatabaseMissing('knowledge_items', ['title' => 'SSRF probe']);
+    }
+
     public function test_knowledge_base_index_can_be_rendered(): void
     {
         $this->actingAsTenantUser();
