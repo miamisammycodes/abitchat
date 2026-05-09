@@ -21,15 +21,15 @@ class DocumentProcessorFetchTest extends TestCase
         $processor->extractFromUrl('http://127.0.0.1/admin');
     }
 
-    public function test_redirect_response_is_not_followed(): void
+    public function test_non_2xx_response_surfaces_as_exception(): void
     {
-        // Http::fake never auto-follows redirects regardless of options, so
-        // the canonical assertion is "exactly one HTTP request was sent and
-        // it surfaced the 30x to the caller as a non-successful response,
-        // which extractFromUrl converts into an exception."
-        // Use a public IP literal (1.1.1.1) to avoid DNS resolution in tests —
-        // SafeExternalUrl::isSafe resolves hostnames via dns_get_record, which
-        // would reject unresolvable test hostnames before Http::fake fires.
+        // The production code sets allow_redirects=false on Guzzle so a 30x
+        // is exposed to the caller rather than transparently followed. This
+        // test verifies the surface behavior: a 30x makes extractFromUrl
+        // throw and no follow-up request is sent. Http::fake doesn't follow
+        // redirects regardless of options, so this can't independently bind
+        // the allow_redirects setting — code review treats the production
+        // code as the ground truth there.
         Http::fake([
             '1.1.1.1/redir' => Http::response('', 302, [
                 'Location' => 'http://169.254.169.254/latest/meta-data/',

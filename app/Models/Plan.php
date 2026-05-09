@@ -10,6 +10,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Plan extends Model
 {
+    public const BILLING_MONTHLY = 'monthly';
+
+    public const BILLING_YEARLY = 'yearly';
+
     protected $fillable = [
         'name',
         'slug',

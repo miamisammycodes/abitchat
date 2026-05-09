@@ -54,16 +54,13 @@ const totalLeads = computed(() => {
   return (props.leadScoreDistribution?.hot ?? 0) + (props.leadScoreDistribution?.warm ?? 0) + (props.leadScoreDistribution?.cold ?? 0)
 })
 
-const conversationsFirstLabel = computed(() => (props.conversationsOverTime ?? [])[0]?.label ?? '')
-const conversationsLastLabel = computed(() => {
-  const arr = props.conversationsOverTime ?? []
-  return arr[arr.length - 1]?.label ?? ''
-})
-const leadsFirstLabel = computed(() => (props.leadsOverTime ?? [])[0]?.label ?? '')
-const leadsLastLabel = computed(() => {
-  const arr = props.leadsOverTime ?? []
-  return arr[arr.length - 1]?.label ?? ''
-})
+function firstLabel(arr) {
+  return (arr ?? [])[0]?.label ?? ''
+}
+function lastLabel(arr) {
+  const a = arr ?? []
+  return a[a.length - 1]?.label ?? ''
+}
 </script>
 
 <template>
@@ -195,8 +192,8 @@ const leadsLastLabel = computed(() => {
               </div>
             </div>
             <div class="flex justify-between mt-2 text-xs text-muted-foreground">
-              <span>{{ conversationsFirstLabel }}</span>
-              <span>{{ conversationsLastLabel }}</span>
+              <span>{{ firstLabel(conversationsOverTime) }}</span>
+              <span>{{ lastLabel(conversationsOverTime) }}</span>
             </div>
           </CardContent>
         </Card>
@@ -220,8 +217,8 @@ const leadsLastLabel = computed(() => {
               </div>
             </div>
             <div class="flex justify-between mt-2 text-xs text-muted-foreground">
-              <span>{{ leadsFirstLabel }}</span>
-              <span>{{ leadsLastLabel }}</span>
+              <span>{{ firstLabel(leadsOverTime) }}</span>
+              <span>{{ lastLabel(leadsOverTime) }}</span>
             </div>
           </CardContent>
         </Card>
