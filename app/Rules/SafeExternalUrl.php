@@ -65,16 +65,30 @@ class SafeExternalUrl implements ValidationRule
         return false;
     }
 
+    /**
+     * Determines whether $ip points at a private/reserved address.
+     * Handles IPv4-mapped IPv6 (any textual form) by normalizing via
+     * inet_pton, so DNS-resolved AAAA records in alternate notations
+     * cannot bypass the check.
+     */
     private static function isPrivateIp(string $ip): bool
     {
         if ($ip === '0.0.0.0' || $ip === '::') {
             return true;
         }
 
-        // IPv4-mapped IPv6: ::ffff:x.x.x.x — extract the embedded IPv4 and recheck.
-        if (stripos($ip, '::ffff:') === 0) {
-            $embedded = substr($ip, 7);
-            if (filter_var($embedded, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+        // Normalize any IPv4-mapped IPv6 representation (::ffff:x.x.x.x,
+        // ::ffff:7f00:1, 0:0:0:0:0:ffff:127.0.0.1, etc.) to its embedded IPv4
+        // and recheck. inet_pton produces the same 16-byte packed form for
+        // every textual variant of the same address.
+        $packed = @inet_pton($ip);
+        if (
+            $packed !== false
+            && strlen($packed) === 16
+            && substr($packed, 0, 12) === "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xff"
+        ) {
+            $embedded = inet_ntop(substr($packed, 12));
+            if ($embedded !== false) {
                 return self::isPrivateIp($embedded);
             }
         }
