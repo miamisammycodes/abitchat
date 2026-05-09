@@ -17,23 +17,35 @@ class SafeExternalUrl implements ValidationRule
             return;
         }
 
-        $host = parse_url($value, PHP_URL_HOST);
-
-        if ($host === null || $host === false || $host === '') {
-            $fail('The :attribute must be a valid URL.');
-
-            return;
-        }
-
-        if ($this->isPrivateHost($host)) {
+        if (! self::isSafe($value)) {
             $fail('The :attribute points to a non-public address.');
         }
     }
 
-    private function isPrivateHost(string $host): bool
+    /**
+     * Returns true if $url has a parseable host that resolves to public IPs only.
+     * Re-callable at fetch time to defeat DNS rebinding.
+     */
+    public static function isSafe(string $url): bool
+    {
+        $host = parse_url($url, PHP_URL_HOST);
+
+        if (! is_string($host) || $host === '') {
+            return false;
+        }
+
+        // parse_url leaves brackets on IPv6 literals — strip them.
+        if (str_starts_with($host, '[') && str_ends_with($host, ']')) {
+            $host = substr($host, 1, -1);
+        }
+
+        return ! self::isPrivateHost($host);
+    }
+
+    private static function isPrivateHost(string $host): bool
     {
         if (filter_var($host, FILTER_VALIDATE_IP)) {
-            return $this->isPrivateIp($host);
+            return self::isPrivateIp($host);
         }
 
         $records = @dns_get_record($host, DNS_A | DNS_AAAA);
@@ -45,7 +57,7 @@ class SafeExternalUrl implements ValidationRule
         foreach ($records as $record) {
             $ip = $record['ip'] ?? $record['ipv6'] ?? null;
 
-            if ($ip !== null && $this->isPrivateIp($ip)) {
+            if ($ip !== null && self::isPrivateIp($ip)) {
                 return true;
             }
         }
@@ -53,8 +65,20 @@ class SafeExternalUrl implements ValidationRule
         return false;
     }
 
-    private function isPrivateIp(string $ip): bool
+    private static function isPrivateIp(string $ip): bool
     {
+        if ($ip === '0.0.0.0' || $ip === '::') {
+            return true;
+        }
+
+        // IPv4-mapped IPv6: ::ffff:x.x.x.x — extract the embedded IPv4 and recheck.
+        if (stripos($ip, '::ffff:') === 0) {
+            $embedded = substr($ip, 7);
+            if (filter_var($embedded, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+                return self::isPrivateIp($embedded);
+            }
+        }
+
         return ! filter_var(
             $ip,
             FILTER_VALIDATE_IP,

@@ -45,4 +45,29 @@ class SafeExternalUrlTest extends TestCase
         // localhost typically resolves to 127.0.0.1 (or ::1) on every system.
         $this->assertTrue($this->fails('http://localhost/admin'));
     }
+
+    public function test_ipv4_mapped_ipv6_loopback_rejected(): void
+    {
+        $this->assertTrue($this->fails('http://[::ffff:127.0.0.1]/admin'));
+    }
+
+    public function test_ipv4_mapped_ipv6_aws_metadata_rejected(): void
+    {
+        $this->assertTrue($this->fails('http://[::ffff:169.254.169.254]/latest/meta-data/'));
+    }
+
+    public function test_ipv4_mapped_ipv6_rfc1918_rejected(): void
+    {
+        $this->assertTrue($this->fails('http://[::ffff:10.0.0.1]/'));
+    }
+
+    public function test_zero_address_rejected(): void
+    {
+        $this->assertTrue($this->fails('http://0.0.0.0/'));
+    }
+
+    public function test_unspecified_ipv6_rejected(): void
+    {
+        $this->assertTrue($this->fails('http://[::]/'));
+    }
 }
