@@ -53,6 +53,17 @@ const maxHourly = computed(() => Math.max(0, ...((props.conversationsByHour ?? [
 const totalLeads = computed(() => {
   return (props.leadScoreDistribution?.hot ?? 0) + (props.leadScoreDistribution?.warm ?? 0) + (props.leadScoreDistribution?.cold ?? 0)
 })
+
+const conversationsFirstLabel = computed(() => (props.conversationsOverTime ?? [])[0]?.label ?? '')
+const conversationsLastLabel = computed(() => {
+  const arr = props.conversationsOverTime ?? []
+  return arr[arr.length - 1]?.label ?? ''
+})
+const leadsFirstLabel = computed(() => (props.leadsOverTime ?? [])[0]?.label ?? '')
+const leadsLastLabel = computed(() => {
+  const arr = props.leadsOverTime ?? []
+  return arr[arr.length - 1]?.label ?? ''
+})
 </script>
 
 <template>
@@ -184,8 +195,8 @@ const totalLeads = computed(() => {
               </div>
             </div>
             <div class="flex justify-between mt-2 text-xs text-muted-foreground">
-              <span>{{ conversationsOverTime[0]?.label }}</span>
-              <span>{{ conversationsOverTime[conversationsOverTime.length - 1]?.label }}</span>
+              <span>{{ conversationsFirstLabel }}</span>
+              <span>{{ conversationsLastLabel }}</span>
             </div>
           </CardContent>
         </Card>
@@ -209,8 +220,8 @@ const totalLeads = computed(() => {
               </div>
             </div>
             <div class="flex justify-between mt-2 text-xs text-muted-foreground">
-              <span>{{ leadsOverTime[0]?.label }}</span>
-              <span>{{ leadsOverTime[leadsOverTime.length - 1]?.label }}</span>
+              <span>{{ leadsFirstLabel }}</span>
+              <span>{{ leadsLastLabel }}</span>
             </div>
           </CardContent>
         </Card>
