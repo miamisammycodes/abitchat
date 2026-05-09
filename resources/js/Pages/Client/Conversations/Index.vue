@@ -83,7 +83,7 @@ function truncate(text, n = 80) {
       </div>
 
       <!-- Empty state -->
-      <div v-if="conversations.data.length === 0" class="mt-12 flex flex-col items-center text-center">
+      <div v-if="(conversations?.data?.length ?? 0) === 0" class="mt-12 flex flex-col items-center text-center">
         <MessageCircle class="h-12 w-12 text-muted-foreground" />
         <p class="mt-4 text-sm text-muted-foreground">No conversations yet — add the widget to your site to start collecting them.</p>
         <Link href="/widget-settings" class="mt-2 text-sm text-primary underline">Go to widget settings</Link>
@@ -103,7 +103,7 @@ function truncate(text, n = 80) {
           </thead>
           <tbody class="divide-y">
             <tr
-              v-for="conv in conversations.data"
+              v-for="conv in conversations?.data ?? []"
               :key="conv.id"
               @click="router.visit(`/conversations/${conv.id}`)"
               class="cursor-pointer hover:bg-muted/40"

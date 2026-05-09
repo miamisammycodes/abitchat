@@ -66,8 +66,8 @@ const getStatusVariant = (status) => {
             <div class="ml-5">
               <p class="text-sm font-medium text-muted-foreground">Total Clients</p>
               <div class="flex items-baseline gap-2">
-                <span class="text-2xl font-semibold text-foreground">{{ stats.tenants.total }}</span>
-                <span class="text-sm text-emerald-500">{{ stats.tenants.active }} active</span>
+                <span class="text-2xl font-semibold text-foreground">{{ stats?.tenants?.total ?? 0 }}</span>
+                <span class="text-sm text-emerald-500">{{ stats?.tenants?.active ?? 0 }} active</span>
               </div>
             </div>
           </div>
@@ -83,8 +83,8 @@ const getStatusVariant = (status) => {
             <div class="ml-5">
               <p class="text-sm font-medium text-muted-foreground">Conversations</p>
               <div class="flex items-baseline gap-2">
-                <span class="text-2xl font-semibold text-foreground">{{ formatNumber(stats.conversations.total) }}</span>
-                <span class="text-sm text-blue-500">{{ stats.conversations.today }} today</span>
+                <span class="text-2xl font-semibold text-foreground">{{ formatNumber(stats?.conversations?.total ?? 0) }}</span>
+                <span class="text-sm text-blue-500">{{ stats?.conversations?.today ?? 0 }} today</span>
               </div>
             </div>
           </div>
@@ -100,7 +100,7 @@ const getStatusVariant = (status) => {
             <div class="ml-5">
               <p class="text-sm font-medium text-muted-foreground">Revenue</p>
               <div class="flex items-baseline gap-2">
-                <span class="text-2xl font-semibold text-foreground">{{ formatCurrency(stats.revenue.thisMonth) }}</span>
+                <span class="text-2xl font-semibold text-foreground">{{ formatCurrency(stats?.revenue?.thisMonth ?? 0) }}</span>
                 <span class="text-xs text-muted-foreground">this month</span>
               </div>
             </div>
@@ -117,9 +117,9 @@ const getStatusVariant = (status) => {
             <div class="ml-5">
               <p class="text-sm font-medium text-muted-foreground">Pending Approvals</p>
               <div class="flex items-baseline gap-2">
-                <span class="text-2xl font-semibold text-foreground">{{ stats.pendingTransactions }}</span>
+                <span class="text-2xl font-semibold text-foreground">{{ stats?.pendingTransactions ?? 0 }}</span>
                 <Link
-                  v-if="stats.pendingTransactions > 0"
+                  v-if="(stats?.pendingTransactions ?? 0) > 0"
                   :href="route('admin.transactions.index', { status: 'pending' })"
                   class="text-sm text-amber-500 hover:text-amber-400"
                 >
@@ -139,11 +139,11 @@ const getStatusVariant = (status) => {
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm font-medium text-muted-foreground">Total Leads</p>
-              <p class="text-xl font-semibold text-foreground">{{ formatNumber(stats.leads.total) }}</p>
+              <p class="text-xl font-semibold text-foreground">{{ formatNumber(stats?.leads?.total ?? 0) }}</p>
             </div>
             <div class="text-right">
               <p class="text-sm text-muted-foreground">This Week</p>
-              <p class="text-lg font-medium text-emerald-500">+{{ stats.leads.thisWeek }}</p>
+              <p class="text-lg font-medium text-emerald-500">+{{ stats?.leads?.thisWeek ?? 0 }}</p>
             </div>
           </div>
         </CardContent>
@@ -154,11 +154,11 @@ const getStatusVariant = (status) => {
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm font-medium text-muted-foreground">Total Tokens Used</p>
-              <p class="text-xl font-semibold text-foreground">{{ formatNumber(stats.tokens.total) }}</p>
+              <p class="text-xl font-semibold text-foreground">{{ formatNumber(stats?.tokens?.total ?? 0) }}</p>
             </div>
             <div class="text-right">
               <p class="text-sm text-muted-foreground">This Month</p>
-              <p class="text-lg font-medium text-blue-500">{{ formatNumber(stats.tokens.thisMonth) }}</p>
+              <p class="text-lg font-medium text-blue-500">{{ formatNumber(stats?.tokens?.thisMonth ?? 0) }}</p>
             </div>
           </div>
         </CardContent>
@@ -169,11 +169,11 @@ const getStatusVariant = (status) => {
           <div class="flex items-center justify-between">
             <div>
               <p class="text-sm font-medium text-muted-foreground">Total Revenue</p>
-              <p class="text-xl font-semibold text-foreground">{{ formatCurrency(stats.revenue.total) }}</p>
+              <p class="text-xl font-semibold text-foreground">{{ formatCurrency(stats?.revenue?.total ?? 0) }}</p>
             </div>
             <div class="text-right">
               <p class="text-sm text-muted-foreground">Users</p>
-              <p class="text-lg font-medium text-indigo-500">{{ stats.users }}</p>
+              <p class="text-lg font-medium text-indigo-500">{{ stats?.users ?? 0 }}</p>
             </div>
           </div>
         </CardContent>

@@ -162,11 +162,11 @@ const getStatusVariant = (status) => {
                     <div class="flex justify-between items-center">
                         <div>
                             <p class="text-sm font-medium text-muted-foreground">Conversations</p>
-                            <p class="text-2xl font-semibold text-foreground">{{ formatNumber(stats.conversations.total) }}</p>
+                            <p class="text-2xl font-semibold text-foreground">{{ formatNumber(stats?.conversations?.total ?? 0) }}</p>
                         </div>
                         <div class="text-right">
                             <p class="text-xs text-muted-foreground">This Month</p>
-                            <p class="text-lg font-medium text-blue-500">{{ stats.conversations.thisMonth }}</p>
+                            <p class="text-lg font-medium text-blue-500">{{ stats?.conversations?.thisMonth ?? 0 }}</p>
                         </div>
                     </div>
                 </CardContent>
@@ -176,11 +176,11 @@ const getStatusVariant = (status) => {
                     <div class="flex justify-between items-center">
                         <div>
                             <p class="text-sm font-medium text-muted-foreground">Leads</p>
-                            <p class="text-2xl font-semibold text-foreground">{{ formatNumber(stats.leads.total) }}</p>
+                            <p class="text-2xl font-semibold text-foreground">{{ formatNumber(stats?.leads?.total ?? 0) }}</p>
                         </div>
                         <div class="text-right">
                             <p class="text-xs text-muted-foreground">This Month</p>
-                            <p class="text-lg font-medium text-emerald-500">{{ stats.leads.thisMonth }}</p>
+                            <p class="text-lg font-medium text-emerald-500">{{ stats?.leads?.thisMonth ?? 0 }}</p>
                         </div>
                     </div>
                 </CardContent>
@@ -190,11 +190,11 @@ const getStatusVariant = (status) => {
                     <div class="flex justify-between items-center">
                         <div>
                             <p class="text-sm font-medium text-muted-foreground">Tokens Used</p>
-                            <p class="text-2xl font-semibold text-foreground">{{ formatNumber(stats.tokens.total) }}</p>
+                            <p class="text-2xl font-semibold text-foreground">{{ formatNumber(stats?.tokens?.total ?? 0) }}</p>
                         </div>
                         <div class="text-right">
                             <p class="text-xs text-muted-foreground">This Month</p>
-                            <p class="text-lg font-medium text-indigo-500">{{ formatNumber(stats.tokens.thisMonth) }}</p>
+                            <p class="text-lg font-medium text-indigo-500">{{ formatNumber(stats?.tokens?.thisMonth ?? 0) }}</p>
                         </div>
                     </div>
                 </CardContent>

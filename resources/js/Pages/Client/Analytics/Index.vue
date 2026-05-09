@@ -45,13 +45,13 @@ function getBarHeight(value, max) {
   return `${(value / max) * 100}%`
 }
 
-const maxConversations = computed(() => Math.max(...props.conversationsOverTime.map(d => d.count), 1))
-const maxLeads = computed(() => Math.max(...props.leadsOverTime.map(d => d.count), 1))
-const maxTokens = computed(() => Math.max(...props.tokenUsageOverTime.map(d => d.total), 1))
-const maxHourly = computed(() => Math.max(...props.conversationsByHour.map(d => d.count), 1))
+const maxConversations = computed(() => Math.max(0, ...((props.conversationsOverTime ?? []).map(d => d.count)), 1))
+const maxLeads = computed(() => Math.max(0, ...((props.leadsOverTime ?? []).map(d => d.count)), 1))
+const maxTokens = computed(() => Math.max(0, ...((props.tokenUsageOverTime ?? []).map(d => d.total)), 1))
+const maxHourly = computed(() => Math.max(0, ...((props.conversationsByHour ?? []).map(d => d.count)), 1))
 
 const totalLeads = computed(() => {
-  return props.leadScoreDistribution.hot + props.leadScoreDistribution.warm + props.leadScoreDistribution.cold
+  return (props.leadScoreDistribution?.hot ?? 0) + (props.leadScoreDistribution?.warm ?? 0) + (props.leadScoreDistribution?.cold ?? 0)
 })
 </script>
 
@@ -254,7 +254,7 @@ const totalLeads = computed(() => {
                 <div class="h-2 bg-muted rounded-full overflow-hidden">
                   <div
                     class="h-full bg-green-500 rounded-full transition-all"
-                    :style="{ width: totalLeads > 0 ? `${(leadScoreDistribution.hot / totalLeads) * 100}%` : '0%' }"
+                    :style="{ width: totalLeads > 0 ? `${((leadScoreDistribution?.hot ?? 0) / totalLeads) * 100}%` : '0%' }"
                   ></div>
                 </div>
               </div>
@@ -266,7 +266,7 @@ const totalLeads = computed(() => {
                 <div class="h-2 bg-muted rounded-full overflow-hidden">
                   <div
                     class="h-full bg-amber-500 rounded-full transition-all"
-                    :style="{ width: totalLeads > 0 ? `${(leadScoreDistribution.warm / totalLeads) * 100}%` : '0%' }"
+                    :style="{ width: totalLeads > 0 ? `${((leadScoreDistribution?.warm ?? 0) / totalLeads) * 100}%` : '0%' }"
                   ></div>
                 </div>
               </div>
@@ -278,7 +278,7 @@ const totalLeads = computed(() => {
                 <div class="h-2 bg-muted rounded-full overflow-hidden">
                   <div
                     class="h-full bg-gray-400 rounded-full transition-all"
-                    :style="{ width: totalLeads > 0 ? `${(leadScoreDistribution.cold / totalLeads) * 100}%` : '0%' }"
+                    :style="{ width: totalLeads > 0 ? `${((leadScoreDistribution?.cold ?? 0) / totalLeads) * 100}%` : '0%' }"
                   ></div>
                 </div>
               </div>
