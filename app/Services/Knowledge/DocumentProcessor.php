@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Knowledge;
 
+use App\Rules\SafeExternalUrl;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -40,8 +41,17 @@ class DocumentProcessor
             'url' => $url,
         ]);
 
+        if (! SafeExternalUrl::isSafe($url)) {
+            Log::warning('[DocumentProcessor] Rejected non-public URL at fetch time', [
+                'url' => $url,
+            ]);
+            throw new \Exception("Refusing to fetch non-public URL: {$url}");
+        }
+
         try {
-            $response = Http::timeout(30)->get($url);
+            $response = Http::timeout(30)
+                ->withOptions(['allow_redirects' => false])
+                ->get($url);
 
             if (! $response->successful()) {
                 throw new \Exception("Failed to fetch URL: {$url}");
