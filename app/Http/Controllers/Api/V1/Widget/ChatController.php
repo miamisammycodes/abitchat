@@ -211,7 +211,7 @@ class ChatController extends Controller
             $conversation = Conversation::where('id', $conversationId)
                 ->where('tenant_id', $tenant->id)
                 ->first();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('[Widget] Failed to prepare stream', ['error' => $e->getMessage()]);
             return $this->errorResponse('Failed to process message', 'MESSAGE_ERROR', 500);
         }
@@ -220,42 +220,61 @@ class ChatController extends Controller
             return $this->errorResponse('Conversation not found', 'CONVERSATION_NOT_FOUND', 404);
         }
 
-        // Store user message
-        Message::create([
+        // Phase 1: retrieval is read-only — a failure here cannot leave an orphan
+        // because the user message hasn't been persisted yet.
+        try {
+            $context = $this->retrievalService->retrieve($tenant, $message);
+        } catch (\Throwable $e) {
+            Log::error('[Widget] Failed to prepare stream', ['error' => $e->getMessage()]);
+            return $this->errorResponse('Failed to process message', 'MESSAGE_ERROR', 500);
+        }
+
+        // Phase 2: persist the user message. Subsequent writes (lead capture,
+        // assistant message) are anchored to it. If either Phase 3's lead capture
+        // or the stream itself throws, the closure deletes this row.
+        $userMessage = Message::create([
             'conversation_id' => $conversation->id,
             'role' => 'user',
             'content' => $message,
         ]);
 
-        // Extract contact info and capture lead
-        $this->captureLeadFromMessage($conversation, $message);
-
-        // Retrieve relevant context
-        $context = $this->retrievalService->retrieve($tenant, $message);
-
-        return response()->stream(function () use ($tenant, $conversation, $message, $context) {
+        return response()->stream(function () use ($tenant, $conversation, $message, $context, $userMessage) {
             $fullResponse = '';
 
-            foreach ($this->chatService->streamResponse($conversation, $message, ['knowledge' => $context]) as $chunk) {
-                $fullResponse .= (string) $chunk;
-                echo 'data: '.json_encode(['chunk' => $chunk])."\n\n";
+            try {
+                // Phase 3: side-effecting lead capture happens here so the user
+                // message is durable and counted by LeadScoringService. A throw
+                // bubbles to the catch below and the user message is rolled back.
+                $this->captureLeadFromMessage($conversation, $message);
+
+                foreach ($this->chatService->streamResponse($conversation, $message, ['knowledge' => $context]) as $chunk) {
+                    $fullResponse .= (string) $chunk;
+                    echo 'data: '.json_encode(['chunk' => $chunk])."\n\n";
+                    ob_flush();
+                    flush();
+                }
+
+                Message::create([
+                    'conversation_id' => $conversation->id,
+                    'role' => 'assistant',
+                    'content' => $fullResponse,
+                ]);
+
+                echo 'data: '.json_encode(['done' => true])."\n\n";
                 ob_flush();
                 flush();
+            } catch (\Throwable $e) {
+                $userMessage->delete();
+                Log::error('[Widget] Stream failed', ['error' => $e->getMessage()]);
+                echo 'data: '.json_encode(['error' => 'Stream failed'])."\n\n";
+                ob_flush();
+                flush();
+            } finally {
+                // Phase 4: invalidate the usage cache regardless of outcome.
+                // streamResponse may have written partial UsageRecord rows before
+                // throwing; skipping forget would leave the cached total stale.
+                Cache::forget("tenant:{$tenant->id}:usage");
             }
-
-            // Store complete assistant message
-            Message::create([
-                'conversation_id' => $conversation->id,
-                'role' => 'assistant',
-                'content' => $fullResponse,
-            ]);
-
-            // Invalidate usage cache after streaming completes
-            Cache::forget("tenant:{$tenant->id}:usage");
-
-            echo 'data: '.json_encode(['done' => true])."\n\n";
-            ob_flush();
-            flush();
         }, 200, [
             'Content-Type' => 'text/event-stream',
             'Cache-Control' => 'no-cache',
