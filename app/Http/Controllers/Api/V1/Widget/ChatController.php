@@ -135,34 +135,40 @@ class ChatController extends Controller
                 return $this->errorResponse('Conversation not found', 'CONVERSATION_NOT_FOUND', 404);
             }
 
-            // Store user message
-            Message::create([
+            // Phase 1: retrieval is read-only, so a failure here cannot leave an orphan.
+            $context = $this->retrievalService->retrieve($tenant, $message);
+
+            // Phase 2: persist the user message before any write-side-effects so the
+            // current message is counted by LeadScoringService and lead capture's
+            // writes only happen if we have a durable message to anchor them to.
+            $userMessage = Message::create([
                 'conversation_id' => $conversation->id,
                 'role' => 'user',
                 'content' => $message,
             ]);
 
-            // Extract contact info and capture lead
-            $this->captureLeadFromMessage($conversation, $message);
+            try {
+                $this->captureLeadFromMessage($conversation, $message);
 
-            // Retrieve relevant context
-            $context = $this->retrievalService->retrieve($tenant, $message);
+                // Phase 3: LLM call + assistant message; on any throw, delete the
+                // user message before re-raising so retries don't accumulate orphans.
+                $response = $this->chatService->generateResponse(
+                    $conversation,
+                    $message,
+                    ['knowledge' => $context]
+                );
 
-            // Generate AI response
-            $response = $this->chatService->generateResponse(
-                $conversation,
-                $message,
-                ['knowledge' => $context]
-            );
-
-            // Store assistant message
-            Message::create([
-                'conversation_id' => $conversation->id,
-                'role' => 'assistant',
-                'content' => $response,
-            ]);
-
-            Cache::forget("tenant:{$tenant->id}:usage");
+                Message::create([
+                    'conversation_id' => $conversation->id,
+                    'role' => 'assistant',
+                    'content' => $response,
+                ]);
+            } catch (\Throwable $e) {
+                $userMessage->delete();
+                throw $e;
+            } finally {
+                Cache::forget("tenant:{$tenant->id}:usage");
+            }
 
             Log::debug('[Widget] (NO $) Message exchanged', [
                 'conversation_id' => $conversation->id,
@@ -171,7 +177,7 @@ class ChatController extends Controller
             return response()->json([
                 'response' => $response,
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('[Widget] Failed to send message', ['error' => $e->getMessage()]);
             return $this->errorResponse('Failed to process message', 'MESSAGE_ERROR', 500);
         }
