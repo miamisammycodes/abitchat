@@ -15,14 +15,14 @@ use Tests\TestCase;
 
 class ChatSendMessageOrphanTest extends TestCase
 {
-    private Tenant $widgetTenant;
+    protected Tenant $tenant;
     private Conversation $conversation;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->widgetTenant = Tenant::create([
+        $this->tenant = Tenant::create([
             'name' => 'Chat Co',
             'slug' => 'chat-co',
             'status' => 'active',
@@ -34,11 +34,11 @@ class ChatSendMessageOrphanTest extends TestCase
             'name' => 'Owner',
             'email' => 'owner@chat.co',
             'password' => bcrypt('password'),
-            'tenant_id' => $this->widgetTenant->id,
+            'tenant_id' => $this->tenant->id,
         ]);
 
         $this->conversation = Conversation::create([
-            'tenant_id' => $this->widgetTenant->id,
+            'tenant_id' => $this->tenant->id,
             'session_id' => 'session-orphan-test',
             'status' => 'active',
         ]);
@@ -47,7 +47,7 @@ class ChatSendMessageOrphanTest extends TestCase
     private function postMessage(): \Illuminate\Testing\TestResponse
     {
         return $this->postJson('/api/v1/widget/message', [
-            'api_key' => $this->widgetTenant->api_key,
+            'api_key' => $this->tenant->api_key,
             'conversation_id' => $this->conversation->id,
             'message' => 'hello',
         ]);
@@ -112,7 +112,6 @@ class ChatSendMessageOrphanTest extends TestCase
         $retrieval->shouldReceive('retrieve')->andReturn([]);
         $this->app->instance(RetrievalService::class, $retrieval);
 
-        // Use a single mock with ordered expectations to avoid mid-test rebinding.
         $chat = Mockery::mock(ChatService::class);
         $chat->shouldReceive('generateResponse')
             ->once()->andThrow(new \RuntimeException('groq 503'))

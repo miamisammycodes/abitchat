@@ -135,12 +135,10 @@ class ChatController extends Controller
                 return $this->errorResponse('Conversation not found', 'CONVERSATION_NOT_FOUND', 404);
             }
 
-            // Phase 1: retrieval is read-only, so a failure here cannot leave an orphan.
+            // Retrieval is read-only — must run before persisting the user
+            // message so a failure here can't leave an orphan.
             $context = $this->retrievalService->retrieve($tenant, $message);
 
-            // Phase 2: persist the user message before any write-side-effects so the
-            // current message is counted by LeadScoringService and lead capture's
-            // writes only happen if we have a durable message to anchor them to.
             $userMessage = Message::create([
                 'conversation_id' => $conversation->id,
                 'role' => 'user',
@@ -150,8 +148,6 @@ class ChatController extends Controller
             try {
                 $this->captureLeadFromMessage($conversation, $message);
 
-                // Phase 3: LLM call + assistant message; on any throw, delete the
-                // user message before re-raising so retries don't accumulate orphans.
                 $response = $this->chatService->generateResponse(
                     $conversation,
                     $message,
@@ -167,6 +163,8 @@ class ChatController extends Controller
                 $userMessage->delete();
                 throw $e;
             } finally {
+                // generateResponse may have written partial UsageRecord rows
+                // before throwing — bust the cache regardless of outcome.
                 Cache::forget("tenant:{$tenant->id}:usage");
             }
 
@@ -220,8 +218,8 @@ class ChatController extends Controller
             return $this->errorResponse('Conversation not found', 'CONVERSATION_NOT_FOUND', 404);
         }
 
-        // Phase 1: retrieval is read-only — a failure here cannot leave an orphan
-        // because the user message hasn't been persisted yet.
+        // Retrieval is read-only — must run before persisting the user
+        // message so a failure here can't leave an orphan.
         try {
             $context = $this->retrievalService->retrieve($tenant, $message);
         } catch (\Throwable $e) {
@@ -229,9 +227,6 @@ class ChatController extends Controller
             return $this->errorResponse('Failed to process message', 'MESSAGE_ERROR', 500);
         }
 
-        // Phase 2: persist the user message. Subsequent writes (lead capture,
-        // assistant message) are anchored to it. If either Phase 3's lead capture
-        // or the stream itself throws, the closure deletes this row.
         $userMessage = Message::create([
             'conversation_id' => $conversation->id,
             'role' => 'user',
@@ -242,9 +237,6 @@ class ChatController extends Controller
             $fullResponse = '';
 
             try {
-                // Phase 3: side-effecting lead capture happens here so the user
-                // message is durable and counted by LeadScoringService. A throw
-                // bubbles to the catch below and the user message is rolled back.
                 $this->captureLeadFromMessage($conversation, $message);
 
                 foreach ($this->chatService->streamResponse($conversation, $message, ['knowledge' => $context]) as $chunk) {
@@ -270,9 +262,8 @@ class ChatController extends Controller
                 ob_flush();
                 flush();
             } finally {
-                // Phase 4: invalidate the usage cache regardless of outcome.
-                // streamResponse may have written partial UsageRecord rows before
-                // throwing; skipping forget would leave the cached total stale.
+                // streamResponse may have written partial UsageRecord rows
+                // before throwing — bust the cache regardless of outcome.
                 Cache::forget("tenant:{$tenant->id}:usage");
             }
         }, 200, [

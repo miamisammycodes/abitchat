@@ -59,20 +59,26 @@ class ProcessKnowledgeItem implements NotTenantAware, ShouldQueue
                 'chunks_count' => count($chunks),
             ]);
 
-            // Replace any prior chunk set atomically. Job retries (tries=3)
-            // would otherwise append a duplicate set; a partial mid-loop
-            // failure without the transaction would leave half the new
-            // chunks alongside no old chunks. The transaction keeps the
-            // item in a single consistent chunk set at all times.
+            // Replace any prior chunk set atomically — guards against the
+            // tries=3 retry path appending a duplicate set, and against a
+            // partial-insert state surviving when the transaction throws.
             DB::transaction(function () use ($chunks) {
                 $this->item->chunks()->delete();
+
+                $now = now();
+                $rows = [];
                 foreach ($chunks as $index => $chunkContent) {
-                    KnowledgeChunk::create([
+                    $rows[] = [
                         'knowledge_item_id' => $this->item->id,
                         'content' => $chunkContent,
                         'chunk_index' => $index,
                         'embedding' => null,
-                    ]);
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ];
+                }
+                if ($rows !== []) {
+                    KnowledgeChunk::insert($rows);
                 }
             });
 

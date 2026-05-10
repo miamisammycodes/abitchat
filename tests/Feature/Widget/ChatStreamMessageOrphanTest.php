@@ -16,7 +16,7 @@ use Tests\TestCase;
 class ChatStreamMessageOrphanTest extends TestCase
 {
     protected Tenant $tenant;
-    protected Conversation $conversation;
+    private Conversation $conversation;
 
     protected function setUp(): void
     {
