@@ -124,8 +124,10 @@ class Tenant extends BaseTenant
         return $this->plan_id !== null && ! $this->isPlanExpired();
     }
 
-    public function extendPlan(Plan $plan, int $months = 1): void
+    public function extendPlan(Plan $plan): void
     {
+        $months = $plan->billing_period === Plan::BILLING_YEARLY ? 12 : 1;
+
         $base = $this->plan_expires_at && $this->plan_expires_at->isFuture()
             ? $this->plan_expires_at
             : now();

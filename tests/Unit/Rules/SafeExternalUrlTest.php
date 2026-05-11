@@ -45,4 +45,51 @@ class SafeExternalUrlTest extends TestCase
         // localhost typically resolves to 127.0.0.1 (or ::1) on every system.
         $this->assertTrue($this->fails('http://localhost/admin'));
     }
+
+    public function test_ipv4_mapped_ipv6_loopback_rejected(): void
+    {
+        $this->assertTrue($this->fails('http://[::ffff:127.0.0.1]/admin'));
+    }
+
+    public function test_ipv4_mapped_ipv6_aws_metadata_rejected(): void
+    {
+        $this->assertTrue($this->fails('http://[::ffff:169.254.169.254]/latest/meta-data/'));
+    }
+
+    public function test_ipv4_mapped_ipv6_rfc1918_rejected(): void
+    {
+        $this->assertTrue($this->fails('http://[::ffff:10.0.0.1]/'));
+    }
+
+    public function test_zero_address_rejected(): void
+    {
+        $this->assertTrue($this->fails('http://0.0.0.0/'));
+    }
+
+    public function test_unspecified_ipv6_rejected(): void
+    {
+        $this->assertTrue($this->fails('http://[::]/'));
+    }
+
+    public function test_ipv4_mapped_ipv6_hex_segment_form_rejected(): void
+    {
+        // ::ffff:7f00:1 is the hex-segment form of ::ffff:127.0.0.1
+        $this->assertTrue($this->fails('http://[::ffff:7f00:1]/'));
+    }
+
+    public function test_ipv4_mapped_ipv6_hex_aws_metadata_rejected(): void
+    {
+        // ::ffff:a9fe:a9fe is the hex-segment form of ::ffff:169.254.169.254
+        $this->assertTrue($this->fails('http://[::ffff:a9fe:a9fe]/latest/meta-data/'));
+    }
+
+    public function test_ipv4_mapped_ipv6_uncompressed_dotted_rejected(): void
+    {
+        $this->assertTrue($this->fails('http://[0:0:0:0:0:ffff:127.0.0.1]/'));
+    }
+
+    public function test_ipv4_mapped_ipv6_uncompressed_hex_rejected(): void
+    {
+        $this->assertTrue($this->fails('http://[0:0:0:0:0:ffff:7f00:1]/'));
+    }
 }

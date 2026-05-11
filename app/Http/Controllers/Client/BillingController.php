@@ -88,7 +88,7 @@ class BillingController extends Controller
         $validated = $request->validate([
             'transaction_number' => 'required|string|max:255',
             'reference_number' => 'required|string|size:6|alpha_num',
-            'amount' => 'required|numeric|min:0',
+            'amount' => "required|numeric|min:{$plan->price}",
             'payment_method' => 'required|in:bob,bnb,dpnb,bdbl,tbank,dk',
             'payment_date' => 'required|date|before_or_equal:today',
             'notes' => 'nullable|string|max:1000',

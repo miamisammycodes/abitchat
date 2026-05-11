@@ -63,11 +63,11 @@ class WidgetController extends Controller
         $tenant = $this->getTenant($request);
         $oldKey = $tenant->api_key;
 
-        Cache::forget("tenant:api_key:{$oldKey}");
-
         $tenant->update([
             'api_key' => bin2hex(random_bytes(32)),
         ]);
+
+        Cache::forget("tenant:api_key:{$oldKey}");
 
         return back()->with('success', 'API key regenerated successfully.');
     }
