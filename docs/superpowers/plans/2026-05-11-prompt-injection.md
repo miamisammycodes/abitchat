@@ -233,6 +233,8 @@ Append to `tests/Unit/Services/LLM/ChatServiceTest.php`:
             }));
         // Allow any other log levels to pass through.
         \Illuminate\Support\Facades\Log::shouldReceive('debug')->zeroOrMoreTimes();
+        \Illuminate\Support\Facades\Log::shouldReceive('info')->zeroOrMoreTimes();
+        \Illuminate\Support\Facades\Log::shouldReceive('notice')->zeroOrMoreTimes();
         \Illuminate\Support\Facades\Log::shouldReceive('error')->zeroOrMoreTimes();
 
         $prompt = $this->buildPrompt($tenant, ['knowledge' => [$longChunk]]);
@@ -253,6 +255,8 @@ Append to `tests/Unit/Services/LLM/ChatServiceTest.php`:
                 return $ctx['original_length'] === 1500 && $ctx['truncated_to'] === 1000;
             }));
         \Illuminate\Support\Facades\Log::shouldReceive('debug')->zeroOrMoreTimes();
+        \Illuminate\Support\Facades\Log::shouldReceive('info')->zeroOrMoreTimes();
+        \Illuminate\Support\Facades\Log::shouldReceive('notice')->zeroOrMoreTimes();
         \Illuminate\Support\Facades\Log::shouldReceive('error')->zeroOrMoreTimes();
 
         $prompt = $this->buildPrompt($tenant);
@@ -270,6 +274,8 @@ Append to `tests/Unit/Services/LLM/ChatServiceTest.php`:
 
         \Illuminate\Support\Facades\Log::shouldReceive('warning')->zeroOrMoreTimes();
         \Illuminate\Support\Facades\Log::shouldReceive('debug')->zeroOrMoreTimes();
+        \Illuminate\Support\Facades\Log::shouldReceive('info')->zeroOrMoreTimes();
+        \Illuminate\Support\Facades\Log::shouldReceive('notice')->zeroOrMoreTimes();
         \Illuminate\Support\Facades\Log::shouldReceive('error')->zeroOrMoreTimes();
 
         $prompt = $this->buildPrompt($tenant, ['knowledge' => [$emojiChunk]]);
@@ -279,7 +285,7 @@ Append to `tests/Unit/Services/LLM/ChatServiceTest.php`:
     }
 ```
 
-- [ ] **Step 2: Update the two existing tests broken by the reorder**
+- [ ] **Step 2: Update the THREE existing tests broken by the reorder**
 
 In `tests/Unit/Services/LLM/ChatServiceTest.php`:
 
@@ -301,6 +307,17 @@ $this->assertStringContainsString('ONLY use the Relevant Information', $prompt);
 
 // After:
 $this->assertStringContainsString('ONLY use the knowledge context provided', $prompt);
+```
+
+Find `test_knowledge_context_is_injected_when_provided` (~line 269). Replace its assertion:
+
+```php
+// Before:
+$this->assertStringContainsString('## Relevant Information:', $prompt);
+
+// After:
+$this->assertStringContainsString('<knowledge>', $prompt);
+$this->assertStringContainsString('<chunk>', $prompt);
 ```
 
 - [ ] **Step 3: Run, confirm new tests FAIL and updated tests fail (no impl yet)**
@@ -354,11 +371,18 @@ In `app/Services/LLM/ChatService.php`, replace the `buildSystemPrompt` method bo
         if (! empty($context['knowledge']) && is_array($context['knowledge'])) {
             $chunks = array_map(
                 fn (string $chunk) => $this->wrapUntrusted('chunk', $this->truncateChunk($chunk)),
-                array_values(array_filter($context['knowledge'], 'is_string')),
+                array_values(array_filter(
+                    $context['knowledge'],
+                    fn ($c) => is_string($c) && $c !== '',
+                )),
             );
-            $sections[] = "<knowledge>\n" . implode("\n", $chunks) . "\n</knowledge>";
+            if ($chunks !== []) {
+                $sections[] = "<knowledge>\n" . implode("\n", $chunks) . "\n</knowledge>";
+            } else {
+                $sections[] = "No information has been loaded yet. You cannot answer any specific questions. Only greet the user and offer to connect them with the team.";
+            }
         } else {
-            $sections[] = "<knowledge>\nNo information has been loaded yet. You cannot answer any specific questions. Only greet the user and offer to connect them with the team.\n</knowledge>";
+            $sections[] = "No information has been loaded yet. You cannot answer any specific questions. Only greet the user and offer to connect them with the team.";
         }
 
         // --- TRUSTED strict rules (LAST) ---
@@ -511,6 +535,17 @@ The injection-time cap added in Task 2 is the load-bearing defense (the DB colum
 - Modify: `app/Http/Controllers/Admin/ClientController.php::updateBotPersonality` — `max:2000` → `max:1000`
 - Test: `tests/Feature/Admin/UpdateBotPersonalityValidationTest.php` (create)
 
+- [ ] **Step 0: Verify route name and Tenant fixture shape**
+
+```bash
+grep -n "update-bot-personality\|updateBotPersonality" routes/web.php
+grep -n "fillable\|protected \$casts" app/Models/Tenant.php | head -10
+```
+
+Confirm:
+- Route name (e.g. `admin.clients.update-bot-personality`). If different, update the test's `route(...)` calls.
+- Tenant `$fillable` includes at minimum `name`, `slug`, `status`. The `creating` hook auto-fills `api_key` if absent, so the test's bare `Tenant::create([...])` will work. Other tests in the repo (e.g. `tests/Feature/Admin/ApproveInactivePlanTest.php` from past PRs that exist in main if merged) use the same pattern; mirror their fixture if PR #7's tests are present.
+
 - [ ] **Step 1: Write the failing test**
 
 Create `tests/Feature/Admin/UpdateBotPersonalityValidationTest.php`:
@@ -627,7 +662,7 @@ Expected: all 3 green.
 php artisan test
 ```
 
-Expected: green. The Task 2 injection-time truncation still handles any legacy stored value above 1000 chars at runtime.
+Expected: 185 passed (182 from Task 2 + 3 new validation tests). The Task 2 injection-time truncation still handles any legacy stored value above 1000 chars at runtime.
 
 - [ ] **Step 6: Commit**
 
