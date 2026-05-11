@@ -381,4 +381,24 @@ PROMPT,
     {
         return "I apologize, but I'm having trouble processing your request right now. Please try again in a moment, or contact our support team for immediate assistance.";
     }
+
+    /**
+     * Replace < and > with HTML entities so untrusted content can't break out
+     * of an XML-style delimiter wrap. & is intentionally NOT escaped — the
+     * LLM doesn't XML-parse, and escaping & would corrupt legitimate URLs
+     * and code samples.
+     */
+    private function escapeForPrompt(string $value): string
+    {
+        return str_replace(['<', '>'], ['&lt;', '&gt;'], $value);
+    }
+
+    /**
+     * Escape the content, then wrap it in <tag>...</tag>. Single source of
+     * truth for untrusted-content delimiting in the system prompt.
+     */
+    private function wrapUntrusted(string $tag, string $content): string
+    {
+        return "<{$tag}>\n" . $this->escapeForPrompt($content) . "\n</{$tag}>";
+    }
 }
