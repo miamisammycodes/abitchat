@@ -180,7 +180,7 @@ class ClientController extends Controller
         $validated = $request->validate([
             'bot_type' => 'required|in:support,sales,information,hybrid',
             'bot_tone' => 'required|in:formal,friendly,casual',
-            'bot_custom_instructions' => 'nullable|string|max:2000',
+            'bot_custom_instructions' => 'nullable|string|max:1000',
         ]);
 
         $client->update($validated);
