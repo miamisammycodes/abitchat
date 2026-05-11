@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -99,7 +100,11 @@ class TransactionController extends Controller
                     throw new \RuntimeException('ALREADY_PROCESSED');
                 }
 
-                if (! $locked->tenant || ! $locked->plan || ! $locked->plan->is_active) {
+                if (! $locked->tenant || ! $locked->plan) {
+                    throw new \RuntimeException('RECORD_MISSING');
+                }
+
+                if (! $locked->plan->is_active) {
                     throw new \RuntimeException('PLAN_INACTIVE');
                 }
 
@@ -118,6 +123,12 @@ class TransactionController extends Controller
             }
             if ($e->getMessage() === 'PLAN_INACTIVE') {
                 return back()->with('error', 'Cannot approve transaction: the plan is no longer active.');
+            }
+            if ($e->getMessage() === 'RECORD_MISSING') {
+                Log::error('[Admin] Transaction approve hit missing tenant or plan', [
+                    'transaction_id' => $transaction->id,
+                ]);
+                return back()->with('error', 'Cannot approve transaction: referenced tenant or plan no longer exists.');
             }
             throw $e;
         }
