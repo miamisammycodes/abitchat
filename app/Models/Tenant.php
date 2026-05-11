@@ -18,6 +18,13 @@ class Tenant extends BaseTenant
     use HasFactory;
     use SoftDeletes;
 
+    /**
+     * Max length of bot_custom_instructions, applied both as a write-time
+     * validation rule and as an injection-time truncation cap. Shared so
+     * the two paths can't drift apart.
+     */
+    public const MAX_CUSTOM_INSTRUCTIONS_CHARS = 1000;
+
     protected $fillable = [
         'name',
         'slug',

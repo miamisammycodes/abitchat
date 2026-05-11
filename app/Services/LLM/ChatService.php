@@ -16,6 +16,10 @@ use Prism\Prism\ValueObjects\Messages\UserMessage;
 
 class ChatService
 {
+    private const MAX_KNOWLEDGE_CHUNK_CHARS = 1500;
+
+    private const NO_KNOWLEDGE_FALLBACK = "No information has been loaded yet. You cannot answer any specific questions. Only greet the user and offer to connect them with the team.";
+
     private Provider $provider;
 
     private string $model;
@@ -211,25 +215,30 @@ class ChatService
 
         // --- UNTRUSTED sections (bracketed by trusted; strict rules come after) ---
         if (! empty($customInstructions)) {
-            $sections[] = $this->wrapUntrusted('operator_persona', $this->truncateOperatorInstructions($customInstructions));
+            $truncated = $this->truncate(
+                $customInstructions,
+                Tenant::MAX_CUSTOM_INSTRUCTIONS_CHARS,
+                'bot_custom_instructions truncated',
+            );
+            $sections[] = $this->wrapUntrusted('operator_persona', $truncated);
         }
 
+        $chunks = [];
         if (! empty($context['knowledge']) && is_array($context['knowledge'])) {
             $chunks = array_map(
-                fn (string $chunk) => $this->wrapUntrusted('chunk', $this->truncateChunk($chunk)),
+                fn (string $chunk) => $this->wrapUntrusted(
+                    'chunk',
+                    $this->truncate($chunk, self::MAX_KNOWLEDGE_CHUNK_CHARS, 'Knowledge chunk truncated'),
+                ),
                 array_values(array_filter(
                     $context['knowledge'],
                     fn ($c) => is_string($c) && $c !== '',
                 )),
             );
-            if ($chunks !== []) {
-                $sections[] = "<knowledge>\n" . implode("\n", $chunks) . "\n</knowledge>";
-            } else {
-                $sections[] = "No information has been loaded yet. You cannot answer any specific questions. Only greet the user and offer to connect them with the team.";
-            }
-        } else {
-            $sections[] = "No information has been loaded yet. You cannot answer any specific questions. Only greet the user and offer to connect them with the team.";
         }
+        $sections[] = $chunks !== []
+            ? "<knowledge>\n" . implode("\n", $chunks) . "\n</knowledge>"
+            : self::NO_KNOWLEDGE_FALLBACK;
 
         // --- TRUSTED strict rules (LAST) ---
         $sections[] = $this->getStrictRulesBlock();
@@ -287,16 +296,6 @@ STRICT RULES — YOU MUST FOLLOW THESE WITHOUT EXCEPTION:
 PROMPT;
     }
 
-    private function truncateOperatorInstructions(string $value): string
-    {
-        return $this->truncate($value, 1000, 'bot_custom_instructions truncated');
-    }
-
-    private function truncateChunk(string $value): string
-    {
-        return $this->truncate($value, 1500, 'Knowledge chunk truncated');
-    }
-
     private function truncate(string $value, int $maxChars, string $logMessage): string
     {
         $length = mb_strlen($value);
@@ -304,7 +303,7 @@ PROMPT;
             return $value;
         }
 
-        Log::warning('[Chat] ' . $logMessage, [
+        Log::warning('[LLM] ' . $logMessage, [
             'original_length' => $length,
             'truncated_to' => $maxChars,
         ]);
