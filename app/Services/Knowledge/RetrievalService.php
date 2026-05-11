@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Knowledge;
 
+use App\Exceptions\EmbeddingGenerationException;
 use App\Models\Tenant;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -33,7 +34,15 @@ class RetrievalService
                 'query_length' => strlen($query),
             ]);
 
-            $queryVector = $this->embeddingService->generate($query);
+            try {
+                $queryVector = $this->embeddingService->generate($query);
+            } catch (EmbeddingGenerationException $e) {
+                Log::warning('[Retrieval] Embedding failed, falling back to keyword search', [
+                    'tenant_id' => $tenant->id,
+                    'error' => $e->getMessage(),
+                ]);
+                $queryVector = null;
+            }
 
             if ($queryVector === null) {
                 Log::debug('[RAG] (NO $) No query embedding, using keyword fallback');
