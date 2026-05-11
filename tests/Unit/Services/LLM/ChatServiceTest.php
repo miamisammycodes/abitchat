@@ -312,6 +312,36 @@ class ChatServiceTest extends TestCase
         return $m->invoke($this->service, ...$args);
     }
 
+    /**
+     * Catch-all stub for every Log channel except `warning`. Keeps the test
+     * resilient when ChatService adds new log calls — only behavior under
+     * test is asserted; everything else passes through.
+     */
+    private function allowLogChannels(): void
+    {
+        \Illuminate\Support\Facades\Log::shouldReceive('warning')->zeroOrMoreTimes();
+        \Illuminate\Support\Facades\Log::shouldReceive('debug')->zeroOrMoreTimes();
+        \Illuminate\Support\Facades\Log::shouldReceive('info')->zeroOrMoreTimes();
+        \Illuminate\Support\Facades\Log::shouldReceive('notice')->zeroOrMoreTimes();
+        \Illuminate\Support\Facades\Log::shouldReceive('error')->zeroOrMoreTimes();
+    }
+
+    /**
+     * Expect exactly one Log::warning matching $messagePattern with a
+     * context payload that satisfies $contextPredicate. Other log levels
+     * pass through without assertion.
+     */
+    private function expectLogWarning(string $messagePattern, callable $contextPredicate): void
+    {
+        \Illuminate\Support\Facades\Log::shouldReceive('warning')
+            ->once()
+            ->with(\Mockery::pattern($messagePattern), \Mockery::on($contextPredicate));
+        \Illuminate\Support\Facades\Log::shouldReceive('debug')->zeroOrMoreTimes();
+        \Illuminate\Support\Facades\Log::shouldReceive('info')->zeroOrMoreTimes();
+        \Illuminate\Support\Facades\Log::shouldReceive('notice')->zeroOrMoreTimes();
+        \Illuminate\Support\Facades\Log::shouldReceive('error')->zeroOrMoreTimes();
+    }
+
     public function test_escape_for_prompt_replaces_angle_brackets(): void
     {
         $this->assertSame('plain text', $this->invokePrivate('escapeForPrompt', 'plain text'));
@@ -391,15 +421,9 @@ class ChatServiceTest extends TestCase
         $longChunk = str_repeat('a', 3000);
         $tenant = $this->configureTenant([]);
 
-        \Illuminate\Support\Facades\Log::shouldReceive('warning')
-            ->once()
-            ->with(\Mockery::pattern('/Knowledge chunk truncated/'), \Mockery::on(function ($ctx) {
-                return $ctx['original_length'] === 3000 && $ctx['truncated_to'] === 1500;
-            }));
-        \Illuminate\Support\Facades\Log::shouldReceive('debug')->zeroOrMoreTimes();
-        \Illuminate\Support\Facades\Log::shouldReceive('info')->zeroOrMoreTimes();
-        \Illuminate\Support\Facades\Log::shouldReceive('notice')->zeroOrMoreTimes();
-        \Illuminate\Support\Facades\Log::shouldReceive('error')->zeroOrMoreTimes();
+        $this->expectLogWarning('/Knowledge chunk truncated/', function ($ctx) {
+            return $ctx['original_length'] === 3000 && $ctx['truncated_to'] === 1500;
+        });
 
         $prompt = $this->buildPrompt($tenant, ['knowledge' => [$longChunk]]);
 
@@ -412,15 +436,9 @@ class ChatServiceTest extends TestCase
         $longInstructions = str_repeat('b', 1500);
         $tenant = $this->configureTenant(['bot_custom_instructions' => $longInstructions]);
 
-        \Illuminate\Support\Facades\Log::shouldReceive('warning')
-            ->once()
-            ->with(\Mockery::pattern('/bot_custom_instructions truncated/'), \Mockery::on(function ($ctx) {
-                return $ctx['original_length'] === 1500 && $ctx['truncated_to'] === 1000;
-            }));
-        \Illuminate\Support\Facades\Log::shouldReceive('debug')->zeroOrMoreTimes();
-        \Illuminate\Support\Facades\Log::shouldReceive('info')->zeroOrMoreTimes();
-        \Illuminate\Support\Facades\Log::shouldReceive('notice')->zeroOrMoreTimes();
-        \Illuminate\Support\Facades\Log::shouldReceive('error')->zeroOrMoreTimes();
+        $this->expectLogWarning('/bot_custom_instructions truncated/', function ($ctx) {
+            return $ctx['original_length'] === 1500 && $ctx['truncated_to'] === 1000;
+        });
 
         $prompt = $this->buildPrompt($tenant);
 
@@ -433,11 +451,7 @@ class ChatServiceTest extends TestCase
         $emojiChunk = str_repeat('😀', 2000);
         $tenant = $this->configureTenant([]);
 
-        \Illuminate\Support\Facades\Log::shouldReceive('warning')->zeroOrMoreTimes();
-        \Illuminate\Support\Facades\Log::shouldReceive('debug')->zeroOrMoreTimes();
-        \Illuminate\Support\Facades\Log::shouldReceive('info')->zeroOrMoreTimes();
-        \Illuminate\Support\Facades\Log::shouldReceive('notice')->zeroOrMoreTimes();
-        \Illuminate\Support\Facades\Log::shouldReceive('error')->zeroOrMoreTimes();
+        $this->allowLogChannels();
 
         $prompt = $this->buildPrompt($tenant, ['knowledge' => [$emojiChunk]]);
 

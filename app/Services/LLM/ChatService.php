@@ -279,6 +279,13 @@ When user shows buying interest (meeting, demo, quote, get started, pricing):
 PROMPT;
     }
 
+    /**
+     * Strict scope rules. MUST be appended LAST in buildSystemPrompt: the
+     * prose references "the operator_persona section above" and "the
+     * knowledge section above", so moving this block earlier breaks the
+     * semantics — and weakens the injection defense, since the strict
+     * rules need to be the last thing the LLM reads.
+     */
     private function getStrictRulesBlock(): string
     {
         return <<<'PROMPT'
