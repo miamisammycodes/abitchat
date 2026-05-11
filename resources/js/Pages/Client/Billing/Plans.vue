@@ -30,7 +30,9 @@ const inquiryForm = useForm({
 const trialForm = useForm({})
 
 function activateFreeTrial(planId) {
-  trialForm.post(route('client.billing.activate-trial', planId))
+  trialForm.post(route('client.billing.activate-trial', planId), {
+    preserveScroll: true,
+  })
 }
 
 function formatLimit(limit) {
@@ -45,6 +47,7 @@ function openEnterpriseModal() {
 function closeEnterpriseModal() {
   showEnterpriseModal.value = false
   inquiryForm.reset()
+  inquiryForm.clearErrors()
 }
 
 function submitInquiry() {
