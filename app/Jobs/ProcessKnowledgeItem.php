@@ -80,7 +80,6 @@ class ProcessKnowledgeItem implements NotTenantAware, ShouldQueue
                 'error' => $e->getMessage(),
             ]);
 
-            $this->item->markAsFailed();
             throw $e;
         }
     }

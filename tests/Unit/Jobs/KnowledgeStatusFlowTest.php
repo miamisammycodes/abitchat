@@ -84,4 +84,43 @@ class KnowledgeStatusFlowTest extends TestCase
         $item->refresh();
         $this->assertSame('failed', $item->status);
     }
+
+    public function test_process_job_failed_callback_marks_failed(): void
+    {
+        $item = $this->makeItem();
+        $item->markAsProcessing();
+
+        $job = new ProcessKnowledgeItem($item);
+        $job->failed(new \RuntimeException('all retries exhausted'));
+
+        $item->refresh();
+        $this->assertSame('failed', $item->status);
+    }
+
+    public function test_process_job_catch_does_not_prematurely_mark_failed(): void
+    {
+        // The catch block re-throws to trigger Laravel's retry chain. The
+        // item should stay in 'processing' until the failed() callback
+        // fires after all retries are exhausted — otherwise the status
+        // flaps between failed/processing during retries.
+        $item = $this->makeItem();
+        $item->update(['type' => 'document', 'file_path' => '/does/not/exist']);
+        $item->markAsProcessing();
+
+        $job = new ProcessKnowledgeItem($item);
+
+        try {
+            $job->handle(app(DocumentProcessor::class), app(TextChunker::class));
+            $this->fail('Expected exception to be re-thrown');
+        } catch (\Throwable) {
+            // Expected — DocumentProcessor will throw on a missing file.
+        }
+
+        $item->refresh();
+        $this->assertSame(
+            'processing',
+            $item->status,
+            'Catch block must not call markAsFailed; that is the failed() callbacks job',
+        );
+    }
 }
