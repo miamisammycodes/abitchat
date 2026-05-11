@@ -44,16 +44,27 @@ class GenerateEmbeddings implements NotTenantAware, ShouldQueue
                 ]);
             }
 
-            Log::debug('[Embeddings] (IS $) Embeddings generated', [
+            $this->item->markAsReady();
+
+            Log::debug('[Embeddings] (NO $) Embeddings generated; item ready', [
                 'item_id' => $this->item->id,
                 'processed' => $chunks->count(),
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('[Embeddings] Generation failed', [
                 'item_id' => $this->item->id,
                 'error' => $e->getMessage(),
             ]);
             throw $e;
         }
+    }
+
+    public function failed(\Throwable $exception): void
+    {
+        Log::error('[Embeddings] Job failed after retries — marking item failed', [
+            'item_id' => $this->item->id,
+            'error' => $exception->getMessage(),
+        ]);
+        $this->item->markAsFailed();
     }
 }

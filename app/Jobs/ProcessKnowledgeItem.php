@@ -71,9 +71,7 @@ class ProcessKnowledgeItem implements NotTenantAware, ShouldQueue
             // Dispatch embedding job for each chunk
             GenerateEmbeddings::dispatch($this->item);
 
-            $this->item->markAsReady();
-
-            Log::debug('[Knowledge] (NO $) Item processed successfully', [
+            Log::debug('[Knowledge] (NO $) Chunks written; embedding job dispatched', [
                 'item_id' => $this->item->id,
             ]);
         } catch (\Exception $e) {
