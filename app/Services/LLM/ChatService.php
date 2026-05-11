@@ -11,6 +11,7 @@ use App\Services\Usage\UsageTracker;
 use Illuminate\Support\Facades\Log;
 use Prism\Prism\Enums\Provider;
 use Prism\Prism\Facades\Prism;
+use Prism\Prism\Text\Response;
 use Prism\Prism\ValueObjects\Messages\AssistantMessage;
 use Prism\Prism\ValueObjects\Messages\UserMessage;
 
@@ -18,6 +19,8 @@ class ChatService
 {
     private const MAX_KNOWLEDGE_CHUNK_CHARS = 1500;
 
+    // Conservative for Groq llama-3.1's 8k context window — leaves ~4k for
+    // the system prompt, current user message, and the completion reply.
     private const MAX_HISTORY_TOKENS = 4000;
 
     private const NO_KNOWLEDGE_FALLBACK = "No information has been loaded yet. You cannot answer any specific questions. Only greet the user and offer to connect them with the team.";
@@ -140,7 +143,7 @@ class ChatService
      *
      * @param  array<int, UserMessage|AssistantMessage>  $messages
      */
-    protected function dispatchToProvider(string $systemPrompt, array $messages): \Prism\Prism\Text\Response
+    protected function dispatchToProvider(string $systemPrompt, array $messages): Response
     {
         return Prism::text()
             ->using($this->provider, $this->model)
@@ -175,6 +178,7 @@ class ChatService
             $estimatedTotal,
             0,
             $estimatedTotal,
+            ['source' => 'estimated_retry', 'failed_attempts' => $failedAttempts],
         );
 
         Log::info('[LLM] Failed-attempt usage recorded', [

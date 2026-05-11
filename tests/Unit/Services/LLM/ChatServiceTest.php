@@ -599,12 +599,12 @@ class ChatServiceTest extends TestCase
 
         $service = $this->makeMockableService();
         $stub = $this->makeTextResponseStub(100, 20);
+        $callCount = 0;
         $service->shouldReceive('dispatchToProvider')
             ->times(3)
-            ->andReturnUsing(function () use ($stub) {
-                static $n = 0;
-                $n++;
-                if ($n < 3) {
+            ->andReturnUsing(function () use ($stub, &$callCount) {
+                $callCount++;
+                if ($callCount < 3) {
                     throw new \RuntimeException('HTTP 503 server error');
                 }
                 return $stub;
@@ -621,8 +621,12 @@ class ChatServiceTest extends TestCase
 
         $this->assertCount(2, $records, 'one success record + one failed-attempts record');
         $this->assertSame(120, (int) $records[0]->quantity, 'first record is the real success usage');
+        $this->assertNull($records[0]->metadata, 'success record has no source tag');
         $this->assertGreaterThan(0, (int) $records[1]->quantity);
         $this->assertNotSame(120, (int) $records[1]->quantity);
+        $this->assertSame('estimated_retry', $records[1]->metadata['source'] ?? null,
+            'failed-attempt record is tagged so analytics can filter it');
+        $this->assertSame(2, $records[1]->metadata['failed_attempts'] ?? null);
     }
 
     public function test_total_failure_still_records_failed_attempt_usage(): void
