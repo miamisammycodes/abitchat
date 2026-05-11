@@ -74,7 +74,7 @@ class ProcessKnowledgeItem implements NotTenantAware, ShouldQueue
             Log::debug('[Knowledge] (NO $) Chunks written; embedding job dispatched', [
                 'item_id' => $this->item->id,
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('[Knowledge] Processing failed', [
                 'item_id' => $this->item->id,
                 'error' => $e->getMessage(),
@@ -83,6 +83,15 @@ class ProcessKnowledgeItem implements NotTenantAware, ShouldQueue
             $this->item->markAsFailed();
             throw $e;
         }
+    }
+
+    public function failed(\Throwable $exception): void
+    {
+        Log::error('[Knowledge] Job failed after retries — marking item failed', [
+            'item_id' => $this->item->id,
+            'error' => $exception->getMessage(),
+        ]);
+        $this->item->markAsFailed();
     }
 
     private function extractContent(DocumentProcessor $processor): string

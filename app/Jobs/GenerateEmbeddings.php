@@ -28,13 +28,13 @@ class GenerateEmbeddings implements NotTenantAware, ShouldQueue
 
     public function handle(EmbeddingService $embeddingService): void
     {
-        Log::debug('[Embeddings] (IS $) Generating embeddings', [
-            'item_id' => $this->item->id,
-            'chunks_count' => $this->item->chunks()->count(),
-        ]);
-
         try {
             $chunks = $this->item->chunks()->whereNull('embedding')->get();
+
+            Log::debug('[Embeddings] (IS $) Generating embeddings', [
+                'item_id' => $this->item->id,
+                'chunks_count' => $chunks->count(),
+            ]);
 
             foreach ($chunks as $chunk) {
                 $embedding = $embeddingService->generate($chunk->content);
