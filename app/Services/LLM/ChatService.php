@@ -18,6 +18,8 @@ class ChatService
 {
     private const MAX_KNOWLEDGE_CHUNK_CHARS = 1500;
 
+    private const MAX_HISTORY_TOKENS = 4000;
+
     private const NO_KNOWLEDGE_FALLBACK = "No information has been loaded yet. You cannot answer any specific questions. Only greet the user and offer to connect them with the team.";
 
     private Provider $provider;
@@ -393,24 +395,42 @@ PROMPT,
     }
 
     /**
+     * Build the conversation message history trimmed to fit within
+     * MAX_HISTORY_TOKENS. Walks newest → oldest and stops when including
+     * the next-older message would exceed the budget. The newest message
+     * is always kept; if it alone exceeds budget, we let the provider's
+     * own context-window error trigger the standard failure path.
+     *
      * @return array<int, UserMessage|AssistantMessage>
      */
     private function buildMessageHistory(Conversation $conversation): array
     {
-        $messages = $conversation->messages()
+        $rows = $conversation->messages()
             ->orderBy('created_at', 'desc')
-            ->limit(20) // Keep context window manageable
-            ->get()
-            ->reverse()
-            ->values();
+            ->limit(20)
+            ->get();
 
-        return $messages->map(function (Message $message) {
-            if ($message->role === 'user') {
-                return new UserMessage($message->content);
+        $kept = [];
+        $tokensUsed = 0;
+
+        foreach ($rows as $message) {
+            $messageTokens = $this->estimateTokens($message->content);
+            $isFirst = $kept === [];
+
+            if (! $isFirst && $tokensUsed + $messageTokens > self::MAX_HISTORY_TOKENS) {
+                break;
             }
 
-            return new AssistantMessage($message->content);
-        })->all();
+            $kept[] = $message;
+            $tokensUsed += $messageTokens;
+        }
+
+        return array_map(
+            fn (Message $m) => $m->role === 'user'
+                ? new UserMessage($m->content)
+                : new AssistantMessage($m->content),
+            array_reverse($kept),
+        );
     }
 
     private function trackUsage(Tenant $tenant, Conversation $conversation, mixed $usage): void
@@ -429,6 +449,16 @@ PROMPT,
     private function getFallbackResponse(): string
     {
         return "I apologize, but I'm having trouble processing your request right now. Please try again in a moment, or contact our support team for immediate assistance.";
+    }
+
+    /**
+     * Estimate token count using the standard 4-chars-per-token heuristic.
+     * Off by ~20% on real tokenizer output, but good enough for budget
+     * trimming where the budget itself has a safety margin.
+     */
+    private function estimateTokens(string $text): int
+    {
+        return (int) ceil(mb_strlen($text) / 4);
     }
 
     /**
