@@ -138,10 +138,10 @@ class UsageTrackerTest extends TestCase
         $this->assertSame(50_000, $limits['tokens']);
     }
 
-    public function test_remaining_returns_null_for_unlimited_or_missing_limit(): void
+    public function test_remaining_returns_null_only_for_minus_one_or_missing_limit(): void
     {
         config(['billing.trial_limits' => ['tokens' => 0, 'leads' => -1]]);
-        $this->assertNull($this->tracker->remaining($this->tenant, 'tokens'));
+        $this->assertSame(0, $this->tracker->remaining($this->tenant, 'tokens'));
         $this->assertNull($this->tracker->remaining($this->tenant, 'leads'));
         $this->assertNull($this->tracker->remaining($this->tenant, 'knowledge_items'));
     }

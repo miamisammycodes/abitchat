@@ -110,12 +110,13 @@ final class UsageTracker
 
     /**
      * Remaining quota for the current period.
-     * Returns null if the type is unlimited (limit absent, zero, or negative).
+     * Returns null only when the type is unlimited (limit absent or -1).
+     * A limit of 0 means "block all" and returns 0.
      */
     public function remaining(Tenant $tenant, string $type): ?int
     {
         $limit = $this->limitsFor($tenant)[$type] ?? null;
-        if ($limit === null || $limit <= 0) {
+        if ($limit === null || $limit === -1) {
             return null;
         }
         $used = $this->monthlyUsage($tenant)[$type] ?? 0;
