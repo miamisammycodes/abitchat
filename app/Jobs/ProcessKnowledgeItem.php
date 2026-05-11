@@ -13,6 +13,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Spatie\Multitenancy\Jobs\NotTenantAware;
 
@@ -58,15 +59,28 @@ class ProcessKnowledgeItem implements NotTenantAware, ShouldQueue
                 'chunks_count' => count($chunks),
             ]);
 
-            // Store chunks
-            foreach ($chunks as $index => $chunkContent) {
-                KnowledgeChunk::create([
-                    'knowledge_item_id' => $this->item->id,
-                    'content' => $chunkContent,
-                    'chunk_index' => $index,
-                    'embedding' => null, // Will be filled by embedding job
-                ]);
-            }
+            // Replace any prior chunk set atomically — guards against the
+            // tries=3 retry path appending a duplicate set, and against a
+            // partial-insert state surviving when the transaction throws.
+            DB::transaction(function () use ($chunks) {
+                $this->item->chunks()->delete();
+
+                $now = now();
+                $rows = [];
+                foreach ($chunks as $index => $chunkContent) {
+                    $rows[] = [
+                        'knowledge_item_id' => $this->item->id,
+                        'content' => $chunkContent,
+                        'chunk_index' => $index,
+                        'embedding' => null,
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ];
+                }
+                if ($rows !== []) {
+                    KnowledgeChunk::insert($rows);
+                }
+            });
 
             // Dispatch embedding job for each chunk
             GenerateEmbeddings::dispatch($this->item);

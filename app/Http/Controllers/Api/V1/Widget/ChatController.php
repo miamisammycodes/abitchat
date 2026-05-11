@@ -135,34 +135,38 @@ class ChatController extends Controller
                 return $this->errorResponse('Conversation not found', 'CONVERSATION_NOT_FOUND', 404);
             }
 
-            // Store user message
-            Message::create([
+            // Retrieval is read-only — must run before persisting the user
+            // message so a failure here can't leave an orphan.
+            $context = $this->retrievalService->retrieve($tenant, $message);
+
+            $userMessage = Message::create([
                 'conversation_id' => $conversation->id,
                 'role' => 'user',
                 'content' => $message,
             ]);
 
-            // Extract contact info and capture lead
-            $this->captureLeadFromMessage($conversation, $message);
+            try {
+                $this->captureLeadFromMessage($conversation, $message);
 
-            // Retrieve relevant context
-            $context = $this->retrievalService->retrieve($tenant, $message);
+                $response = $this->chatService->generateResponse(
+                    $conversation,
+                    $message,
+                    ['knowledge' => $context]
+                );
 
-            // Generate AI response
-            $response = $this->chatService->generateResponse(
-                $conversation,
-                $message,
-                ['knowledge' => $context]
-            );
-
-            // Store assistant message
-            Message::create([
-                'conversation_id' => $conversation->id,
-                'role' => 'assistant',
-                'content' => $response,
-            ]);
-
-            Cache::forget("tenant:{$tenant->id}:usage");
+                Message::create([
+                    'conversation_id' => $conversation->id,
+                    'role' => 'assistant',
+                    'content' => $response,
+                ]);
+            } catch (\Throwable $e) {
+                $userMessage->delete();
+                throw $e;
+            } finally {
+                // generateResponse may have written partial UsageRecord rows
+                // before throwing — bust the cache regardless of outcome.
+                Cache::forget("tenant:{$tenant->id}:usage");
+            }
 
             Log::debug('[Widget] (NO $) Message exchanged', [
                 'conversation_id' => $conversation->id,
@@ -171,7 +175,7 @@ class ChatController extends Controller
             return response()->json([
                 'response' => $response,
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('[Widget] Failed to send message', ['error' => $e->getMessage()]);
             return $this->errorResponse('Failed to process message', 'MESSAGE_ERROR', 500);
         }
@@ -205,7 +209,7 @@ class ChatController extends Controller
             $conversation = Conversation::where('id', $conversationId)
                 ->where('tenant_id', $tenant->id)
                 ->first();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('[Widget] Failed to prepare stream', ['error' => $e->getMessage()]);
             return $this->errorResponse('Failed to process message', 'MESSAGE_ERROR', 500);
         }
@@ -214,42 +218,54 @@ class ChatController extends Controller
             return $this->errorResponse('Conversation not found', 'CONVERSATION_NOT_FOUND', 404);
         }
 
-        // Store user message
-        Message::create([
+        // Retrieval is read-only — must run before persisting the user
+        // message so a failure here can't leave an orphan.
+        try {
+            $context = $this->retrievalService->retrieve($tenant, $message);
+        } catch (\Throwable $e) {
+            Log::error('[Widget] Failed to prepare stream', ['error' => $e->getMessage()]);
+            return $this->errorResponse('Failed to process message', 'MESSAGE_ERROR', 500);
+        }
+
+        $userMessage = Message::create([
             'conversation_id' => $conversation->id,
             'role' => 'user',
             'content' => $message,
         ]);
 
-        // Extract contact info and capture lead
-        $this->captureLeadFromMessage($conversation, $message);
-
-        // Retrieve relevant context
-        $context = $this->retrievalService->retrieve($tenant, $message);
-
-        return response()->stream(function () use ($tenant, $conversation, $message, $context) {
+        return response()->stream(function () use ($tenant, $conversation, $message, $context, $userMessage) {
             $fullResponse = '';
 
-            foreach ($this->chatService->streamResponse($conversation, $message, ['knowledge' => $context]) as $chunk) {
-                $fullResponse .= (string) $chunk;
-                echo 'data: '.json_encode(['chunk' => $chunk])."\n\n";
+            try {
+                $this->captureLeadFromMessage($conversation, $message);
+
+                foreach ($this->chatService->streamResponse($conversation, $message, ['knowledge' => $context]) as $chunk) {
+                    $fullResponse .= (string) $chunk;
+                    echo 'data: '.json_encode(['chunk' => $chunk])."\n\n";
+                    ob_flush();
+                    flush();
+                }
+
+                Message::create([
+                    'conversation_id' => $conversation->id,
+                    'role' => 'assistant',
+                    'content' => $fullResponse,
+                ]);
+
+                echo 'data: '.json_encode(['done' => true])."\n\n";
                 ob_flush();
                 flush();
+            } catch (\Throwable $e) {
+                $userMessage->delete();
+                Log::error('[Widget] Stream failed', ['error' => $e->getMessage()]);
+                echo 'data: '.json_encode(['error' => 'Stream failed'])."\n\n";
+                ob_flush();
+                flush();
+            } finally {
+                // streamResponse may have written partial UsageRecord rows
+                // before throwing — bust the cache regardless of outcome.
+                Cache::forget("tenant:{$tenant->id}:usage");
             }
-
-            // Store complete assistant message
-            Message::create([
-                'conversation_id' => $conversation->id,
-                'role' => 'assistant',
-                'content' => $fullResponse,
-            ]);
-
-            // Invalidate usage cache after streaming completes
-            Cache::forget("tenant:{$tenant->id}:usage");
-
-            echo 'data: '.json_encode(['done' => true])."\n\n";
-            ob_flush();
-            flush();
         }, 200, [
             'Content-Type' => 'text/event-stream',
             'Cache-Control' => 'no-cache',
