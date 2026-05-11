@@ -105,10 +105,19 @@ function truncate(text, n = 80) {
             <tr
               v-for="conv in conversations?.data ?? []"
               :key="conv.id"
+              tabindex="0"
+              role="link"
+              :aria-label="`Conversation from ${relativeTime(conv.created_at)}, status ${conv.status}, ${conv.lead ? 'lead captured' : 'no lead'}, ${conv.messages_count} messages`"
               @click="router.visit(`/conversations/${conv.id}`)"
-              class="cursor-pointer hover:bg-muted/40"
+              @keydown.enter="router.visit(`/conversations/${conv.id}`)"
+              @keydown.space.prevent="router.visit(`/conversations/${conv.id}`)"
+              class="cursor-pointer hover:bg-muted/40 focus:bg-muted/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <td class="whitespace-nowrap px-4 py-3 text-sm" :title="conv.created_at">{{ relativeTime(conv.created_at) }}</td>
+              <td class="whitespace-nowrap px-4 py-3 text-sm" :title="conv.created_at">
+                <Link :href="`/conversations/${conv.id}`" class="hover:underline" @click.stop>
+                  {{ relativeTime(conv.created_at) }}
+                </Link>
+              </td>
               <td class="px-4 py-3 text-sm text-muted-foreground">{{ truncate(conv.latest_message?.content) || '—' }}</td>
               <td class="px-4 py-3"><span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="statusBadgeClass(conv.status)">{{ conv.status }}</span></td>
               <td class="px-4 py-3 text-sm">

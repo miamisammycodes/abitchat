@@ -33,8 +33,12 @@ const form = useForm({
 
 const newFeature = ref('')
 
-// Auto-generate slug from name
+const slugManuallyEdited = ref(false)
+
+// Auto-generate slug from name, but stop overwriting once the admin
+// takes manual control of the slug field.
 watch(() => form.name, (name) => {
+    if (slugManuallyEdited.value) return
     form.slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 })
 
@@ -102,7 +106,7 @@ const toggleUnlimited = (field) => {
                             </div>
                             <div>
                                 <Label>Slug *</Label>
-                                <Input v-model="form.slug" placeholder="e.g., pro" />
+                                <Input v-model="form.slug" @input="slugManuallyEdited = true" placeholder="e.g., pro" />
                                 <p v-if="form.errors.slug" class="text-red-500 text-sm mt-1">{{ form.errors.slug }}</p>
                             </div>
                         </div>

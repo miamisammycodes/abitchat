@@ -269,6 +269,12 @@ const getInitials = (name) => {
 
       <!-- Page content -->
       <main class="p-4 sm:p-6 lg:p-8">
+        <div v-if="$page.props.flash?.error" class="mb-4 rounded-md bg-destructive/10 border border-destructive/30 px-4 py-3 text-sm text-destructive">
+          {{ $page.props.flash.error }}
+        </div>
+        <div v-if="$page.props.flash?.success" class="mb-4 rounded-md bg-emerald-50 border border-emerald-300 px-4 py-3 text-sm text-emerald-800">
+          {{ $page.props.flash.success }}
+        </div>
         <slot />
       </main>
     </div>
