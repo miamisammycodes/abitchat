@@ -99,6 +99,10 @@ class TransactionController extends Controller
                     throw new \RuntimeException('ALREADY_PROCESSED');
                 }
 
+                if (! $locked->plan || ! $locked->plan->is_active) {
+                    throw new \RuntimeException('PLAN_INACTIVE');
+                }
+
                 $locked->update([
                     'status' => 'approved',
                     'admin_notes' => $validated['admin_notes'] ?? null,
@@ -113,6 +117,9 @@ class TransactionController extends Controller
         } catch (\RuntimeException $e) {
             if ($e->getMessage() === 'ALREADY_PROCESSED') {
                 return back()->with('error', 'Transaction has already been processed.');
+            }
+            if ($e->getMessage() === 'PLAN_INACTIVE') {
+                return back()->with('error', 'Cannot approve transaction: the plan is no longer active.');
             }
             throw $e;
         }
