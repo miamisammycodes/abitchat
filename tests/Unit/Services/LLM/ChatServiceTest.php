@@ -169,7 +169,7 @@ class ChatServiceTest extends TestCase
 
         $prompt = $this->buildPrompt($tenant);
 
-        $this->assertStringNotContainsString('ADDITIONAL INSTRUCTIONS:', $prompt);
+        $this->assertStringNotContainsString('<operator_persona>', $prompt);
     }
 
     public function test_sales_bot_includes_lead_capture_block_when_no_lead_yet(): void
