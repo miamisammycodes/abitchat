@@ -79,12 +79,21 @@ class EmbeddingService
 
     private function resolveProvider(string $name): Provider
     {
-        return match (strtolower($name)) {
+        $resolved = match (strtolower($name)) {
             'ollama' => Provider::Ollama,
             'openai' => Provider::OpenAI,
             'voyage', 'voyageai' => Provider::VoyageAI,
             'groq' => Provider::Groq,
-            default => Provider::Ollama,
+            default => null,
         };
+
+        if ($resolved === null) {
+            Log::warning('[Embeddings] Unknown provider, falling back to Ollama', [
+                'requested' => $name,
+            ]);
+            return Provider::Ollama;
+        }
+
+        return $resolved;
     }
 }

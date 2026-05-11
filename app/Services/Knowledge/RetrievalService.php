@@ -37,7 +37,7 @@ class RetrievalService
             try {
                 $queryVector = $this->embeddingService->generate($query);
             } catch (EmbeddingGenerationException $e) {
-                Log::warning('[Retrieval] Embedding failed, falling back to keyword search', [
+                Log::warning('[Retrieval] (IS $) Embedding failed, falling back to keyword search', [
                     'tenant_id' => $tenant->id,
                     'error' => $e->getMessage(),
                 ]);
