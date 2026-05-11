@@ -540,4 +540,124 @@ class ChatServiceTest extends TestCase
 
         $this->assertMatchesRegularExpression('/<chunk>\n(😀){1500}\x{2026}\n<\/chunk>/u', $prompt);
     }
+
+    private function makeMockableService(): ChatService&\Mockery\MockInterface
+    {
+        return \Mockery::mock(ChatService::class, [app(\App\Services\Usage\UsageTracker::class)])
+            ->makePartial()
+            ->shouldAllowMockingProtectedMethods();
+    }
+
+    private function makeTextResponseStub(int $promptTokens, int $completionTokens, string $text = 'hi'): \Prism\Prism\Text\Response
+    {
+        return new \Prism\Prism\Text\Response(
+            steps: collect([]),
+            text: $text,
+            finishReason: \Prism\Prism\Enums\FinishReason::Stop,
+            toolCalls: [],
+            toolResults: [],
+            usage: new \Prism\Prism\ValueObjects\Usage($promptTokens, $completionTokens),
+            meta: new \Prism\Prism\ValueObjects\Meta(id: 'test', model: 'test'),
+            messages: collect([]),
+            additionalContent: [],
+        );
+    }
+
+    public function test_first_attempt_success_records_only_actual_usage(): void
+    {
+        $tenant = $this->configureTenant([]);
+        $conversation = \App\Models\Conversation::create([
+            'tenant_id' => $tenant->id,
+            'session_id' => 'first-success',
+            'status' => 'active',
+        ]);
+
+        $service = $this->makeMockableService();
+        $service->shouldReceive('dispatchToProvider')
+            ->once()
+            ->andReturn($this->makeTextResponseStub(100, 20));
+
+        $service->generateResponse($conversation, 'hello');
+
+        $records = \App\Models\UsageRecord::where('tenant_id', $tenant->id)
+            ->where('type', 'tokens')
+            ->get();
+
+        $this->assertCount(1, $records, 'one usage record on first-attempt success');
+        // 100 prompt + 20 completion = 120 total (UsageTracker computes total).
+        $this->assertSame(120, (int) $records[0]->quantity);
+    }
+
+    public function test_failed_attempts_get_estimated_usage_record(): void
+    {
+        $tenant = $this->configureTenant([]);
+        $conversation = \App\Models\Conversation::create([
+            'tenant_id' => $tenant->id,
+            'session_id' => 'retry-success',
+            'status' => 'active',
+        ]);
+
+        $service = $this->makeMockableService();
+        $stub = $this->makeTextResponseStub(100, 20);
+        $service->shouldReceive('dispatchToProvider')
+            ->times(3)
+            ->andReturnUsing(function () use ($stub) {
+                static $n = 0;
+                $n++;
+                if ($n < 3) {
+                    throw new \RuntimeException('HTTP 503 server error');
+                }
+                return $stub;
+            });
+
+        \Illuminate\Support\Facades\Log::shouldReceive('warning')->zeroOrMoreTimes();
+        \Illuminate\Support\Facades\Log::shouldReceive('debug')->zeroOrMoreTimes();
+        \Illuminate\Support\Facades\Log::shouldReceive('info')->zeroOrMoreTimes();
+        \Illuminate\Support\Facades\Log::shouldReceive('notice')->zeroOrMoreTimes();
+        \Illuminate\Support\Facades\Log::shouldReceive('error')->zeroOrMoreTimes();
+
+        $service->generateResponse($conversation, 'hello');
+
+        $records = \App\Models\UsageRecord::where('tenant_id', $tenant->id)
+            ->where('type', 'tokens')
+            ->orderBy('id')
+            ->get();
+
+        $this->assertCount(2, $records, 'one success record + one failed-attempts record');
+        $this->assertSame(120, (int) $records[0]->quantity, 'first record is the real success usage');
+        $this->assertGreaterThan(0, (int) $records[1]->quantity);
+        $this->assertNotSame(120, (int) $records[1]->quantity);
+    }
+
+    public function test_total_failure_still_records_failed_attempt_usage(): void
+    {
+        $tenant = $this->configureTenant([]);
+        $conversation = \App\Models\Conversation::create([
+            'tenant_id' => $tenant->id,
+            'session_id' => 'total-failure',
+            'status' => 'active',
+        ]);
+
+        $service = $this->makeMockableService();
+        $service->shouldReceive('dispatchToProvider')
+            ->times(3)
+            ->andThrow(new \RuntimeException('HTTP 503 server error'));
+
+        \Illuminate\Support\Facades\Log::shouldReceive('warning')->zeroOrMoreTimes();
+        \Illuminate\Support\Facades\Log::shouldReceive('debug')->zeroOrMoreTimes();
+        \Illuminate\Support\Facades\Log::shouldReceive('info')->zeroOrMoreTimes();
+        \Illuminate\Support\Facades\Log::shouldReceive('notice')->zeroOrMoreTimes();
+        \Illuminate\Support\Facades\Log::shouldReceive('error')->zeroOrMoreTimes();
+
+        $response = $service->generateResponse($conversation, 'hello');
+
+        $this->assertStringContainsString("having trouble", $response, 'fallback returned to user');
+
+        $records = \App\Models\UsageRecord::where('tenant_id', $tenant->id)
+            ->where('type', 'tokens')
+            ->get();
+
+        $this->assertCount(1, $records, 'failed-attempt usage record written even on total failure');
+        $this->assertGreaterThan(0, (int) $records[0]->quantity);
+    }
 }

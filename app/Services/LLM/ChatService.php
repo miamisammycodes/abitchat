@@ -63,27 +63,30 @@ class ChatService
 
         $systemPrompt = $this->buildSystemPrompt($tenant, $context, $conversation);
         $messages = $this->buildMessageHistory($conversation);
-
-        // Add current user message to the messages array
         $messages[] = new UserMessage($userMessage);
+
+        $estimatedPromptTokensPerAttempt = $this->estimateTokens($systemPrompt)
+            + array_sum(array_map(
+                fn ($m) => $this->estimateTokens($m->content),
+                $messages,
+            ));
+
+        $failedAttempts = 0;
 
         try {
             $response = retry(
                 times: 3,
-                callback: function (int $attempt) use ($systemPrompt, $messages, $conversation) {
+                callback: function (int $attempt) use ($systemPrompt, $messages, $conversation, &$failedAttempts, $estimatedPromptTokensPerAttempt) {
                     if ($attempt > 1) {
+                        $failedAttempts++;
                         Log::warning('[LLM] (IS $) Retry attempt', [
                             'conversation_id' => $conversation->id,
                             'attempt' => $attempt,
+                            'previous_attempt_estimated_prompt_tokens' => $estimatedPromptTokensPerAttempt,
                         ]);
                     }
 
-                    return Prism::text()
-                        ->using($this->provider, $this->model)
-                        ->withSystemPrompt($systemPrompt)
-                        ->withMessages($messages)
-                        ->withClientOptions(['timeout' => 60])
-                        ->asText();
+                    return $this->dispatchToProvider($systemPrompt, $messages);
                 },
                 sleepMilliseconds: fn (int $attempt) => match ($attempt) {
                     1 => 1000,
@@ -102,21 +105,84 @@ class ChatService
             );
 
             $this->trackUsage($tenant, $conversation, $response->usage);
+            $this->trackFailedAttempts($tenant, $conversation, $failedAttempts, $estimatedPromptTokensPerAttempt);
 
             Log::debug('[LLM] (IS $) Response generated', [
                 'conversation_id' => $conversation->id,
                 'tokens' => $response->usage->promptTokens + $response->usage->completionTokens,
+                'failed_attempts' => $failedAttempts,
             ]);
 
             return $response->text;
         } catch (\Exception $e) {
             Log::error('[LLM] Response generation failed after retries', [
                 'conversation_id' => $conversation->id,
+                'failed_attempts' => $failedAttempts + 1,
                 'error' => $e->getMessage(),
             ]);
 
+            $this->trackFailedAttempts(
+                $tenant,
+                $conversation,
+                $failedAttempts + 1,
+                $estimatedPromptTokensPerAttempt,
+            );
+
             return $this->getFallbackResponse();
         }
+    }
+
+    /**
+     * Single provider-call wrapper around Prism, kept as its own method
+     * so the retry path is testable: tests partial-mock this method via
+     * Mockery to throw on early attempts and return a stub on later ones
+     * without fighting Prism's fake API (which has no exception path).
+     *
+     * @param  array<int, UserMessage|AssistantMessage>  $messages
+     */
+    protected function dispatchToProvider(string $systemPrompt, array $messages): \Prism\Prism\Text\Response
+    {
+        return Prism::text()
+            ->using($this->provider, $this->model)
+            ->withSystemPrompt($systemPrompt)
+            ->withMessages($messages)
+            ->withClientOptions(['timeout' => 60])
+            ->asText();
+    }
+
+    /**
+     * Record an estimated UsageRecord for failed retry attempts. The
+     * provider (Groq) may bill for 5xx attempts that crossed the network
+     * after processing started; tracking them keeps platform usage in
+     * line with the actual invoice. Token count is estimated via the
+     * 4-chars-per-token heuristic.
+     */
+    private function trackFailedAttempts(
+        Tenant $tenant,
+        Conversation $conversation,
+        int $failedAttempts,
+        int $estimatedPromptTokensPerAttempt,
+    ): void {
+        if ($failedAttempts <= 0) {
+            return;
+        }
+
+        $estimatedTotal = $failedAttempts * $estimatedPromptTokensPerAttempt;
+
+        $this->usageTracker->recordTokens(
+            $tenant,
+            $conversation,
+            $estimatedTotal,
+            0,
+            $estimatedTotal,
+        );
+
+        Log::info('[LLM] Failed-attempt usage recorded', [
+            'conversation_id' => $conversation->id,
+            'tenant_id' => $tenant->id,
+            'failed_attempts' => $failedAttempts,
+            'estimated_total_tokens' => $estimatedTotal,
+        ]);
     }
 
     /**
