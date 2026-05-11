@@ -99,7 +99,7 @@ class TransactionController extends Controller
                     throw new \RuntimeException('ALREADY_PROCESSED');
                 }
 
-                if (! $locked->plan || ! $locked->plan->is_active) {
+                if (! $locked->tenant || ! $locked->plan || ! $locked->plan->is_active) {
                     throw new \RuntimeException('PLAN_INACTIVE');
                 }
 
