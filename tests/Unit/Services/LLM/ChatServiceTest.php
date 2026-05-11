@@ -610,11 +610,7 @@ class ChatServiceTest extends TestCase
                 return $stub;
             });
 
-        \Illuminate\Support\Facades\Log::shouldReceive('warning')->zeroOrMoreTimes();
-        \Illuminate\Support\Facades\Log::shouldReceive('debug')->zeroOrMoreTimes();
-        \Illuminate\Support\Facades\Log::shouldReceive('info')->zeroOrMoreTimes();
-        \Illuminate\Support\Facades\Log::shouldReceive('notice')->zeroOrMoreTimes();
-        \Illuminate\Support\Facades\Log::shouldReceive('error')->zeroOrMoreTimes();
+        $this->allowLogChannels();
 
         $service->generateResponse($conversation, 'hello');
 
@@ -643,11 +639,7 @@ class ChatServiceTest extends TestCase
             ->times(3)
             ->andThrow(new \RuntimeException('HTTP 503 server error'));
 
-        \Illuminate\Support\Facades\Log::shouldReceive('warning')->zeroOrMoreTimes();
-        \Illuminate\Support\Facades\Log::shouldReceive('debug')->zeroOrMoreTimes();
-        \Illuminate\Support\Facades\Log::shouldReceive('info')->zeroOrMoreTimes();
-        \Illuminate\Support\Facades\Log::shouldReceive('notice')->zeroOrMoreTimes();
-        \Illuminate\Support\Facades\Log::shouldReceive('error')->zeroOrMoreTimes();
+        $this->allowLogChannels();
 
         $response = $service->generateResponse($conversation, 'hello');
 
