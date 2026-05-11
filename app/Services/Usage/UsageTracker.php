@@ -30,12 +30,16 @@ final class UsageTracker
 
     private const CACHE_TTL_SECONDS = 60;
 
+    /**
+     * @param  array<string, mixed>  $metadata  Optional tag for the record (e.g. ['source' => 'estimated_retry']).
+     */
     public function recordTokens(
         Tenant $tenant,
         ?Conversation $conversation,
         int $prompt,
         int $completion,
         ?int $total = null,
+        array $metadata = [],
     ): void {
         $total = $total !== null && $total > 0 ? $total : $prompt + $completion;
         if ($total <= 0) {
@@ -48,6 +52,7 @@ final class UsageTracker
             'type' => self::TYPE_TOKENS,
             'quantity' => $total,
             'period' => self::currentPeriod(),
+            'metadata' => $metadata !== [] ? $metadata : null,
         ]);
 
         $this->forgetCache($tenant);

@@ -11,12 +11,17 @@ use App\Services\Usage\UsageTracker;
 use Illuminate\Support\Facades\Log;
 use Prism\Prism\Enums\Provider;
 use Prism\Prism\Facades\Prism;
+use Prism\Prism\Text\Response;
 use Prism\Prism\ValueObjects\Messages\AssistantMessage;
 use Prism\Prism\ValueObjects\Messages\UserMessage;
 
 class ChatService
 {
     private const MAX_KNOWLEDGE_CHUNK_CHARS = 1500;
+
+    // Conservative for Groq llama-3.1's 8k context window — leaves ~4k for
+    // the system prompt, current user message, and the completion reply.
+    private const MAX_HISTORY_TOKENS = 4000;
 
     private const NO_KNOWLEDGE_FALLBACK = "No information has been loaded yet. You cannot answer any specific questions. Only greet the user and offer to connect them with the team.";
 
@@ -61,27 +66,30 @@ class ChatService
 
         $systemPrompt = $this->buildSystemPrompt($tenant, $context, $conversation);
         $messages = $this->buildMessageHistory($conversation);
-
-        // Add current user message to the messages array
         $messages[] = new UserMessage($userMessage);
+
+        $estimatedPromptTokensPerAttempt = $this->estimateTokens($systemPrompt)
+            + array_sum(array_map(
+                fn ($m) => $this->estimateTokens($m->content),
+                $messages,
+            ));
+
+        $failedAttempts = 0;
 
         try {
             $response = retry(
                 times: 3,
-                callback: function (int $attempt) use ($systemPrompt, $messages, $conversation) {
+                callback: function (int $attempt) use ($systemPrompt, $messages, $conversation, &$failedAttempts, $estimatedPromptTokensPerAttempt) {
                     if ($attempt > 1) {
+                        $failedAttempts++;
                         Log::warning('[LLM] (IS $) Retry attempt', [
                             'conversation_id' => $conversation->id,
                             'attempt' => $attempt,
+                            'previous_attempt_estimated_prompt_tokens' => $estimatedPromptTokensPerAttempt,
                         ]);
                     }
 
-                    return Prism::text()
-                        ->using($this->provider, $this->model)
-                        ->withSystemPrompt($systemPrompt)
-                        ->withMessages($messages)
-                        ->withClientOptions(['timeout' => 60])
-                        ->asText();
+                    return $this->dispatchToProvider($systemPrompt, $messages);
                 },
                 sleepMilliseconds: fn (int $attempt) => match ($attempt) {
                     1 => 1000,
@@ -100,21 +108,85 @@ class ChatService
             );
 
             $this->trackUsage($tenant, $conversation, $response->usage);
+            $this->trackFailedAttempts($tenant, $conversation, $failedAttempts, $estimatedPromptTokensPerAttempt);
 
             Log::debug('[LLM] (IS $) Response generated', [
                 'conversation_id' => $conversation->id,
                 'tokens' => $response->usage->promptTokens + $response->usage->completionTokens,
+                'failed_attempts' => $failedAttempts,
             ]);
 
             return $response->text;
         } catch (\Exception $e) {
             Log::error('[LLM] Response generation failed after retries', [
                 'conversation_id' => $conversation->id,
+                'failed_attempts' => $failedAttempts + 1,
                 'error' => $e->getMessage(),
             ]);
 
+            $this->trackFailedAttempts(
+                $tenant,
+                $conversation,
+                $failedAttempts + 1,
+                $estimatedPromptTokensPerAttempt,
+            );
+
             return $this->getFallbackResponse();
         }
+    }
+
+    /**
+     * Single provider-call wrapper around Prism, kept as its own method
+     * so the retry path is testable: tests partial-mock this method via
+     * Mockery to throw on early attempts and return a stub on later ones
+     * without fighting Prism's fake API (which has no exception path).
+     *
+     * @param  array<int, UserMessage|AssistantMessage>  $messages
+     */
+    protected function dispatchToProvider(string $systemPrompt, array $messages): Response
+    {
+        return Prism::text()
+            ->using($this->provider, $this->model)
+            ->withSystemPrompt($systemPrompt)
+            ->withMessages($messages)
+            ->withClientOptions(['timeout' => 60])
+            ->asText();
+    }
+
+    /**
+     * Record an estimated UsageRecord for failed retry attempts. The
+     * provider (Groq) may bill for 5xx attempts that crossed the network
+     * after processing started; tracking them keeps platform usage in
+     * line with the actual invoice. Token count is estimated via the
+     * 4-chars-per-token heuristic.
+     */
+    private function trackFailedAttempts(
+        Tenant $tenant,
+        Conversation $conversation,
+        int $failedAttempts,
+        int $estimatedPromptTokensPerAttempt,
+    ): void {
+        if ($failedAttempts <= 0) {
+            return;
+        }
+
+        $estimatedTotal = $failedAttempts * $estimatedPromptTokensPerAttempt;
+
+        $this->usageTracker->recordTokens(
+            $tenant,
+            $conversation,
+            $estimatedTotal,
+            0,
+            $estimatedTotal,
+            ['source' => 'estimated_retry', 'failed_attempts' => $failedAttempts],
+        );
+
+        Log::info('[LLM] Failed-attempt usage recorded', [
+            'conversation_id' => $conversation->id,
+            'tenant_id' => $tenant->id,
+            'failed_attempts' => $failedAttempts,
+            'estimated_total_tokens' => $estimatedTotal,
+        ]);
     }
 
     /**
@@ -393,24 +465,42 @@ PROMPT,
     }
 
     /**
+     * Build the conversation message history trimmed to fit within
+     * MAX_HISTORY_TOKENS. Walks newest → oldest and stops when including
+     * the next-older message would exceed the budget. The newest message
+     * is always kept; if it alone exceeds budget, we let the provider's
+     * own context-window error trigger the standard failure path.
+     *
      * @return array<int, UserMessage|AssistantMessage>
      */
     private function buildMessageHistory(Conversation $conversation): array
     {
-        $messages = $conversation->messages()
+        $rows = $conversation->messages()
             ->orderBy('created_at', 'desc')
-            ->limit(20) // Keep context window manageable
-            ->get()
-            ->reverse()
-            ->values();
+            ->limit(20)
+            ->get();
 
-        return $messages->map(function (Message $message) {
-            if ($message->role === 'user') {
-                return new UserMessage($message->content);
+        $kept = [];
+        $tokensUsed = 0;
+
+        foreach ($rows as $message) {
+            $messageTokens = $this->estimateTokens($message->content);
+            $isFirst = $kept === [];
+
+            if (! $isFirst && $tokensUsed + $messageTokens > self::MAX_HISTORY_TOKENS) {
+                break;
             }
 
-            return new AssistantMessage($message->content);
-        })->all();
+            $kept[] = $message;
+            $tokensUsed += $messageTokens;
+        }
+
+        return array_map(
+            fn (Message $m) => $m->role === 'user'
+                ? new UserMessage($m->content)
+                : new AssistantMessage($m->content),
+            array_reverse($kept),
+        );
     }
 
     private function trackUsage(Tenant $tenant, Conversation $conversation, mixed $usage): void
@@ -429,6 +519,16 @@ PROMPT,
     private function getFallbackResponse(): string
     {
         return "I apologize, but I'm having trouble processing your request right now. Please try again in a moment, or contact our support team for immediate assistance.";
+    }
+
+    /**
+     * Estimate token count using the standard 4-chars-per-token heuristic.
+     * Off by ~20% on real tokenizer output, but good enough for budget
+     * trimming where the budget itself has a safety margin.
+     */
+    private function estimateTokens(string $text): int
+    {
+        return (int) ceil(mb_strlen($text) / 4);
     }
 
     /**

@@ -312,6 +312,89 @@ class ChatServiceTest extends TestCase
         return $m->invoke($this->service, ...$args);
     }
 
+    public function test_estimate_tokens_uses_four_chars_per_token_heuristic(): void
+    {
+        $this->assertSame(0, $this->invokePrivate('estimateTokens', ''));
+        $this->assertSame(1, $this->invokePrivate('estimateTokens', 'a'));
+        $this->assertSame(1, $this->invokePrivate('estimateTokens', 'abcd'));
+        $this->assertSame(2, $this->invokePrivate('estimateTokens', 'abcde'));
+        $this->assertSame(250, $this->invokePrivate('estimateTokens', str_repeat('x', 1000)));
+    }
+
+    public function test_message_history_under_budget_returns_all_messages(): void
+    {
+        $tenant = $this->configureTenant([]);
+        $conversation = \App\Models\Conversation::create([
+            'tenant_id' => $tenant->id,
+            'session_id' => 'budget-under',
+            'status' => 'active',
+        ]);
+
+        for ($i = 0; $i < 6; $i++) {
+            \App\Models\Message::create([
+                'conversation_id' => $conversation->id,
+                'role' => $i % 2 === 0 ? 'user' : 'assistant',
+                'content' => "short message {$i}",
+            ]);
+        }
+
+        $history = $this->invokePrivate('buildMessageHistory', $conversation->fresh());
+
+        $this->assertCount(6, $history, 'all 6 short messages fit in budget');
+    }
+
+    public function test_message_history_over_budget_drops_oldest(): void
+    {
+        $tenant = $this->configureTenant([]);
+        $conversation = \App\Models\Conversation::create([
+            'tenant_id' => $tenant->id,
+            'session_id' => 'budget-over',
+            'status' => 'active',
+        ]);
+
+        // Each message ~1500 chars ≈ 375 tokens. With MAX_HISTORY_TOKENS=4000,
+        // budget fits ~10 messages of this size. We create 15 so 5 must drop.
+        for ($i = 0; $i < 15; $i++) {
+            \App\Models\Message::create([
+                'conversation_id' => $conversation->id,
+                'role' => $i % 2 === 0 ? 'user' : 'assistant',
+                'content' => str_repeat("msg{$i} ", 250),
+            ]);
+        }
+
+        $history = $this->invokePrivate('buildMessageHistory', $conversation->fresh());
+
+        $this->assertLessThan(15, count($history), 'oldest messages must be dropped when over budget');
+        $this->assertGreaterThan(0, count($history));
+
+        // The last (newest) message must still be present.
+        // UserMessage and AssistantMessage both expose the body as
+        // a public readonly $content PROPERTY (not a method).
+        $lastContent = $history[count($history) - 1]->content;
+        $this->assertStringContainsString('msg14', $lastContent);
+    }
+
+    public function test_message_history_keeps_newest_even_if_alone_exceeds_budget(): void
+    {
+        $tenant = $this->configureTenant([]);
+        $conversation = \App\Models\Conversation::create([
+            'tenant_id' => $tenant->id,
+            'session_id' => 'budget-mega',
+            'status' => 'active',
+        ]);
+
+        // 20000 chars ≈ 5000 tokens — alone larger than MAX_HISTORY_TOKENS.
+        \App\Models\Message::create([
+            'conversation_id' => $conversation->id,
+            'role' => 'user',
+            'content' => str_repeat('big ', 5000),
+        ]);
+
+        $history = $this->invokePrivate('buildMessageHistory', $conversation->fresh());
+
+        $this->assertCount(1, $history, 'newest message is kept even if it alone exceeds budget');
+    }
+
     /**
      * Catch-all stub for every Log channel except `warning`. Keeps the test
      * resilient when ChatService adds new log calls — only behavior under
@@ -456,5 +539,121 @@ class ChatServiceTest extends TestCase
         $prompt = $this->buildPrompt($tenant, ['knowledge' => [$emojiChunk]]);
 
         $this->assertMatchesRegularExpression('/<chunk>\n(😀){1500}\x{2026}\n<\/chunk>/u', $prompt);
+    }
+
+    private function makeMockableService(): ChatService&\Mockery\MockInterface
+    {
+        return \Mockery::mock(ChatService::class, [app(\App\Services\Usage\UsageTracker::class)])
+            ->makePartial()
+            ->shouldAllowMockingProtectedMethods();
+    }
+
+    private function makeTextResponseStub(int $promptTokens, int $completionTokens, string $text = 'hi'): \Prism\Prism\Text\Response
+    {
+        return new \Prism\Prism\Text\Response(
+            steps: collect([]),
+            text: $text,
+            finishReason: \Prism\Prism\Enums\FinishReason::Stop,
+            toolCalls: [],
+            toolResults: [],
+            usage: new \Prism\Prism\ValueObjects\Usage($promptTokens, $completionTokens),
+            meta: new \Prism\Prism\ValueObjects\Meta(id: 'test', model: 'test'),
+            messages: collect([]),
+            additionalContent: [],
+        );
+    }
+
+    public function test_first_attempt_success_records_only_actual_usage(): void
+    {
+        $tenant = $this->configureTenant([]);
+        $conversation = \App\Models\Conversation::create([
+            'tenant_id' => $tenant->id,
+            'session_id' => 'first-success',
+            'status' => 'active',
+        ]);
+
+        $service = $this->makeMockableService();
+        $service->shouldReceive('dispatchToProvider')
+            ->once()
+            ->andReturn($this->makeTextResponseStub(100, 20));
+
+        $service->generateResponse($conversation, 'hello');
+
+        $records = \App\Models\UsageRecord::where('tenant_id', $tenant->id)
+            ->where('type', 'tokens')
+            ->get();
+
+        $this->assertCount(1, $records, 'one usage record on first-attempt success');
+        // 100 prompt + 20 completion = 120 total (UsageTracker computes total).
+        $this->assertSame(120, (int) $records[0]->quantity);
+    }
+
+    public function test_failed_attempts_get_estimated_usage_record(): void
+    {
+        $tenant = $this->configureTenant([]);
+        $conversation = \App\Models\Conversation::create([
+            'tenant_id' => $tenant->id,
+            'session_id' => 'retry-success',
+            'status' => 'active',
+        ]);
+
+        $service = $this->makeMockableService();
+        $stub = $this->makeTextResponseStub(100, 20);
+        $callCount = 0;
+        $service->shouldReceive('dispatchToProvider')
+            ->times(3)
+            ->andReturnUsing(function () use ($stub, &$callCount) {
+                $callCount++;
+                if ($callCount < 3) {
+                    throw new \RuntimeException('HTTP 503 server error');
+                }
+                return $stub;
+            });
+
+        $this->allowLogChannels();
+
+        $service->generateResponse($conversation, 'hello');
+
+        $records = \App\Models\UsageRecord::where('tenant_id', $tenant->id)
+            ->where('type', 'tokens')
+            ->orderBy('id')
+            ->get();
+
+        $this->assertCount(2, $records, 'one success record + one failed-attempts record');
+        $this->assertSame(120, (int) $records[0]->quantity, 'first record is the real success usage');
+        $this->assertNull($records[0]->metadata, 'success record has no source tag');
+        $this->assertGreaterThan(0, (int) $records[1]->quantity);
+        $this->assertNotSame(120, (int) $records[1]->quantity);
+        $this->assertSame('estimated_retry', $records[1]->metadata['source'] ?? null,
+            'failed-attempt record is tagged so analytics can filter it');
+        $this->assertSame(2, $records[1]->metadata['failed_attempts'] ?? null);
+    }
+
+    public function test_total_failure_still_records_failed_attempt_usage(): void
+    {
+        $tenant = $this->configureTenant([]);
+        $conversation = \App\Models\Conversation::create([
+            'tenant_id' => $tenant->id,
+            'session_id' => 'total-failure',
+            'status' => 'active',
+        ]);
+
+        $service = $this->makeMockableService();
+        $service->shouldReceive('dispatchToProvider')
+            ->times(3)
+            ->andThrow(new \RuntimeException('HTTP 503 server error'));
+
+        $this->allowLogChannels();
+
+        $response = $service->generateResponse($conversation, 'hello');
+
+        $this->assertStringContainsString("having trouble", $response, 'fallback returned to user');
+
+        $records = \App\Models\UsageRecord::where('tenant_id', $tenant->id)
+            ->where('type', 'tokens')
+            ->get();
+
+        $this->assertCount(1, $records, 'failed-attempt usage record written even on total failure');
+        $this->assertGreaterThan(0, (int) $records[0]->quantity);
     }
 }
