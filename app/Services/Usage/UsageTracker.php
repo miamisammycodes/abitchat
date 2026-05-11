@@ -119,6 +119,9 @@ final class UsageTracker
         if ($limit === null || $limit === -1) {
             return null;
         }
+        if ($limit === 0) {
+            return 0;
+        }
         $used = $this->monthlyUsage($tenant)[$type] ?? 0;
         return max(0, $limit - $used);
     }

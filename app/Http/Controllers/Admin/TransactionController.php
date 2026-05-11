@@ -110,9 +110,7 @@ class TransactionController extends Controller
                     'approved_at' => now(),
                 ]);
 
-                if ($locked->tenant && $locked->plan) {
-                    $locked->tenant->extendPlan($locked->plan);
-                }
+                $locked->tenant->extendPlan($locked->plan);
             });
         } catch (\RuntimeException $e) {
             if ($e->getMessage() === 'ALREADY_PROCESSED') {

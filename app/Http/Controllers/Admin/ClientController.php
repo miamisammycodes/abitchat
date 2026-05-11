@@ -163,19 +163,14 @@ class ClientController extends Controller
         $plan = Plan::findOrFail($validated['plan_id']);
 
         if (! empty($validated['expires_at'])) {
-            $expires = $validated['expires_at'];
+            $client->update([
+                'plan_id' => $plan->id,
+                'plan_expires_at' => $validated['expires_at'],
+            ]);
         } else {
-            $base = $client->plan_expires_at && $client->plan_expires_at->isFuture()
-                ? $client->plan_expires_at
-                : now();
             $months = $plan->billing_period === 'yearly' ? 12 : 1;
-            $expires = $base->copy()->addMonths($months);
+            $client->extendPlan($plan, $months);
         }
-
-        $client->update([
-            'plan_id' => $plan->id,
-            'plan_expires_at' => $expires,
-        ]);
 
         return back()->with('success', "Client plan updated to {$plan->name}.");
     }
