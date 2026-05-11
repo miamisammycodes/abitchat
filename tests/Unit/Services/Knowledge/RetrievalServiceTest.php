@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services\Knowledge;
 
+use App\Exceptions\EmbeddingGenerationException;
 use App\Models\KnowledgeChunk;
 use App\Models\KnowledgeItem;
 use App\Services\Knowledge\EmbeddingService;
@@ -30,7 +31,8 @@ class RetrievalServiceTest extends TestCase
     private function makeServiceWithFailingEmbeddings(): RetrievalService
     {
         $embedder = Mockery::mock(EmbeddingService::class);
-        $embedder->shouldReceive('generate')->andReturn(null);
+        $embedder->shouldReceive('generate')
+            ->andThrow(new EmbeddingGenerationException('test stub'));
 
         return new RetrievalService($embedder);
     }
@@ -203,7 +205,7 @@ class RetrievalServiceTest extends TestCase
 
     public function test_retrieve_falls_back_to_keywords_when_embedding_generation_fails(): void
     {
-        // EmbeddingService returns null → vector path is skipped.
+        // EmbeddingService throws EmbeddingGenerationException → vector path is skipped.
         $service = $this->makeServiceWithFailingEmbeddings();
         $this->seedReadyKnowledgeWithChunks(['Refund within 14 days.']);
 

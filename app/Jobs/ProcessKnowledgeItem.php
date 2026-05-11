@@ -85,20 +85,26 @@ class ProcessKnowledgeItem implements NotTenantAware, ShouldQueue
             // Dispatch embedding job for each chunk
             GenerateEmbeddings::dispatch($this->item);
 
-            $this->item->markAsReady();
-
-            Log::debug('[Knowledge] (NO $) Item processed successfully', [
+            Log::debug('[Knowledge] (NO $) Chunks written; embedding job dispatched', [
                 'item_id' => $this->item->id,
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('[Knowledge] Processing failed', [
                 'item_id' => $this->item->id,
                 'error' => $e->getMessage(),
             ]);
 
-            $this->item->markAsFailed();
             throw $e;
         }
+    }
+
+    public function failed(\Throwable $exception): void
+    {
+        Log::error('[Knowledge] Job failed after retries — marking item failed', [
+            'item_id' => $this->item->id,
+            'error' => $exception->getMessage(),
+        ]);
+        $this->item->markAsFailed();
     }
 
     private function extractContent(DocumentProcessor $processor): string

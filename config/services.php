@@ -43,4 +43,9 @@ return [
         'model' => env('OLLAMA_MODEL', 'gemma3:4b'),
     ],
 
+    'embeddings' => [
+        'provider' => env('EMBEDDING_PROVIDER', 'ollama'),
+        'model' => env('EMBEDDING_MODEL', 'nomic-embed-text'),
+    ],
+
 ];

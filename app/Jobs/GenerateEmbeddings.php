@@ -28,13 +28,13 @@ class GenerateEmbeddings implements NotTenantAware, ShouldQueue
 
     public function handle(EmbeddingService $embeddingService): void
     {
-        Log::debug('[Embeddings] (IS $) Generating embeddings', [
-            'item_id' => $this->item->id,
-            'chunks_count' => $this->item->chunks()->count(),
-        ]);
-
         try {
             $chunks = $this->item->chunks()->whereNull('embedding')->get();
+
+            Log::debug('[Embeddings] (IS $) Generating embeddings', [
+                'item_id' => $this->item->id,
+                'chunks_count' => $chunks->count(),
+            ]);
 
             foreach ($chunks as $chunk) {
                 $embedding = $embeddingService->generate($chunk->content);
@@ -44,16 +44,27 @@ class GenerateEmbeddings implements NotTenantAware, ShouldQueue
                 ]);
             }
 
-            Log::debug('[Embeddings] (IS $) Embeddings generated', [
+            $this->item->markAsReady();
+
+            Log::debug('[Embeddings] (NO $) Embeddings generated; item ready', [
                 'item_id' => $this->item->id,
                 'processed' => $chunks->count(),
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('[Embeddings] Generation failed', [
                 'item_id' => $this->item->id,
                 'error' => $e->getMessage(),
             ]);
             throw $e;
         }
+    }
+
+    public function failed(\Throwable $exception): void
+    {
+        Log::error('[Embeddings] Job failed after retries — marking item failed', [
+            'item_id' => $this->item->id,
+            'error' => $exception->getMessage(),
+        ]);
+        $this->item->markAsFailed();
     }
 }
