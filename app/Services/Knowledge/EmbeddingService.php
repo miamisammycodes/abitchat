@@ -64,6 +64,19 @@ class EmbeddingService
             );
         }
 
+        if (count($vector) !== self::DIMENSIONS) {
+            Log::error('[Embeddings] Provider returned wrong-dimension vector', [
+                'provider' => $providerName,
+                'model' => $model,
+                'expected_dimensions' => self::DIMENSIONS,
+                'actual_dimensions' => count($vector),
+            ]);
+            throw new EmbeddingGenerationException(
+                "Embedding provider {$providerName} returned ".count($vector)
+                ."-dimension vector; expected ".self::DIMENSIONS,
+            );
+        }
+
         return self::toPgVector($vector);
     }
 
