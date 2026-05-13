@@ -152,4 +152,22 @@ class UsageTrackerTest extends TestCase
         $this->tracker->recordTokens($this->tenant, null, 80, 80, 160);
         $this->assertSame(0, $this->tracker->remaining($this->tenant, 'tokens'));
     }
+
+    public function test_monthly_usage_does_not_bleed_across_month_boundary(): void
+    {
+        Carbon::setTestNow('2026-05-31 23:59:30');
+        $this->tracker->recordTokens($this->tenant, null, 50, 50, 100);
+        $this->assertSame(100, $this->tracker->monthlyUsage($this->tenant)['tokens']);
+
+        // Roll into June (30 s later, still inside the 60 s TTL — this is the
+        // real production scenario M-NEW-5 describes). The May cache must NOT
+        // be returned for June.
+        Carbon::setTestNow('2026-06-01 00:00:00');
+        $this->assertSame(
+            0,
+            $this->tracker->monthlyUsage($this->tenant)['tokens'],
+            'June must start with zero usage; May cached value must not bleed across the period boundary.'
+        );
+        Carbon::setTestNow();
+    }
 }

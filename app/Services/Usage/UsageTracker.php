@@ -153,6 +153,6 @@ final class UsageTracker
 
     private function cacheKey(Tenant $tenant): string
     {
-        return "tenant:{$tenant->id}:usage";
+        return "tenant:{$tenant->id}:usage:" . self::currentPeriod();
     }
 }
