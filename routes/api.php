@@ -23,6 +23,12 @@ Route::prefix('v1/widget')->middleware(['throttle:widget', 'validate.widget.doma
     Route::post('/message/stream', [ChatController::class, 'streamMessage'])->middleware('check.limits:tokens');
     Route::post('/conversation/end', [ChatController::class, 'endConversation']);
     Route::post('/lead', [LeadController::class, 'capture'])->middleware('check.limits:leads');
+
+    // Preflight: Laravel rejects OPTIONS on POST-only routes with 405 before
+    // middleware mounts. This catch-all lets preflight reach ValidateWidgetDomain,
+    // which short-circuits with a 204 + CORS headers. The closure is a fallback
+    // and should not execute under normal flow.
+    Route::options('{any}', fn () => response('', 204))->where('any', '.*');
 });
 
 // Client API endpoints (authenticated)

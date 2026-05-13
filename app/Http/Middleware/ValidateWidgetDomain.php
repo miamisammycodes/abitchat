@@ -17,6 +17,8 @@ class ValidateWidgetDomain
         $origin = $request->header('Origin') ?? $request->header('Referer');
         $apiKey = $request->input('api_key');
 
+        $isPreflight = $request->getMethod() === 'OPTIONS' && $request->header('Access-Control-Request-Method');
+
         if (! $apiKey) {
             return $next($request); // Let other middleware handle missing key
         }
@@ -51,7 +53,7 @@ class ValidateWidgetDomain
                 ], 403);
             }
 
-            return $next($request);
+            return $this->withCors($next($request), null);
         }
 
         // Closed by default: an Origin was sent but the tenant hasn't configured
@@ -81,7 +83,11 @@ class ValidateWidgetDomain
 
             // Exact match or subdomain match (e.g., "example.com" allows "www.example.com")
             if ($originHost === $domain || str_ends_with($originHost, '.'.$domain)) {
-                return $next($request);
+                if ($isPreflight) {
+                    return $this->preflightResponse($origin, $request);
+                }
+
+                return $this->withCors($next($request), $origin);
             }
         }
 
@@ -89,5 +95,28 @@ class ValidateWidgetDomain
             'error' => 'This domain is not authorized to use this widget',
             'code' => 'DOMAIN_NOT_ALLOWED',
         ], 403);
+    }
+
+    private function withCors(Response $response, ?string $origin): Response
+    {
+        if ($origin !== null) {
+            $response->headers->set('Access-Control-Allow-Origin', $origin);
+        }
+        // Vary: Origin set unconditionally so intermediate caches don't serve
+        // a no-Origin response to a later cross-origin request (or vice versa).
+        $response->headers->set('Vary', 'Origin');
+
+        return $response;
+    }
+
+    private function preflightResponse(string $origin, Request $request): Response
+    {
+        return response('', 204, [
+            'Access-Control-Allow-Origin' => $origin,
+            'Access-Control-Allow-Methods' => 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Headers' => $request->header('Access-Control-Request-Headers', 'Content-Type, X-Requested-With'),
+            'Access-Control-Max-Age' => '600',
+            'Vary' => 'Origin',
+        ]);
     }
 }
