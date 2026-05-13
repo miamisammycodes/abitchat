@@ -15,6 +15,20 @@ class ValidateWidgetDomain
     public function handle(Request $request, Closure $next): Response
     {
         $origin = $request->header('Origin') ?? $request->header('Referer');
+
+        // Real CORS preflight is OPTIONS with Origin + Access-Control-Request-Method
+        // and NO body — it can't carry an api_key. Echo the requested origin
+        // unconditionally; the actual POST will enforce tenant + origin scoping.
+        if ($request->getMethod() === 'OPTIONS' && $request->header('Access-Control-Request-Method')) {
+            if ($origin === null) {
+                return response('', 204);
+            }
+            $parts = parse_url($origin);
+            $canonical = $parts ? $this->canonicalOrigin($parts) : null;
+
+            return $this->preflightResponse($canonical ?? $origin, $request);
+        }
+
         $apiKey = $request->input('api_key');
 
         if (! $apiKey) {
@@ -51,7 +65,7 @@ class ValidateWidgetDomain
                 ], 403);
             }
 
-            return $next($request);
+            return $this->withCors($next($request), null);
         }
 
         // Closed by default: an Origin was sent but the tenant hasn't configured
@@ -63,10 +77,10 @@ class ValidateWidgetDomain
             ], 403);
         }
 
-        // Parse the origin domain
-        $originHost = parse_url($origin, PHP_URL_HOST);
+        // Parse the origin domain once; reuse parts for canonical building on match.
+        $parts = parse_url($origin);
 
-        if (! $originHost) {
+        if (! $parts || ! isset($parts['host'])) {
             return response()->json([
                 'error' => 'Invalid request origin',
                 'code' => 'DOMAIN_NOT_ALLOWED',
@@ -74,14 +88,16 @@ class ValidateWidgetDomain
         }
 
         // Check if origin matches any allowed domain
-        $originHost = strtolower($originHost);
+        $originHost = strtolower($parts['host']);
 
         foreach ($allowedDomains as $domain) {
             $domain = strtolower(trim($domain));
 
             // Exact match or subdomain match (e.g., "example.com" allows "www.example.com")
             if ($originHost === $domain || str_ends_with($originHost, '.'.$domain)) {
-                return $next($request);
+                $canonicalOrigin = $this->canonicalOrigin($parts);
+
+                return $this->withCors($next($request), $canonicalOrigin);
             }
         }
 
@@ -89,5 +105,44 @@ class ValidateWidgetDomain
             'error' => 'This domain is not authorized to use this widget',
             'code' => 'DOMAIN_NOT_ALLOWED',
         ], 403);
+    }
+
+    /**
+     * @param  array<string, mixed>  $parts  Result of parse_url() — already parsed, no re-parsing.
+     */
+    private function canonicalOrigin(array $parts): ?string
+    {
+        if (! isset($parts['scheme'], $parts['host'])) {
+            return null;
+        }
+        $canonical = "{$parts['scheme']}://{$parts['host']}";
+        if (isset($parts['port'])) {
+            $canonical .= ":{$parts['port']}";
+        }
+
+        return $canonical;
+    }
+
+    private function withCors(Response $response, ?string $origin): Response
+    {
+        if ($origin !== null) {
+            $response->headers->set('Access-Control-Allow-Origin', $origin);
+        }
+        // Vary: Origin set unconditionally so intermediate caches don't serve
+        // a no-Origin response to a later cross-origin request (or vice versa).
+        $response->headers->set('Vary', 'Origin');
+
+        return $response;
+    }
+
+    private function preflightResponse(string $origin, Request $request): Response
+    {
+        return response('', 204, [
+            'Access-Control-Allow-Origin' => $origin,
+            'Access-Control-Allow-Methods' => 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Headers' => $request->header('Access-Control-Request-Headers', 'Content-Type, X-Requested-With'),
+            'Access-Control-Max-Age' => '600',
+            'Vary' => 'Origin',
+        ]);
     }
 }
