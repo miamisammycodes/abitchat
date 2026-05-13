@@ -15,9 +15,20 @@ class ValidateWidgetDomain
     public function handle(Request $request, Closure $next): Response
     {
         $origin = $request->header('Origin') ?? $request->header('Referer');
-        $apiKey = $request->input('api_key');
 
-        $isPreflight = $request->getMethod() === 'OPTIONS' && $request->header('Access-Control-Request-Method');
+        // Real CORS preflight is OPTIONS with Origin + Access-Control-Request-Method
+        // and NO body — it can't carry an api_key. Echo the requested origin
+        // unconditionally; the actual POST will enforce tenant + origin scoping.
+        if ($request->getMethod() === 'OPTIONS' && $request->header('Access-Control-Request-Method')) {
+            if ($origin === null) {
+                return response('', 204);
+            }
+            $canonical = $this->canonicalOrigin($origin);
+
+            return $this->preflightResponse($canonical ?? $origin, $request);
+        }
+
+        $apiKey = $request->input('api_key');
 
         if (! $apiKey) {
             return $next($request); // Let other middleware handle missing key
@@ -84,10 +95,6 @@ class ValidateWidgetDomain
             // Exact match or subdomain match (e.g., "example.com" allows "www.example.com")
             if ($originHost === $domain || str_ends_with($originHost, '.'.$domain)) {
                 $canonicalOrigin = $this->canonicalOrigin($origin);
-
-                if ($isPreflight) {
-                    return $this->preflightResponse($canonicalOrigin ?? $origin, $request);
-                }
 
                 return $this->withCors($next($request), $canonicalOrigin);
             }

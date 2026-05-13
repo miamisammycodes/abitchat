@@ -20,10 +20,11 @@ class WidgetCorsTest extends TestCase
         ]);
     }
 
-    public function test_preflight_options_from_allowed_origin_returns_204_with_cors_headers(): void
+    public function test_preflight_options_from_any_origin_returns_204_with_cors_headers(): void
     {
-        $tenant = $this->makeTenant();
-
+        // CORS preflight carries no body and can't be tenant-scoped — the
+        // middleware must echo the request Origin to allow the browser to
+        // proceed to the actual POST, where tenant scoping is enforced.
         $response = $this->call(
             'OPTIONS',
             '/api/v1/widget/init',
@@ -33,9 +34,7 @@ class WidgetCorsTest extends TestCase
             [
                 'HTTP_ORIGIN' => 'https://merchant.example.com',
                 'HTTP_ACCESS_CONTROL_REQUEST_METHOD' => 'POST',
-                'CONTENT_TYPE' => 'application/json',
-            ],
-            json_encode(['api_key' => $tenant->api_key])
+            ]
         );
 
         $this->assertSame(204, $response->getStatusCode());
@@ -76,25 +75,18 @@ class WidgetCorsTest extends TestCase
         $this->assertNotContains('api/*', config('cors.paths'));
     }
 
-    public function test_preflight_options_from_unallowed_origin_returns_403_and_no_cors_header(): void
+    public function test_actual_post_from_unallowed_origin_is_still_rejected_after_permissive_preflight(): void
     {
         $tenant = $this->makeTenant(['merchant.example.com']);
 
-        $response = $this->call(
-            'OPTIONS',
+        // Even though preflight is permissive, the actual POST still rejects
+        // an unallowed origin via the existing tenant scoping.
+        $response = $this->postJson(
             '/api/v1/widget/init',
-            [],
-            [],
-            [],
-            [
-                'HTTP_ORIGIN' => 'https://evil.example.com',
-                'HTTP_ACCESS_CONTROL_REQUEST_METHOD' => 'POST',
-                'CONTENT_TYPE' => 'application/json',
-            ],
-            json_encode(['api_key' => $tenant->api_key])
+            ['api_key' => $tenant->api_key],
+            ['Origin' => 'https://evil.example.com']
         );
 
-        $this->assertSame(403, $response->getStatusCode());
-        $this->assertNull($response->headers->get('Access-Control-Allow-Origin'));
+        $this->assertSame(403, $response->status());
     }
 }
