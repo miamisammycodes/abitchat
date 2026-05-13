@@ -108,13 +108,10 @@ class BillingController extends Controller
                 'notes' => $validated['notes'] ?? null,
                 'status' => 'pending',
             ]);
-        } catch (\Illuminate\Database\QueryException $e) {
-            if (($e->errorInfo[0] ?? null) === '23000') {
-                return back()->withErrors([
-                    'transaction_number' => 'This transaction number has already been submitted.',
-                ]);
-            }
-            throw $e;
+        } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+            return back()->withErrors([
+                'transaction_number' => 'This transaction number has already been submitted.',
+            ]);
         }
 
         return redirect()

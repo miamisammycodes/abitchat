@@ -112,7 +112,9 @@ class BillingSubmitPaymentTest extends TestCase
             route('client.billing.submit-payment', ['plan' => $plan->id]),
             $this->payload(['transaction_number' => 'TXN-DUP-1'])
         );
-        $second->assertSessionHasErrors('transaction_number');
+        $second->assertSessionHasErrors([
+            'transaction_number' => 'This transaction number has already been submitted.',
+        ]);
         $this->assertDatabaseCount('transactions', 1);
     }
 
