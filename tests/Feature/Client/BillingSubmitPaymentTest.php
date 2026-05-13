@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature\Client;
 
 use App\Models\Plan;
+use App\Models\Transaction;
+use Illuminate\Database\QueryException;
 use Tests\TestCase;
 
 class BillingSubmitPaymentTest extends TestCase
@@ -27,7 +29,7 @@ class BillingSubmitPaymentTest extends TestCase
     private function payload(array $overrides = []): array
     {
         return array_merge([
-            'transaction_number' => 'TXN-' . uniqid(),
+            'transaction_number' => 'TXN-'.uniqid(),
             'reference_number' => 'ABC123',
             'amount' => 500,
             'payment_method' => 'bob',
@@ -94,5 +96,56 @@ class BillingSubmitPaymentTest extends TestCase
         $response->assertRedirect();
         $response->assertSessionHasNoErrors();
         $this->assertDatabaseCount('transactions', 1);
+    }
+
+    public function test_duplicate_transaction_number_returns_friendly_error(): void
+    {
+        $this->actingAsTenantUser();
+        $plan = $this->makePlan(500);
+
+        $first = $this->post(
+            route('client.billing.submit-payment', ['plan' => $plan->id]),
+            $this->payload(['transaction_number' => 'TXN-DUP-1'])
+        );
+        $first->assertRedirect();
+        $first->assertSessionHasNoErrors();
+
+        $second = $this->post(
+            route('client.billing.submit-payment', ['plan' => $plan->id]),
+            $this->payload(['transaction_number' => 'TXN-DUP-1'])
+        );
+        $second->assertSessionHasErrors([
+            'transaction_number' => 'This transaction number has already been submitted.',
+        ]);
+        $this->assertDatabaseCount('transactions', 1);
+    }
+
+    public function test_db_rejects_duplicate_transaction_number_at_schema_level(): void
+    {
+        $this->actingAsTenantUser();
+        $plan = $this->makePlan(500);
+
+        Transaction::create([
+            'tenant_id' => $this->tenant->id,
+            'plan_id' => $plan->id,
+            'transaction_number' => 'TXN-SCHEMA-1',
+            'reference_number' => 'ABC123',
+            'amount' => 500,
+            'payment_method' => 'bob',
+            'payment_date' => now()->toDateString(),
+            'status' => 'pending',
+        ]);
+
+        $this->expectException(QueryException::class);
+        Transaction::create([
+            'tenant_id' => $this->tenant->id,
+            'plan_id' => $plan->id,
+            'transaction_number' => 'TXN-SCHEMA-1',
+            'reference_number' => 'XYZ789',
+            'amount' => 500,
+            'payment_method' => 'bob',
+            'payment_date' => now()->toDateString(),
+            'status' => 'pending',
+        ]);
     }
 }

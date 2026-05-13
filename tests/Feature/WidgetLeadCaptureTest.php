@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\Conversation;
 use App\Models\Lead;
 use App\Models\Tenant;
+use App\Services\Leads\LeadService;
 use Tests\TestCase;
 
 class WidgetLeadCaptureTest extends TestCase
@@ -122,5 +123,44 @@ class WidgetLeadCaptureTest extends TestCase
         $lead->refresh();
         $this->assertSame('Now Provided', $lead->name);
         $this->assertSame('+1-555-2222', $lead->phone);
+    }
+
+    public function test_capture_from_conversation_re_reads_lead_id_under_lock(): void
+    {
+        $service = app(LeadService::class);
+
+        // Stale in-memory copy of the conversation (no lead yet).
+        $stale = Conversation::find($this->conversation->id);
+        $this->assertNull($stale->lead_id);
+
+        // Simulate the first concurrent request having committed a lead and
+        // linked it. The stale instance still shows lead_id = null.
+        $firstLead = Lead::create([
+            'tenant_id' => $this->tenant->id,
+            'conversation_id' => $this->conversation->id,
+            'name' => 'First',
+            'email' => 'first@example.com',
+            'status' => 'new',
+            'score' => 0,
+        ]);
+        Conversation::whereKey($this->conversation->id)->update([
+            'lead_id' => $firstLead->id,
+        ]);
+
+        // Second request now calls captureFromConversation with the stale
+        // conversation. With the fix, it must re-read lead_id under lock and
+        // update the existing lead instead of creating a duplicate.
+        $returned = $service->captureFromConversation($stale, [
+            'email' => 'first@example.com',
+            'name' => 'Second Attempt',
+        ]);
+
+        $this->assertNotNull($returned);
+        $this->assertSame($firstLead->id, $returned->id);
+        $this->assertSame(
+            1,
+            Lead::where('tenant_id', $this->tenant->id)->count(),
+            'captureFromConversation must not create a duplicate lead on a conversation that already has one.'
+        );
     }
 }

@@ -9,6 +9,7 @@ use App\Models\Lead;
 use App\Models\Message;
 use App\Models\Tenant;
 use App\Notifications\NewLeadNotification;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class LeadService
@@ -39,58 +40,43 @@ class LeadService
     ];
 
     /**
-     * Create a lead from conversation data
-     * Always creates a new lead - each inquiry is a separate opportunity
+     * Create or update a lead from conversation data. Concurrent first-message
+     * requests on the same conversation serialize on the conversation row so
+     * exactly one lead is created.
      *
-     * @param array<string, mixed> $contactInfo
+     * @param  array<string, mixed>  $contactInfo
      */
     public function captureFromConversation(Conversation $conversation, array $contactInfo = []): ?Lead
     {
-        /** @var Tenant $tenant */
-        $tenant = $conversation->tenant;
-
-        // Check if we have enough info to create a lead
         if (empty($contactInfo['email']) && empty($contactInfo['phone']) && empty($contactInfo['name'])) {
             return null;
         }
 
-        // Check if this conversation already has a lead
-        if ($conversation->lead_id) {
-            // Update existing lead for this conversation
-            $lead = Lead::find($conversation->lead_id);
-            if ($lead) {
-                return $this->updateLead($lead, $conversation, $contactInfo);
+        return DB::transaction(function () use ($conversation, $contactInfo) {
+            /** @var Conversation $locked */
+            $locked = Conversation::with('tenant')
+                ->whereKey($conversation->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            /** @var Tenant $tenant */
+            $tenant = $locked->tenant;
+
+            if ($locked->lead_id) {
+                $lead = Lead::find($locked->lead_id);
+                if ($lead) {
+                    return $this->updateLead($lead, $locked, $contactInfo);
+                }
             }
-        }
 
-        // Always create a new lead for each conversation/inquiry
-        return $this->createLead($tenant, $conversation, $contactInfo);
-    }
-
-    /**
-     * Find existing lead by email or phone
-     *
-     * @param array<string, mixed> $contactInfo
-     */
-    private function findExistingLead(Tenant $tenant, array $contactInfo): ?Lead
-    {
-        $query = Lead::where('tenant_id', $tenant->id);
-
-        if (! empty($contactInfo['email'])) {
-            $query->where('email', $contactInfo['email']);
-        } elseif (! empty($contactInfo['phone'])) {
-            $query->where('phone', $contactInfo['phone']);
-        } else {
-            return null;
-        }
-
-        return $query->first();
+            return $this->createLead($tenant, $locked, $contactInfo);
+        });
     }
 
     /**
      * Create a new lead
      *
-     * @param array<string, mixed> $contactInfo
+     * @param  array<string, mixed>  $contactInfo
      */
     private function createLead(Tenant $tenant, Conversation $conversation, array $contactInfo): Lead
     {
@@ -116,8 +102,8 @@ class LeadService
         // Link conversation to lead
         $conversation->update(['lead_id' => $lead->id]);
 
-        // Send notification
-        $this->notifyNewLead($lead);
+        // Send notification after transaction commits so the worker sees the committed row
+        DB::afterCommit(fn () => $this->notifyNewLead($lead));
 
         Log::info('[Lead] (NO $) New lead captured', [
             'lead_id' => $lead->id,
@@ -131,7 +117,7 @@ class LeadService
     /**
      * Update existing lead with new info
      *
-     * @param array<string, mixed> $contactInfo
+     * @param  array<string, mixed>  $contactInfo
      */
     private function updateLead(Lead $lead, Conversation $conversation, array $contactInfo): Lead
     {
@@ -171,7 +157,7 @@ class LeadService
     /**
      * Calculate initial score for new lead
      *
-     * @param array<string, mixed> $contactInfo
+     * @param  array<string, mixed>  $contactInfo
      */
     private function calculateInitialScore(Conversation $conversation, array $contactInfo): int
     {
@@ -204,7 +190,7 @@ class LeadService
     /**
      * Calculate updated score for existing lead
      *
-     * @param array<string, mixed> $contactInfo
+     * @param  array<string, mixed>  $contactInfo
      */
     private function calculateScore(Lead $lead, Conversation $conversation, array $contactInfo): int
     {
