@@ -25,6 +25,11 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         RateLimiter::for('widget', function (Request $request) {
+            // CORS preflight isn't user-initiated and must not consume the user's quota.
+            if ($request->isMethod('OPTIONS')) {
+                return Limit::none();
+            }
+
             $apiKey = (string) $request->input('api_key', '');
             $ip = (string) $request->ip();
             $key = $apiKey !== '' ? "{$apiKey}:{$ip}" : "no_api_key:{$ip}";

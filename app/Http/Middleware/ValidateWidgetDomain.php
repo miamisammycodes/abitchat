@@ -23,7 +23,8 @@ class ValidateWidgetDomain
             if ($origin === null) {
                 return response('', 204);
             }
-            $canonical = $this->canonicalOrigin($origin);
+            $parts = parse_url($origin);
+            $canonical = $parts ? $this->canonicalOrigin($parts) : null;
 
             return $this->preflightResponse($canonical ?? $origin, $request);
         }
@@ -76,10 +77,10 @@ class ValidateWidgetDomain
             ], 403);
         }
 
-        // Parse the origin domain
-        $originHost = parse_url($origin, PHP_URL_HOST);
+        // Parse the origin domain once; reuse parts for canonical building on match.
+        $parts = parse_url($origin);
 
-        if (! $originHost) {
+        if (! $parts || ! isset($parts['host'])) {
             return response()->json([
                 'error' => 'Invalid request origin',
                 'code' => 'DOMAIN_NOT_ALLOWED',
@@ -87,14 +88,14 @@ class ValidateWidgetDomain
         }
 
         // Check if origin matches any allowed domain
-        $originHost = strtolower($originHost);
+        $originHost = strtolower($parts['host']);
 
         foreach ($allowedDomains as $domain) {
             $domain = strtolower(trim($domain));
 
             // Exact match or subdomain match (e.g., "example.com" allows "www.example.com")
             if ($originHost === $domain || str_ends_with($originHost, '.'.$domain)) {
-                $canonicalOrigin = $this->canonicalOrigin($origin);
+                $canonicalOrigin = $this->canonicalOrigin($parts);
 
                 return $this->withCors($next($request), $canonicalOrigin);
             }
@@ -106,9 +107,11 @@ class ValidateWidgetDomain
         ], 403);
     }
 
-    private function canonicalOrigin(string $rawOrigin): ?string
+    /**
+     * @param  array<string, mixed>  $parts  Result of parse_url() — already parsed, no re-parsing.
+     */
+    private function canonicalOrigin(array $parts): ?string
     {
-        $parts = parse_url($rawOrigin);
         if (! isset($parts['scheme'], $parts['host'])) {
             return null;
         }
