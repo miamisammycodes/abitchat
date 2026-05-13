@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Services\Usage\UsageTracker;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -18,7 +19,7 @@ class Conversation extends Model
     protected static function booted(): void
     {
         static::created(function (Conversation $conversation) {
-            app(\App\Services\Usage\UsageTracker::class)
+            app(UsageTracker::class)
                 ->forgetCacheForTenant($conversation->tenant_id);
         });
     }
@@ -108,6 +109,7 @@ class Conversation extends Model
         if ($status === null || $status === '') {
             return $query->whereIn('status', ['active', 'closed']);
         }
+
         return $query->where('status', $status);
     }
 
@@ -123,6 +125,7 @@ class Conversation extends Model
         if ($to) {
             $query->whereDate('created_at', '<=', $to);
         }
+
         return $query;
     }
 }

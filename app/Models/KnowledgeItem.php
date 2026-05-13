@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Services\Usage\UsageTracker;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -13,7 +14,7 @@ class KnowledgeItem extends Model
     protected static function booted(): void
     {
         static::created(function (KnowledgeItem $item) {
-            app(\App\Services\Usage\UsageTracker::class)
+            app(UsageTracker::class)
                 ->forgetCacheForTenant($item->tenant_id);
         });
     }

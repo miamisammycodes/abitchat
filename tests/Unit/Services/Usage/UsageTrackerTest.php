@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Unit\Services\Usage;
 
 use App\Models\Conversation;
+use App\Models\KnowledgeItem;
+use App\Models\Lead;
 use App\Models\Plan;
 use App\Models\Tenant;
 use App\Models\UsageRecord;
@@ -249,7 +251,7 @@ class UsageTrackerTest extends TestCase
     {
         $this->assertSame(0, $this->tracker->monthlyUsage($this->tenant)['leads']);
 
-        \App\Models\Lead::create([
+        Lead::create([
             'tenant_id' => $this->tenant->id,
             'name' => 'Cache Buster',
             'email' => 'buster@example.com',
@@ -268,7 +270,7 @@ class UsageTrackerTest extends TestCase
     {
         $this->assertSame(0, $this->tracker->monthlyUsage($this->tenant)['knowledge_items']);
 
-        \App\Models\KnowledgeItem::create([
+        KnowledgeItem::create([
             'tenant_id' => $this->tenant->id,
             'type' => 'text',
             'title' => 'Cache Buster',

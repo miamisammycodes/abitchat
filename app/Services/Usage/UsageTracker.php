@@ -7,6 +7,8 @@ namespace App\Services\Usage;
 use App\Models\Conversation;
 use App\Models\Tenant;
 use App\Models\UsageRecord;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -92,6 +94,7 @@ final class UsageTracker
                 foreach (self::TYPES as $type) {
                     $out[$type] = $this->usageInPeriod($tenant, $type, $period);
                 }
+
                 return $out;
             },
         );
@@ -128,6 +131,7 @@ final class UsageTracker
             return 0;
         }
         $used = $this->monthlyUsage($tenant)[$type] ?? 0;
+
         return max(0, $limit - $used);
     }
 
@@ -136,11 +140,11 @@ final class UsageTracker
         return now()->format('Y-m');
     }
 
-    /** @param HasMany<\Illuminate\Database\Eloquent\Model, Tenant> $relation */
+    /** @param HasMany<Model, Tenant> $relation */
     private function countByPeriod(HasMany $relation, string $period): int
     {
         [$year, $month] = explode('-', $period);
-        $start = \Carbon\Carbon::create((int) $year, (int) $month, 1, 0, 0, 0);
+        $start = Carbon::create((int) $year, (int) $month, 1, 0, 0, 0);
         $end = $start->copy()->addMonth();
 
         return $relation
@@ -156,11 +160,11 @@ final class UsageTracker
 
     public function forgetCacheForTenant(int $tenantId): void
     {
-        Cache::forget("tenant:{$tenantId}:usage:" . self::currentPeriod());
+        Cache::forget("tenant:{$tenantId}:usage:".self::currentPeriod());
     }
 
     private function cacheKey(Tenant $tenant): string
     {
-        return "tenant:{$tenant->id}:usage:" . self::currentPeriod();
+        return "tenant:{$tenant->id}:usage:".self::currentPeriod();
     }
 }

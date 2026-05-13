@@ -98,6 +98,7 @@ class ChatController extends Controller
             ]);
         } catch (\Exception $e) {
             Log::error('[Widget] Failed to start conversation', ['error' => $e->getMessage()]);
+
             return $this->errorResponse('Failed to start conversation', 'CONVERSATION_ERROR', 500);
         }
     }
@@ -177,6 +178,7 @@ class ChatController extends Controller
             ]);
         } catch (\Throwable $e) {
             Log::error('[Widget] Failed to send message', ['error' => $e->getMessage()]);
+
             return $this->errorResponse('Failed to process message', 'MESSAGE_ERROR', 500);
         }
     }
@@ -211,6 +213,7 @@ class ChatController extends Controller
                 ->first();
         } catch (\Throwable $e) {
             Log::error('[Widget] Failed to prepare stream', ['error' => $e->getMessage()]);
+
             return $this->errorResponse('Failed to process message', 'MESSAGE_ERROR', 500);
         }
 
@@ -224,6 +227,7 @@ class ChatController extends Controller
             $context = $this->retrievalService->retrieve($tenant, $message);
         } catch (\Throwable $e) {
             Log::error('[Widget] Failed to prepare stream', ['error' => $e->getMessage()]);
+
             return $this->errorResponse('Failed to process message', 'MESSAGE_ERROR', 500);
         }
 
