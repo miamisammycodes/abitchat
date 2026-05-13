@@ -9,6 +9,7 @@ use App\Models\Lead;
 use App\Models\Message;
 use App\Models\Tenant;
 use App\Notifications\NewLeadNotification;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class LeadService
@@ -39,32 +40,37 @@ class LeadService
     ];
 
     /**
-     * Create a lead from conversation data
-     * Always creates a new lead - each inquiry is a separate opportunity
+     * Create or update a lead from conversation data. Concurrent first-message
+     * requests on the same conversation serialize on the conversation row so
+     * exactly one lead is created.
      *
      * @param array<string, mixed> $contactInfo
      */
     public function captureFromConversation(Conversation $conversation, array $contactInfo = []): ?Lead
     {
-        /** @var Tenant $tenant */
-        $tenant = $conversation->tenant;
-
-        // Check if we have enough info to create a lead
         if (empty($contactInfo['email']) && empty($contactInfo['phone']) && empty($contactInfo['name'])) {
             return null;
         }
 
-        // Check if this conversation already has a lead
-        if ($conversation->lead_id) {
-            // Update existing lead for this conversation
-            $lead = Lead::find($conversation->lead_id);
-            if ($lead) {
-                return $this->updateLead($lead, $conversation, $contactInfo);
-            }
-        }
+        return DB::transaction(function () use ($conversation, $contactInfo) {
+            /** @var Conversation $locked */
+            $locked = Conversation::with('tenant')
+                ->whereKey($conversation->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        // Always create a new lead for each conversation/inquiry
-        return $this->createLead($tenant, $conversation, $contactInfo);
+            /** @var Tenant $tenant */
+            $tenant = $locked->tenant;
+
+            if ($locked->lead_id) {
+                $lead = Lead::find($locked->lead_id);
+                if ($lead) {
+                    return $this->updateLead($lead, $locked, $contactInfo);
+                }
+            }
+
+            return $this->createLead($tenant, $locked, $contactInfo);
+        });
     }
 
     /**
