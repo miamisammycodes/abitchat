@@ -39,4 +39,57 @@ class KnowledgeQueueDispatchTest extends TestCase
 
         Bus::assertDispatchedAfterResponse(ProcessKnowledgeItem::class);
     }
+
+    public function test_uses_plain_dispatch_under_redis_driver(): void
+    {
+        config(['queue.default' => 'redis']);
+        Bus::fake();
+        $this->actingAsTenantUser();
+        $plan = $this->makePlan();
+        $this->tenant->update(['plan_id' => $plan->id, 'plan_expires_at' => now()->addMonth()]);
+
+        $this->post(route('client.knowledge.store'), [
+            'type' => 'text',
+            'title' => 'Smoke',
+            'content' => 'hello world',
+        ])->assertRedirect();
+
+        Bus::assertDispatched(ProcessKnowledgeItem::class);
+        // Bus::assertDispatchedAfterResponse would FAIL here — under a real
+        // queue driver we go through plain dispatch(), not dispatchAfterResponse.
+    }
+
+    public function test_update_with_content_change_dispatches_after_response_under_sync(): void
+    {
+        Bus::fake();
+        $this->actingAsTenantUser();
+        $plan = $this->makePlan();
+        $this->tenant->update(['plan_id' => $plan->id, 'plan_expires_at' => now()->addMonth()]);
+
+        $item = \App\Models\KnowledgeItem::create([
+            'tenant_id' => $this->tenant->id,
+            'type' => 'text', 'title' => 'T', 'content' => 'original', 'status' => 'ready',
+        ]);
+
+        $this->put(route('client.knowledge.update', $item), [
+            'title' => 'T', 'content' => 'changed',
+        ])->assertRedirect();
+
+        Bus::assertDispatchedAfterResponse(ProcessKnowledgeItem::class);
+    }
+
+    public function test_reprocess_dispatches_after_response_under_sync(): void
+    {
+        Bus::fake();
+        $this->actingAsTenantUser();
+
+        $item = \App\Models\KnowledgeItem::create([
+            'tenant_id' => $this->tenant->id,
+            'type' => 'text', 'title' => 'T', 'content' => 'x', 'status' => 'ready',
+        ]);
+
+        $this->post(route('client.knowledge.reprocess', $item))->assertRedirect();
+
+        Bus::assertDispatchedAfterResponse(ProcessKnowledgeItem::class);
+    }
 }
