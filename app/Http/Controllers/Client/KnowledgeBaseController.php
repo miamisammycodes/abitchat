@@ -240,6 +240,7 @@ class KnowledgeBaseController extends Controller
     {
         if (config('queue.default') === 'sync') {
             ProcessKnowledgeItem::dispatchAfterResponse($item);
+
             return;
         }
 

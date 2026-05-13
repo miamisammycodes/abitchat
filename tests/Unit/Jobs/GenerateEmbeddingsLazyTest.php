@@ -19,7 +19,7 @@ class GenerateEmbeddingsLazyTest extends TestCase
     public function test_processes_all_chunks_and_marks_item_ready(): void
     {
         $tenant = Tenant::create([
-            'name' => 'KB', 'slug' => 'kb-' . uniqid(),
+            'name' => 'KB', 'slug' => 'kb-'.uniqid(),
             'status' => 'active', 'trial_ends_at' => now()->addDays(14),
         ]);
 

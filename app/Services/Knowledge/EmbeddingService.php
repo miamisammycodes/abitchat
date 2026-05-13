@@ -73,7 +73,7 @@ class EmbeddingService
             ]);
             throw new EmbeddingGenerationException(
                 "Embedding provider {$providerName} returned ".count($vector)
-                ."-dimension vector; expected ".self::DIMENSIONS,
+                .'-dimension vector; expected '.self::DIMENSIONS,
             );
         }
 
@@ -83,11 +83,11 @@ class EmbeddingService
     /**
      * Format a numeric array as a pgvector literal: "[1.0,2.0,...]".
      *
-     * @param array<int, float|int> $vector
+     * @param  array<int, float|int>  $vector
      */
     public static function toPgVector(array $vector): string
     {
-        return '[' . implode(',', array_map(static fn ($v) => (float) $v, $vector)) . ']';
+        return '['.implode(',', array_map(static fn ($v) => (float) $v, $vector)).']';
     }
 
     private function resolveProvider(string $name): Provider
@@ -104,6 +104,7 @@ class EmbeddingService
             Log::warning('[Embeddings] Unknown provider, falling back to Ollama', [
                 'requested' => $name,
             ]);
+
             return Provider::Ollama;
         }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Client;
 
 use App\Jobs\ProcessKnowledgeItem;
+use App\Models\KnowledgeItem;
 use App\Models\Plan;
 use Illuminate\Support\Facades\Bus;
 use Tests\TestCase;
@@ -14,7 +15,7 @@ class KnowledgeQueueDispatchTest extends TestCase
     private function makePlan(): Plan
     {
         return Plan::create([
-            'name' => 'P', 'slug' => 'p-' . uniqid(),
+            'name' => 'P', 'slug' => 'p-'.uniqid(),
             'price' => 0, 'billing_period' => 'monthly',
             'conversations_limit' => 100,
             'leads_limit' => 50,
@@ -68,7 +69,7 @@ class KnowledgeQueueDispatchTest extends TestCase
         $plan = $this->makePlan();
         $this->tenant->update(['plan_id' => $plan->id, 'plan_expires_at' => now()->addMonth()]);
 
-        $item = \App\Models\KnowledgeItem::create([
+        $item = KnowledgeItem::create([
             'tenant_id' => $this->tenant->id,
             'type' => 'text', 'title' => 'T', 'content' => 'original', 'status' => 'ready',
         ]);
@@ -85,7 +86,7 @@ class KnowledgeQueueDispatchTest extends TestCase
         Bus::fake();
         $this->actingAsTenantUser();
 
-        $item = \App\Models\KnowledgeItem::create([
+        $item = KnowledgeItem::create([
             'tenant_id' => $this->tenant->id,
             'type' => 'text', 'title' => 'T', 'content' => 'x', 'status' => 'ready',
         ]);
