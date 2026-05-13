@@ -55,8 +55,10 @@ class KnowledgeQueueDispatchTest extends TestCase
         ])->assertRedirect();
 
         Bus::assertDispatched(ProcessKnowledgeItem::class);
-        // Bus::assertDispatchedAfterResponse would FAIL here — under a real
-        // queue driver we go through plain dispatch(), not dispatchAfterResponse.
+        // assertDispatched matches both registers; assertNotDispatchedAfterResponse
+        // is what enforces "regular dispatch, not after-response" — without it a
+        // future regression to always-after-response would silently pass.
+        Bus::assertNotDispatchedAfterResponse(ProcessKnowledgeItem::class);
     }
 
     public function test_update_with_content_change_dispatches_after_response_under_sync(): void
