@@ -44,7 +44,7 @@ class LeadService
      * requests on the same conversation serialize on the conversation row so
      * exactly one lead is created.
      *
-     * @param array<string, mixed> $contactInfo
+     * @param  array<string, mixed>  $contactInfo
      */
     public function captureFromConversation(Conversation $conversation, array $contactInfo = []): ?Lead
     {
@@ -76,7 +76,7 @@ class LeadService
     /**
      * Create a new lead
      *
-     * @param array<string, mixed> $contactInfo
+     * @param  array<string, mixed>  $contactInfo
      */
     private function createLead(Tenant $tenant, Conversation $conversation, array $contactInfo): Lead
     {
@@ -117,7 +117,7 @@ class LeadService
     /**
      * Update existing lead with new info
      *
-     * @param array<string, mixed> $contactInfo
+     * @param  array<string, mixed>  $contactInfo
      */
     private function updateLead(Lead $lead, Conversation $conversation, array $contactInfo): Lead
     {
@@ -157,7 +157,7 @@ class LeadService
     /**
      * Calculate initial score for new lead
      *
-     * @param array<string, mixed> $contactInfo
+     * @param  array<string, mixed>  $contactInfo
      */
     private function calculateInitialScore(Conversation $conversation, array $contactInfo): int
     {
@@ -190,7 +190,7 @@ class LeadService
     /**
      * Calculate updated score for existing lead
      *
-     * @param array<string, mixed> $contactInfo
+     * @param  array<string, mixed>  $contactInfo
      */
     private function calculateScore(Lead $lead, Conversation $conversation, array $contactInfo): int
     {

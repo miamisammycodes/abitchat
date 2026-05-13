@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Models\Conversation;
 use App\Models\Lead;
 use App\Models\Tenant;
+use App\Services\Leads\LeadService;
 use Tests\TestCase;
 
 class WidgetLeadCaptureTest extends TestCase
@@ -126,7 +127,7 @@ class WidgetLeadCaptureTest extends TestCase
 
     public function test_capture_from_conversation_re_reads_lead_id_under_lock(): void
     {
-        $service = app(\App\Services\Leads\LeadService::class);
+        $service = app(LeadService::class);
 
         // Stale in-memory copy of the conversation (no lead yet).
         $stale = Conversation::find($this->conversation->id);

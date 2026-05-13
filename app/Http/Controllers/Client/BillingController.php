@@ -9,6 +9,7 @@ use App\Models\Plan;
 use App\Models\Tenant;
 use App\Models\Transaction;
 use App\Services\Billing\ReceiptService;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
@@ -108,7 +109,7 @@ class BillingController extends Controller
                 'notes' => $validated['notes'] ?? null,
                 'status' => 'pending',
             ]);
-        } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+        } catch (UniqueConstraintViolationException $e) {
             return back()->withErrors([
                 'transaction_number' => 'This transaction number has already been submitted.',
             ]);

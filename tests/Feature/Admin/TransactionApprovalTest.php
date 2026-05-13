@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature\Admin;
 
 use App\Models\Plan;
+use App\Models\Tenant;
 use App\Models\Transaction;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class TransactionApprovalTest extends TestCase
@@ -130,20 +132,20 @@ class TransactionApprovalTest extends TestCase
 
         // Load a stale in-memory copy (simulates the second concurrent admin
         // request having read the tenant before the first admin's commit).
-        $stale = \App\Models\Tenant::find($this->tenant->id);
+        $stale = Tenant::find($this->tenant->id);
         $this->assertTrue($stale->plan_expires_at->equalTo($initialExpiry));
 
         // Simulate the first admin's transaction having already committed an
         // extension to T+10 + 1mo. The stale in-memory copy still shows T+10.
         $afterFirstExtension = $initialExpiry->copy()->addMonth();
-        \App\Models\Tenant::whereKey($this->tenant->id)->update([
+        Tenant::whereKey($this->tenant->id)->update([
             'plan_expires_at' => $afterFirstExtension,
         ]);
 
         // Second admin calls extendPlan on the stale instance. With the fix,
         // it must re-read the fresh expiry under lockForUpdate and add a
         // month to T+10+1mo, NOT to T+10.
-        \Illuminate\Support\Facades\DB::transaction(function () use ($stale, $plan) {
+        DB::transaction(function () use ($stale, $plan) {
             $stale->extendPlan($plan);
         });
 

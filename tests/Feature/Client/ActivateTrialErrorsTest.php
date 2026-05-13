@@ -13,7 +13,7 @@ class ActivateTrialErrorsTest extends TestCase
     {
         return Plan::create([
             'name' => 'Free Trial',
-            'slug' => 'free-trial-' . uniqid(),
+            'slug' => 'free-trial-'.uniqid(),
             'description' => null,
             'price' => 0,
             'billing_period' => 'monthly',
@@ -34,7 +34,7 @@ class ActivateTrialErrorsTest extends TestCase
         $this->actingAsTenantUser();
         $plan = Plan::create([
             'name' => 'Pro',
-            'slug' => 'pro-' . uniqid(),
+            'slug' => 'pro-'.uniqid(),
             'description' => null,
             'price' => 500,
             'billing_period' => 'monthly',
@@ -87,7 +87,7 @@ class ActivateTrialErrorsTest extends TestCase
         $this->actingAsTenantUser();
         $plan = Plan::create([
             'name' => 'Retired Free Plan',
-            'slug' => 'retired-free-' . uniqid(),
+            'slug' => 'retired-free-'.uniqid(),
             'description' => null,
             'price' => 0,
             'billing_period' => 'monthly',

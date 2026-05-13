@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature\Client;
 
 use App\Models\Plan;
+use App\Models\Transaction;
+use Illuminate\Database\QueryException;
 use Tests\TestCase;
 
 class BillingSubmitPaymentTest extends TestCase
@@ -27,7 +29,7 @@ class BillingSubmitPaymentTest extends TestCase
     private function payload(array $overrides = []): array
     {
         return array_merge([
-            'transaction_number' => 'TXN-' . uniqid(),
+            'transaction_number' => 'TXN-'.uniqid(),
             'reference_number' => 'ABC123',
             'amount' => 500,
             'payment_method' => 'bob',
@@ -123,7 +125,7 @@ class BillingSubmitPaymentTest extends TestCase
         $this->actingAsTenantUser();
         $plan = $this->makePlan(500);
 
-        \App\Models\Transaction::create([
+        Transaction::create([
             'tenant_id' => $this->tenant->id,
             'plan_id' => $plan->id,
             'transaction_number' => 'TXN-SCHEMA-1',
@@ -134,8 +136,8 @@ class BillingSubmitPaymentTest extends TestCase
             'status' => 'pending',
         ]);
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
-        \App\Models\Transaction::create([
+        $this->expectException(QueryException::class);
+        Transaction::create([
             'tenant_id' => $this->tenant->id,
             'plan_id' => $plan->id,
             'transaction_number' => 'TXN-SCHEMA-1',
