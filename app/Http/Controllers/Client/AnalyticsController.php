@@ -18,8 +18,12 @@ class AnalyticsController extends Controller
 
     public function index(Request $request): Response
     {
+        $validated = $request->validate([
+            'days' => 'nullable|integer|min:1|max:90',
+        ]);
+
         $tenant = $this->getTenant($request);
-        $days = (int) $request->input('days', 30);
+        $days = (int) ($validated['days'] ?? 30);
 
         return Inertia::render('Client/Analytics/Index', [
             'stats' => $this->analyticsService->getOverviewStats($tenant, $days),
