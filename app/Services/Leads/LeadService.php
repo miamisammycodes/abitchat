@@ -74,26 +74,6 @@ class LeadService
     }
 
     /**
-     * Find existing lead by email or phone
-     *
-     * @param array<string, mixed> $contactInfo
-     */
-    private function findExistingLead(Tenant $tenant, array $contactInfo): ?Lead
-    {
-        $query = Lead::where('tenant_id', $tenant->id);
-
-        if (! empty($contactInfo['email'])) {
-            $query->where('email', $contactInfo['email']);
-        } elseif (! empty($contactInfo['phone'])) {
-            $query->where('phone', $contactInfo['phone']);
-        } else {
-            return null;
-        }
-
-        return $query->first();
-    }
-
-    /**
      * Create a new lead
      *
      * @param array<string, mixed> $contactInfo
@@ -122,8 +102,8 @@ class LeadService
         // Link conversation to lead
         $conversation->update(['lead_id' => $lead->id]);
 
-        // Send notification
-        $this->notifyNewLead($lead);
+        // Send notification after transaction commits so the worker sees the committed row
+        DB::afterCommit(fn () => $this->notifyNewLead($lead));
 
         Log::info('[Lead] (NO $) New lead captured', [
             'lead_id' => $lead->id,
