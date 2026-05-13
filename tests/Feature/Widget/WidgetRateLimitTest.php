@@ -19,7 +19,7 @@ class WidgetRateLimitTest extends TestCase
     public function test_widget_endpoint_rate_limits_at_20_per_minute(): void
     {
         $tenant = Tenant::create([
-            'name' => 'RL', 'slug' => 'rl-' . uniqid(),
+            'name' => 'RL', 'slug' => 'rl-'.uniqid(),
             'status' => 'active',
             'trial_ends_at' => now()->addDays(14),
         ]);
@@ -35,8 +35,8 @@ class WidgetRateLimitTest extends TestCase
 
     public function test_different_tenants_from_same_ip_have_independent_buckets(): void
     {
-        $tenantA = Tenant::create(['name' => 'A', 'slug' => 'a-' . uniqid(), 'status' => 'active', 'trial_ends_at' => now()->addDays(14)]);
-        $tenantB = Tenant::create(['name' => 'B', 'slug' => 'b-' . uniqid(), 'status' => 'active', 'trial_ends_at' => now()->addDays(14)]);
+        $tenantA = Tenant::create(['name' => 'A', 'slug' => 'a-'.uniqid(), 'status' => 'active', 'trial_ends_at' => now()->addDays(14)]);
+        $tenantB = Tenant::create(['name' => 'B', 'slug' => 'b-'.uniqid(), 'status' => 'active', 'trial_ends_at' => now()->addDays(14)]);
 
         // Burn tenant A's bucket.
         for ($i = 0; $i < 20; $i++) {
