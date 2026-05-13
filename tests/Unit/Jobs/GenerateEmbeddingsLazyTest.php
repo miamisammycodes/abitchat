@@ -10,8 +10,7 @@ use App\Models\KnowledgeItem;
 use App\Models\Tenant;
 use App\Services\Knowledge\EmbeddingService;
 use Prism\Prism\Facades\Prism;
-use Prism\Prism\Testing\EmbeddingsResponseFake;
-use Prism\Prism\ValueObjects\Embedding;
+use Tests\Support\EmbeddingFakeFactory;
 use Tests\TestCase;
 
 class GenerateEmbeddingsLazyTest extends TestCase
@@ -49,13 +48,7 @@ class GenerateEmbeddingsLazyTest extends TestCase
         KnowledgeChunk::insert($rows);
 
         // Fake 30 embedding responses with valid 768-dim vectors.
-        // Use Embedding::fromArray to wrap raw vectors per the Prism API.
-        $fakes = [];
-        for ($i = 0; $i < 30; $i++) {
-            $fakes[] = EmbeddingsResponseFake::make()
-                ->withEmbeddings([Embedding::fromArray(array_fill(0, 768, 0.01))]);
-        }
-        Prism::fake($fakes);
+        Prism::fake(EmbeddingFakeFactory::many(30));
 
         (new GenerateEmbeddings($item))->handle(app(EmbeddingService::class));
 

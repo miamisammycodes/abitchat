@@ -8,7 +8,7 @@ use App\Exceptions\EmbeddingGenerationException;
 use App\Services\Knowledge\EmbeddingService;
 use Prism\Prism\Facades\Prism;
 use Prism\Prism\Testing\EmbeddingsResponseFake;
-use Prism\Prism\ValueObjects\Embedding;
+use Tests\Support\EmbeddingFakeFactory;
 use Tests\TestCase;
 
 class EmbeddingServiceConfigTest extends TestCase
@@ -32,10 +32,7 @@ class EmbeddingServiceConfigTest extends TestCase
     public function test_throws_when_provider_returns_wrong_dimension_vector(): void
     {
         // Simulate Ollama returning a 384-dim vector when 768 is expected.
-        $wrongDimVector = array_fill(0, 384, 0.01);
-        Prism::fake([
-            EmbeddingsResponseFake::make()->withEmbeddings([Embedding::fromArray($wrongDimVector)]),
-        ]);
+        Prism::fake([EmbeddingFakeFactory::single(dimensions: 384)]);
 
         $this->expectException(EmbeddingGenerationException::class);
         $this->expectExceptionMessageMatches('/dimension/i');
