@@ -135,14 +135,18 @@ class Tenant extends BaseTenant
     {
         $months = $plan->billing_period === Plan::BILLING_YEARLY ? 12 : 1;
 
-        $base = $this->plan_expires_at && $this->plan_expires_at->isFuture()
-            ? $this->plan_expires_at
+        $fresh = static::whereKey($this->id)->lockForUpdate()->firstOrFail();
+
+        $base = $fresh->plan_expires_at && $fresh->plan_expires_at->isFuture()
+            ? $fresh->plan_expires_at
             : now();
 
-        $this->update([
+        $fresh->update([
             'plan_id' => $plan->id,
             'plan_expires_at' => $base->copy()->addMonths($months),
         ]);
+
+        $this->refresh();
     }
 
     /**
