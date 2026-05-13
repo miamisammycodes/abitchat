@@ -849,11 +849,29 @@ Expected output: 20 successful status codes (200/422/403 depending on payload co
 3. Visit `/analytics?days=91`. Expect a redirect-back with a `days` validation error (Inertia surfaces it in the props `errors` bag).
 4. Visit `/analytics?days=90`. Expect a 200 render.
 
-- [ ] **Step 6: `/simplify` pass 1**
+- [ ] **Step 6: Pint pass 1**
+
+Run `./vendor/bin/pint --test` on the PR-touched files:
+```bash
+./vendor/bin/pint --test config/cors.php app/Http/Middleware/ValidateWidgetDomain.php \
+  app/Providers/AppServiceProvider.php app/Http/Controllers/Client/AnalyticsController.php \
+  routes/web.php routes/api.php \
+  tests/Feature/CorsConfigTest.php tests/Feature/Widget/WidgetCorsTest.php \
+  tests/Feature/Widget/WidgetRateLimitTest.php \
+  tests/Feature/Auth/RegisterRateLimitTest.php tests/Feature/Auth/ForgotPasswordRateLimitTest.php \
+  tests/Feature/Client/AnalyticsDaysCapTest.php
+```
+If anything is flagged, drop `--test` to apply fixes, run `php artisan test` to confirm green, then commit as `style(pint): apply auto-fixes to cluster-3 files`. Scope to these files only.
+
+- [ ] **Step 7: `/simplify` pass 1**
 
 Run `/simplify`. Apply substantive fixes. Skip stylistic noise with a one-line reason.
 
-- [ ] **Step 7: `/simplify` pass 2**
+- [ ] **Step 8: Pint pass 2**
+
+`/simplify` may have introduced new code that needs style normalization. Repeat the Pint cycle from Step 6.
+
+- [ ] **Step 9: `/simplify` pass 2**
 
 Run `/simplify` again. Address any newly-introduced issues. Run:
 ```bash
@@ -861,7 +879,14 @@ php artisan test
 ```
 Expected: all green.
 
-- [ ] **Step 8: Open the PR**
+- [ ] **Step 10: Open the PR**
+
+Confirm one last time:
+```bash
+./vendor/bin/pint --test config/cors.php app/Http/Middleware/ValidateWidgetDomain.php app/Providers/AppServiceProvider.php app/Http/Controllers/Client/AnalyticsController.php routes/web.php routes/api.php tests/Feature
+php artisan test
+```
+Both must be clean before pushing.
 
 ```bash
 git push -u origin HEAD
@@ -916,7 +941,7 @@ EOF
 )"
 ```
 
-- [ ] **Step 9: Update memory after merge**
+- [ ] **Step 11: Update memory after merge**
 
 Save a memory entry capturing:
 - Cluster 3 of medium-backlog closed (M10, M11, M-NEW-2, M4).

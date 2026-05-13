@@ -483,11 +483,26 @@ php artisan tinker --execute="echo app(\App\Services\Usage\UsageTracker::class)-
 
 Pure backend; no UI surface. Skip and rely on `test_monthly_usage_does_not_bleed_across_month_boundary`.
 
-- [ ] **Step 5: `/simplify` pass 1**
+- [ ] **Step 5: Pint pass 1**
+
+Run `./vendor/bin/pint --test` on the PR-touched files:
+```bash
+./vendor/bin/pint --test app/Services/Usage/UsageTracker.php \
+  app/Models/Conversation.php app/Models/Lead.php app/Models/KnowledgeItem.php \
+  app/Http/Controllers/Api/V1/Widget/ChatController.php \
+  tests/Unit/Services/Usage/UsageTrackerTest.php
+```
+If anything is flagged, drop `--test` to apply fixes, run `php artisan test` to confirm green, then commit as `style(pint): apply auto-fixes to cluster-2 files`. Scope to these files only — don't sweep unrelated pre-existing style debt.
+
+- [ ] **Step 6: `/simplify` pass 1**
 
 Run `/simplify`. Apply substantive fixes. Skip stylistic noise with a one-line reason.
 
-- [ ] **Step 6: `/simplify` pass 2**
+- [ ] **Step 7: Pint pass 2**
+
+`/simplify` may have introduced new code that needs style normalization. Repeat the Pint cycle from Step 5.
+
+- [ ] **Step 8: `/simplify` pass 2**
 
 Run `/simplify` again. Address any newly-introduced issues. Run:
 ```bash
@@ -495,7 +510,14 @@ php artisan test
 ```
 Expected: all green.
 
-- [ ] **Step 7: Open the PR**
+- [ ] **Step 9: Open the PR**
+
+Confirm one last time:
+```bash
+./vendor/bin/pint --test app/Services/Usage/UsageTracker.php app/Models/Conversation.php app/Models/Lead.php app/Models/KnowledgeItem.php app/Http/Controllers/Api/V1/Widget/ChatController.php tests/Unit/Services/Usage/UsageTrackerTest.php
+php artisan test
+```
+Both must be clean before pushing.
 
 ```bash
 git push -u origin HEAD
@@ -543,7 +565,7 @@ EOF
 )"
 ```
 
-- [ ] **Step 8: Update memory after merge**
+- [ ] **Step 10: Update memory after merge**
 
 Save a memory entry capturing:
 - Cluster 2 of medium-backlog closed (M-NEW-4/5/6).
