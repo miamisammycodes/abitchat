@@ -7,6 +7,8 @@ namespace App\Services\Usage;
 use App\Models\Conversation;
 use App\Models\Tenant;
 use App\Models\UsageRecord;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -92,6 +94,7 @@ final class UsageTracker
                 foreach (self::TYPES as $type) {
                     $out[$type] = $this->usageInPeriod($tenant, $type, $period);
                 }
+
                 return $out;
             },
         );
@@ -128,6 +131,7 @@ final class UsageTracker
             return 0;
         }
         $used = $this->monthlyUsage($tenant)[$type] ?? 0;
+
         return max(0, $limit - $used);
     }
 
@@ -136,23 +140,36 @@ final class UsageTracker
         return now()->format('Y-m');
     }
 
-    /** @param HasMany<\Illuminate\Database\Eloquent\Model, Tenant> $relation */
+    /** @param HasMany<Model, Tenant> $relation */
     private function countByPeriod(HasMany $relation, string $period): int
     {
         [$year, $month] = explode('-', $period);
+        $start = Carbon::create((int) $year, (int) $month, 1, 0, 0, 0);
+        $end = $start->copy()->addMonth();
+
         return $relation
-            ->whereYear('created_at', (int) $year)
-            ->whereMonth('created_at', (int) $month)
+            ->where('created_at', '>=', $start)
+            ->where('created_at', '<', $end)
             ->count();
     }
 
-    private function forgetCache(Tenant $tenant): void
+    public function forgetCache(Tenant $tenant): void
     {
         Cache::forget($this->cacheKey($tenant));
     }
 
+    public function forgetCacheForTenant(int $tenantId): void
+    {
+        Cache::forget($this->cacheKeyForTenantId($tenantId));
+    }
+
     private function cacheKey(Tenant $tenant): string
     {
-        return "tenant:{$tenant->id}:usage";
+        return $this->cacheKeyForTenantId($tenant->id);
+    }
+
+    private function cacheKeyForTenantId(int $tenantId): string
+    {
+        return "tenant:{$tenantId}:usage:".self::currentPeriod();
     }
 }

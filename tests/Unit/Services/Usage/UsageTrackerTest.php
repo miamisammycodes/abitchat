@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Unit\Services\Usage;
 
 use App\Models\Conversation;
+use App\Models\KnowledgeItem;
+use App\Models\Lead;
 use App\Models\Plan;
 use App\Models\Tenant;
 use App\Models\UsageRecord;
@@ -151,5 +153,135 @@ class UsageTrackerTest extends TestCase
         config(['billing.trial_limits' => ['tokens' => 100]]);
         $this->tracker->recordTokens($this->tenant, null, 80, 80, 160);
         $this->assertSame(0, $this->tracker->remaining($this->tenant, 'tokens'));
+    }
+
+    public function test_count_by_period_includes_first_second_of_month(): void
+    {
+        Carbon::setTestNow('2026-05-01 00:00:00');
+        Conversation::create([
+            'tenant_id' => $this->tenant->id,
+            'visitor_id' => 'edge-start',
+            'session_id' => 'sess-edge-start',
+            'started_at' => now(),
+        ]);
+        Carbon::setTestNow();
+
+        $this->assertSame(
+            1,
+            $this->tracker->usageInPeriod($this->tenant, 'conversations', '2026-05'),
+            'Conversations at the first second of the month must be included.'
+        );
+    }
+
+    public function test_count_by_period_excludes_first_second_of_next_month(): void
+    {
+        Carbon::setTestNow('2026-06-01 00:00:00');
+        Conversation::create([
+            'tenant_id' => $this->tenant->id,
+            'visitor_id' => 'edge-next',
+            'session_id' => 'sess-edge-next',
+            'started_at' => now(),
+        ]);
+        Carbon::setTestNow();
+
+        $this->assertSame(
+            0,
+            $this->tracker->usageInPeriod($this->tenant, 'conversations', '2026-05'),
+            'Conversations at 2026-06-01 00:00:00 must NOT be in the May 2026 bucket.'
+        );
+    }
+
+    public function test_sargable_indexes_exist_on_conversations_and_leads(): void
+    {
+        $conversationIndexes = collect(\DB::select("PRAGMA index_list('conversations')"))
+            ->pluck('name')
+            ->all();
+        $leadIndexes = collect(\DB::select("PRAGMA index_list('leads')"))
+            ->pluck('name')
+            ->all();
+
+        $this->assertContains(
+            'conversations_tenant_id_created_at_index',
+            $conversationIndexes,
+            'Sargable countByPeriod relies on (tenant_id, created_at) index on conversations.'
+        );
+        $this->assertContains(
+            'leads_tenant_id_created_at_index',
+            $leadIndexes,
+            'Sargable countByPeriod relies on (tenant_id, created_at) index on leads.'
+        );
+    }
+
+    public function test_monthly_usage_does_not_bleed_across_month_boundary(): void
+    {
+        Carbon::setTestNow('2026-05-31 23:59:30');
+        $this->tracker->recordTokens($this->tenant, null, 50, 50, 100);
+        $this->assertSame(100, $this->tracker->monthlyUsage($this->tenant)['tokens']);
+
+        // Roll into June (30 s later, still inside the 60 s TTL — this is the
+        // real production scenario M-NEW-5 describes). The May cache must NOT
+        // be returned for June.
+        Carbon::setTestNow('2026-06-01 00:00:00');
+        $this->assertSame(
+            0,
+            $this->tracker->monthlyUsage($this->tenant)['tokens'],
+            'June must start with zero usage; May cached value must not bleed across the period boundary.'
+        );
+        Carbon::setTestNow();
+    }
+
+    public function test_creating_a_conversation_busts_the_usage_cache(): void
+    {
+        $this->assertSame(0, $this->tracker->monthlyUsage($this->tenant)['conversations']);
+
+        Conversation::create([
+            'tenant_id' => $this->tenant->id,
+            'session_id' => 'sess-cache',
+            'status' => 'active',
+        ]);
+
+        $this->assertSame(
+            1,
+            $this->tracker->monthlyUsage($this->tenant)['conversations'],
+            'Creating a Conversation must bust the usage cache; the next read should see 1, not the cached 0.'
+        );
+    }
+
+    public function test_creating_a_lead_busts_the_usage_cache(): void
+    {
+        $this->assertSame(0, $this->tracker->monthlyUsage($this->tenant)['leads']);
+
+        Lead::create([
+            'tenant_id' => $this->tenant->id,
+            'name' => 'Cache Buster',
+            'email' => 'buster@example.com',
+            'status' => 'new',
+            'score' => 0,
+        ]);
+
+        $this->assertSame(
+            1,
+            $this->tracker->monthlyUsage($this->tenant)['leads'],
+            'Creating a Lead must bust the usage cache.'
+        );
+    }
+
+    public function test_creating_a_knowledge_item_busts_the_usage_cache(): void
+    {
+        $this->assertSame(0, $this->tracker->monthlyUsage($this->tenant)['knowledge_items']);
+
+        KnowledgeItem::create([
+            'tenant_id' => $this->tenant->id,
+            'type' => 'text',
+            'title' => 'Cache Buster',
+            'content' => 'x',
+            'status' => 'ready',
+        ]);
+
+        $this->assertSame(
+            1,
+            $this->tracker->monthlyUsage($this->tenant)['knowledge_items'],
+            'Creating a KnowledgeItem must bust the usage cache.'
+        );
     }
 }

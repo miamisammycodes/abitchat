@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Models\Concerns\BustsTenantUsageCache;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Conversation extends Model
 {
-    use HasFactory;
+    use BustsTenantUsageCache, HasFactory;
 
     protected $fillable = [
         'tenant_id',
@@ -100,6 +101,7 @@ class Conversation extends Model
         if ($status === null || $status === '') {
             return $query->whereIn('status', ['active', 'closed']);
         }
+
         return $query->where('status', $status);
     }
 
@@ -115,6 +117,7 @@ class Conversation extends Model
         if ($to) {
             $query->whereDate('created_at', '<=', $to);
         }
+
         return $query;
     }
 }
