@@ -140,9 +140,12 @@ final class UsageTracker
     private function countByPeriod(HasMany $relation, string $period): int
     {
         [$year, $month] = explode('-', $period);
+        $start = \Carbon\Carbon::create((int) $year, (int) $month, 1, 0, 0, 0);
+        $end = $start->copy()->addMonth();
+
         return $relation
-            ->whereYear('created_at', (int) $year)
-            ->whereMonth('created_at', (int) $month)
+            ->where('created_at', '>=', $start)
+            ->where('created_at', '<', $end)
             ->count();
     }
 

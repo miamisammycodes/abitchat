@@ -153,6 +153,42 @@ class UsageTrackerTest extends TestCase
         $this->assertSame(0, $this->tracker->remaining($this->tenant, 'tokens'));
     }
 
+    public function test_count_by_period_includes_first_second_of_month(): void
+    {
+        Carbon::setTestNow('2026-05-01 00:00:00');
+        Conversation::create([
+            'tenant_id' => $this->tenant->id,
+            'visitor_id' => 'edge-start',
+            'session_id' => 'sess-edge-start',
+            'started_at' => now(),
+        ]);
+        Carbon::setTestNow();
+
+        $this->assertSame(
+            1,
+            $this->tracker->usageInPeriod($this->tenant, 'conversations', '2026-05'),
+            'Conversations at the first second of the month must be included.'
+        );
+    }
+
+    public function test_count_by_period_excludes_first_second_of_next_month(): void
+    {
+        Carbon::setTestNow('2026-06-01 00:00:00');
+        Conversation::create([
+            'tenant_id' => $this->tenant->id,
+            'visitor_id' => 'edge-next',
+            'session_id' => 'sess-edge-next',
+            'started_at' => now(),
+        ]);
+        Carbon::setTestNow();
+
+        $this->assertSame(
+            0,
+            $this->tracker->usageInPeriod($this->tenant, 'conversations', '2026-05'),
+            'Conversations at 2026-06-01 00:00:00 must NOT be in the May 2026 bucket.'
+        );
+    }
+
     public function test_monthly_usage_does_not_bleed_across_month_boundary(): void
     {
         Carbon::setTestNow('2026-05-31 23:59:30');
