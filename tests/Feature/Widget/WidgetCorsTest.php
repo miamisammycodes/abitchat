@@ -75,4 +75,26 @@ class WidgetCorsTest extends TestCase
     {
         $this->assertNotContains('api/*', config('cors.paths'));
     }
+
+    public function test_preflight_options_from_unallowed_origin_returns_403_and_no_cors_header(): void
+    {
+        $tenant = $this->makeTenant(['merchant.example.com']);
+
+        $response = $this->call(
+            'OPTIONS',
+            '/api/v1/widget/init',
+            [],
+            [],
+            [],
+            [
+                'HTTP_ORIGIN' => 'https://evil.example.com',
+                'HTTP_ACCESS_CONTROL_REQUEST_METHOD' => 'POST',
+                'CONTENT_TYPE' => 'application/json',
+            ],
+            json_encode(['api_key' => $tenant->api_key])
+        );
+
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertNull($response->headers->get('Access-Control-Allow-Origin'));
+    }
 }

@@ -83,11 +83,13 @@ class ValidateWidgetDomain
 
             // Exact match or subdomain match (e.g., "example.com" allows "www.example.com")
             if ($originHost === $domain || str_ends_with($originHost, '.'.$domain)) {
+                $canonicalOrigin = $this->canonicalOrigin($origin);
+
                 if ($isPreflight) {
-                    return $this->preflightResponse($origin, $request);
+                    return $this->preflightResponse($canonicalOrigin ?? $origin, $request);
                 }
 
-                return $this->withCors($next($request), $origin);
+                return $this->withCors($next($request), $canonicalOrigin);
             }
         }
 
@@ -95,6 +97,20 @@ class ValidateWidgetDomain
             'error' => 'This domain is not authorized to use this widget',
             'code' => 'DOMAIN_NOT_ALLOWED',
         ], 403);
+    }
+
+    private function canonicalOrigin(string $rawOrigin): ?string
+    {
+        $parts = parse_url($rawOrigin);
+        if (! isset($parts['scheme'], $parts['host'])) {
+            return null;
+        }
+        $canonical = "{$parts['scheme']}://{$parts['host']}";
+        if (isset($parts['port'])) {
+            $canonical .= ":{$parts['port']}";
+        }
+
+        return $canonical;
     }
 
     private function withCors(Response $response, ?string $origin): Response
