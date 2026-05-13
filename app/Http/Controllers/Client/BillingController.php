@@ -96,25 +96,26 @@ class BillingController extends Controller
 
         $tenant = $this->getTenant($request);
 
-        // Check for duplicate transaction number
-        $exists = Transaction::where('transaction_number', $validated['transaction_number'])->exists();
-        if ($exists) {
-            return back()->withErrors([
-                'transaction_number' => 'This transaction number has already been submitted.',
+        try {
+            Transaction::create([
+                'tenant_id' => $tenant->id,
+                'plan_id' => $plan->id,
+                'transaction_number' => $validated['transaction_number'],
+                'reference_number' => strtoupper($validated['reference_number']),
+                'amount' => $validated['amount'],
+                'payment_method' => $validated['payment_method'],
+                'payment_date' => $validated['payment_date'],
+                'notes' => $validated['notes'] ?? null,
+                'status' => 'pending',
             ]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (($e->errorInfo[0] ?? null) === '23000') {
+                return back()->withErrors([
+                    'transaction_number' => 'This transaction number has already been submitted.',
+                ]);
+            }
+            throw $e;
         }
-
-        Transaction::create([
-            'tenant_id' => $tenant->id,
-            'plan_id' => $plan->id,
-            'transaction_number' => $validated['transaction_number'],
-            'reference_number' => strtoupper($validated['reference_number']),
-            'amount' => $validated['amount'],
-            'payment_method' => $validated['payment_method'],
-            'payment_date' => $validated['payment_date'],
-            'notes' => $validated['notes'] ?? null,
-            'status' => 'pending',
-        ]);
 
         return redirect()
             ->route('client.billing.index')
