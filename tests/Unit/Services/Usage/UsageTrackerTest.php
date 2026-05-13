@@ -189,6 +189,27 @@ class UsageTrackerTest extends TestCase
         );
     }
 
+    public function test_sargable_indexes_exist_on_conversations_and_leads(): void
+    {
+        $conversationIndexes = collect(\DB::select("PRAGMA index_list('conversations')"))
+            ->pluck('name')
+            ->all();
+        $leadIndexes = collect(\DB::select("PRAGMA index_list('leads')"))
+            ->pluck('name')
+            ->all();
+
+        $this->assertContains(
+            'conversations_tenant_id_created_at_index',
+            $conversationIndexes,
+            'Sargable countByPeriod relies on (tenant_id, created_at) index on conversations.'
+        );
+        $this->assertContains(
+            'leads_tenant_id_created_at_index',
+            $leadIndexes,
+            'Sargable countByPeriod relies on (tenant_id, created_at) index on leads.'
+        );
+    }
+
     public function test_monthly_usage_does_not_bleed_across_month_boundary(): void
     {
         Carbon::setTestNow('2026-05-31 23:59:30');
