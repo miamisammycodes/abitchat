@@ -156,6 +156,8 @@ class BillingController extends Controller
      */
     public function activateTrial(Request $request, Plan $plan): RedirectResponse
     {
+        abort_if(! $plan->is_active, 404);
+
         if ($plan->price > 0) {
             return back()->with('error', 'This plan requires payment.');
         }
