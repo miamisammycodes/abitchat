@@ -4,20 +4,14 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Services\Usage\UsageTracker;
+use App\Models\Concerns\BustsTenantUsageCache;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class KnowledgeItem extends Model
 {
-    protected static function booted(): void
-    {
-        static::created(function (KnowledgeItem $item) {
-            app(UsageTracker::class)
-                ->forgetCacheForTenant($item->tenant_id);
-        });
-    }
+    use BustsTenantUsageCache;
 
     protected $fillable = [
         'tenant_id',

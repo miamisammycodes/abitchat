@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Services\Usage\UsageTracker;
+use App\Models\Concerns\BustsTenantUsageCache;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -14,15 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Conversation extends Model
 {
-    use HasFactory;
-
-    protected static function booted(): void
-    {
-        static::created(function (Conversation $conversation) {
-            app(UsageTracker::class)
-                ->forgetCacheForTenant($conversation->tenant_id);
-        });
-    }
+    use BustsTenantUsageCache, HasFactory;
 
     protected $fillable = [
         'tenant_id',
