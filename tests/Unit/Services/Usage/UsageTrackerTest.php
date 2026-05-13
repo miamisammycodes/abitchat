@@ -227,4 +227,59 @@ class UsageTrackerTest extends TestCase
         );
         Carbon::setTestNow();
     }
+
+    public function test_creating_a_conversation_busts_the_usage_cache(): void
+    {
+        $this->assertSame(0, $this->tracker->monthlyUsage($this->tenant)['conversations']);
+
+        Conversation::create([
+            'tenant_id' => $this->tenant->id,
+            'session_id' => 'sess-cache',
+            'status' => 'active',
+        ]);
+
+        $this->assertSame(
+            1,
+            $this->tracker->monthlyUsage($this->tenant)['conversations'],
+            'Creating a Conversation must bust the usage cache; the next read should see 1, not the cached 0.'
+        );
+    }
+
+    public function test_creating_a_lead_busts_the_usage_cache(): void
+    {
+        $this->assertSame(0, $this->tracker->monthlyUsage($this->tenant)['leads']);
+
+        \App\Models\Lead::create([
+            'tenant_id' => $this->tenant->id,
+            'name' => 'Cache Buster',
+            'email' => 'buster@example.com',
+            'status' => 'new',
+            'score' => 0,
+        ]);
+
+        $this->assertSame(
+            1,
+            $this->tracker->monthlyUsage($this->tenant)['leads'],
+            'Creating a Lead must bust the usage cache.'
+        );
+    }
+
+    public function test_creating_a_knowledge_item_busts_the_usage_cache(): void
+    {
+        $this->assertSame(0, $this->tracker->monthlyUsage($this->tenant)['knowledge_items']);
+
+        \App\Models\KnowledgeItem::create([
+            'tenant_id' => $this->tenant->id,
+            'type' => 'text',
+            'title' => 'Cache Buster',
+            'content' => 'x',
+            'status' => 'ready',
+        ]);
+
+        $this->assertSame(
+            1,
+            $this->tracker->monthlyUsage($this->tenant)['knowledge_items'],
+            'Creating a KnowledgeItem must bust the usage cache.'
+        );
+    }
 }

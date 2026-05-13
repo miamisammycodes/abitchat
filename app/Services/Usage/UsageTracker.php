@@ -149,7 +149,7 @@ final class UsageTracker
             ->count();
     }
 
-    private function forgetCache(Tenant $tenant): void
+    public function forgetCache(Tenant $tenant): void
     {
         Cache::forget($this->cacheKey($tenant));
     }

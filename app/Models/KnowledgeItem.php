@@ -10,6 +10,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class KnowledgeItem extends Model
 {
+    protected static function booted(): void
+    {
+        static::created(function (KnowledgeItem $item) {
+            if ($item->tenant) {
+                app(\App\Services\Usage\UsageTracker::class)->forgetCache($item->tenant);
+            }
+        });
+    }
+
     protected $fillable = [
         'tenant_id',
         'title',

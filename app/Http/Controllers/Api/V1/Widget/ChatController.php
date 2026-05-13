@@ -11,6 +11,7 @@ use App\Models\Tenant;
 use App\Services\Knowledge\RetrievalService;
 use App\Services\Leads\LeadService;
 use App\Services\LLM\ChatService;
+use App\Services\Usage\UsageTracker;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -23,7 +24,8 @@ class ChatController extends Controller
     public function __construct(
         private ChatService $chatService,
         private RetrievalService $retrievalService,
-        private LeadService $leadService
+        private LeadService $leadService,
+        private UsageTracker $usageTracker,
     ) {}
 
     /**
@@ -84,8 +86,6 @@ class ChatController extends Controller
                     'started_at' => now()->toIso8601String(),
                 ],
             ]);
-
-            Cache::forget("tenant:{$tenant->id}:usage");
 
             Log::debug('[Widget] (NO $) Conversation started', [
                 'conversation_id' => $conversation->id,
@@ -165,7 +165,7 @@ class ChatController extends Controller
             } finally {
                 // generateResponse may have written partial UsageRecord rows
                 // before throwing — bust the cache regardless of outcome.
-                Cache::forget("tenant:{$tenant->id}:usage");
+                $this->usageTracker->forgetCache($tenant);
             }
 
             Log::debug('[Widget] (NO $) Message exchanged', [
@@ -264,7 +264,7 @@ class ChatController extends Controller
             } finally {
                 // streamResponse may have written partial UsageRecord rows
                 // before throwing — bust the cache regardless of outcome.
-                Cache::forget("tenant:{$tenant->id}:usage");
+                $this->usageTracker->forgetCache($tenant);
             }
         }, 200, [
             'Content-Type' => 'text/event-stream',
@@ -363,8 +363,6 @@ class ChatController extends Controller
             $lead = $this->leadService->captureFromConversation($conversation, $contactInfo);
 
             if ($lead) {
-                Cache::forget("tenant:{$conversation->tenant_id}:usage");
-
                 Log::debug('[Widget] (NO $) Lead captured from message', [
                     'conversation_id' => $conversation->id,
                     'lead_id' => $lead->id,

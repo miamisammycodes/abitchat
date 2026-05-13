@@ -10,6 +10,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Lead extends Model
 {
+    protected static function booted(): void
+    {
+        static::created(function (Lead $lead) {
+            if ($lead->tenant) {
+                app(\App\Services\Usage\UsageTracker::class)->forgetCache($lead->tenant);
+            }
+        });
+    }
+
     protected $fillable = [
         'tenant_id',
         'conversation_id',
