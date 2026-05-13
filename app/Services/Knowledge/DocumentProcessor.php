@@ -97,7 +97,11 @@ class DocumentProcessor
             $zip->close();
 
             if ($xmlContent) {
-                // Strip XML tags to get plain text
+                // OOXML splits text across <w:t> runs within <w:r> elements;
+                // strip_tags alone would merge adjacent runs into one word.
+                // Insert a space at every </w:t> and a newline at every </w:p>
+                // before stripping.
+                $xmlContent = str_replace(['</w:t>', '</w:p>'], [' ', "\n"], $xmlContent);
                 $content = strip_tags($xmlContent);
             }
         }
