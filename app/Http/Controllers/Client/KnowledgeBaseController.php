@@ -102,7 +102,7 @@ class KnowledgeBaseController extends Controller
         $item->save();
 
         // Dispatch job to process the knowledge item
-        ProcessKnowledgeItem::dispatch($item);
+        ProcessKnowledgeItem::dispatchAfterResponse($item);
 
         $this->clearKnowledgeCache($tenant);
 
@@ -171,7 +171,7 @@ class KnowledgeBaseController extends Controller
         // Re-process if content changed
         if ($item->wasChanged('content') || $item->wasChanged('source_url')) {
             $item->chunks()->delete();
-            ProcessKnowledgeItem::dispatch($item);
+            ProcessKnowledgeItem::dispatchAfterResponse($item);
         }
 
         $this->clearKnowledgeCache($this->getTenant());
@@ -210,7 +210,7 @@ class KnowledgeBaseController extends Controller
         $item->chunks()->delete();
         $item->update(['status' => 'pending']);
 
-        ProcessKnowledgeItem::dispatch($item);
+        ProcessKnowledgeItem::dispatchAfterResponse($item);
 
         $this->clearKnowledgeCache($this->getTenant());
 
