@@ -18,9 +18,8 @@ class Conversation extends Model
     protected static function booted(): void
     {
         static::created(function (Conversation $conversation) {
-            if ($conversation->tenant) {
-                app(\App\Services\Usage\UsageTracker::class)->forgetCache($conversation->tenant);
-            }
+            app(\App\Services\Usage\UsageTracker::class)
+                ->forgetCacheForTenant($conversation->tenant_id);
         });
     }
 

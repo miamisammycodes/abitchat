@@ -154,6 +154,11 @@ final class UsageTracker
         Cache::forget($this->cacheKey($tenant));
     }
 
+    public function forgetCacheForTenant(int $tenantId): void
+    {
+        Cache::forget("tenant:{$tenantId}:usage:" . self::currentPeriod());
+    }
+
     private function cacheKey(Tenant $tenant): string
     {
         return "tenant:{$tenant->id}:usage:" . self::currentPeriod();

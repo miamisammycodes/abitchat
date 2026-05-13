@@ -13,9 +13,8 @@ class KnowledgeItem extends Model
     protected static function booted(): void
     {
         static::created(function (KnowledgeItem $item) {
-            if ($item->tenant) {
-                app(\App\Services\Usage\UsageTracker::class)->forgetCache($item->tenant);
-            }
+            app(\App\Services\Usage\UsageTracker::class)
+                ->forgetCacheForTenant($item->tenant_id);
         });
     }
 
