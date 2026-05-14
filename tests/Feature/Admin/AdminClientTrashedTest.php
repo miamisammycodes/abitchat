@@ -93,7 +93,7 @@ class AdminClientTrashedTest extends TestCase
         $response = $this->actingAs($this->admin, 'admin')
             ->post("/admin/clients/{$tenant->id}/restore");
 
-        $response->assertRedirect();
+        $response->assertRedirect(route('admin.clients.show', $tenant->id));
         $this->assertNull(Tenant::withTrashed()->find($tenant->id)->deleted_at);
     }
 }
