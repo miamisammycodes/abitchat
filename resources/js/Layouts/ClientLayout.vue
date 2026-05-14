@@ -3,7 +3,6 @@ import { ref, computed } from 'vue'
 import { Link, usePage, router } from '@inertiajs/vue3'
 import { Button } from '@/Components/ui/button'
 import { Avatar, AvatarFallback } from '@/Components/ui/avatar'
-import { Separator } from '@/Components/ui/separator'
 import {
   LayoutDashboard,
   MessageSquare,
@@ -12,7 +11,6 @@ import {
   Users,
   BarChart3,
   CreditCard,
-  Settings,
   LogOut,
   Menu,
   X,
@@ -182,14 +180,6 @@ const getInitials = (name) => {
                 <p class="text-sm font-medium">{{ user?.name }}</p>
                 <p class="text-xs text-muted-foreground">{{ user?.email }}</p>
               </div>
-              <Link
-                href="/dashboard/settings"
-                class="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              >
-                <Settings class="h-4 w-4" />
-                Settings
-              </Link>
-              <Separator />
               <button
                 @click="logout"
                 class="flex w-full items-center gap-2 px-4 py-2 text-sm text-destructive hover:bg-accent"
