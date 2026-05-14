@@ -109,12 +109,6 @@ parameters:
 			path: app/Models/User.php
 
 		-
-			message: '#^Raw where\(''tenant_id'', \.\.\.\) bypasses tenant scoping\. Use forTenant\(\$tenant\) instead\.$#'
-			identifier: tenancy.rawTenantId
-			count: 12
-			path: app/Services/Analytics/AnalyticsService.php
-
-		-
 			message: '#^Strict comparison using \!\=\= between string and null will always evaluate to true\.$#'
 			identifier: notIdentical.alwaysTrue
 			count: 1
