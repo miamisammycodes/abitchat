@@ -29,6 +29,7 @@ const props = defineProps({
 
 const search = ref(props.filters.search)
 const status = ref(props.filters.status)
+const togglingIds = ref(new Set())
 
 const applyFilters = debounce(() => {
     router.get(route('admin.plans.index'), {
@@ -53,8 +54,15 @@ const filterByStatus = (newStatus) => {
 }
 
 const togglePlanStatus = (plan) => {
+    if (togglingIds.value.has(plan.id)) {
+        return
+    }
+    togglingIds.value.add(plan.id)
     router.patch(route('admin.plans.toggle', plan.id), {}, {
         preserveState: true,
+        onFinish: () => {
+            togglingIds.value.delete(plan.id)
+        },
     })
 }
 
@@ -186,6 +194,7 @@ const formatLimit = (limit) => {
                             <TableCell>
                                 <Switch
                                     :checked="plan.is_active"
+                                    :disabled="togglingIds.has(plan.id)"
                                     @update:checked="togglePlanStatus(plan)"
                                 />
                             </TableCell>
