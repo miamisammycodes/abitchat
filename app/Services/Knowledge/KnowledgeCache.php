@@ -16,11 +16,11 @@ use Illuminate\Support\Facades\Cache;
  * - Version key: knowledge_version:{tenant} — incremented to invalidate
  *   every result entry for the tenant in one atomic write. Existing
  *   v{N-1} keys remain in storage until TTL expiry; readers compute the
- *   current version on every get(), so they cannot accidentally hit them.
+ *   current version on every resolve, so they cannot accidentally hit them.
  *
- * Previously owned across RetrievalService (read path) and
- * KnowledgeBaseController::clearKnowledgeCache (write path). The two
- * touched the same key shape but neither was the source of truth.
+ * The version is read fresh on each resolve rather than memoised because
+ * `invalidate` may be called from a different process, and a long-lived
+ * cache instance must still honour external version bumps.
  */
 class KnowledgeCache
 {
@@ -30,9 +30,7 @@ class KnowledgeCache
     /** @return array<int, string>|null */
     public function get(Tenant $tenant, string $query): ?array
     {
-        $key = $this->resultKey($tenant, $query);
-
-        $value = Cache::get($key);
+        $value = Cache::get($this->resultKey($tenant, $query));
 
         return is_array($value) ? $value : null;
     }

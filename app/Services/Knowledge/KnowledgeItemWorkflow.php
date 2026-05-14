@@ -12,13 +12,11 @@ use App\Models\KnowledgeItem;
 /**
  * Canonical state transitions for KnowledgeItem.
  *
- * PS-strict: each transition enforces the allowed source state(s) and
- * throws InvalidTransitionException on violation. Idempotent on
- * destination — markFailed on an already-Failed item succeeds and
- * overwrites the prior error_message (G-4 in the master spec).
- *
- * Owns markReady's side-effect of invalidating the retrieval cache so
- * newly-ready chunks become queryable immediately (G-5).
+ * Strict on source state, idempotent on destination — markFailed on an
+ * already-Failed item succeeds and overwrites the prior error_message,
+ * so two failed-job callbacks racing each other land on the latest error.
+ * markReady invalidates the retrieval cache so newly-ready chunks become
+ * queryable without waiting for TTL expiry.
  */
 class KnowledgeItemWorkflow
 {
@@ -33,11 +31,11 @@ class KnowledgeItemWorkflow
             KnowledgeItemStatus::Processing,
         );
 
-        $item->forceFill([
+        $item->update([
             'status' => KnowledgeItemStatus::Processing,
             'error_message' => null,
             'failed_at' => null,
-        ])->save();
+        ]);
     }
 
     /** Processing → Ready. Invalidates retrieval cache for the tenant. */
@@ -49,7 +47,7 @@ class KnowledgeItemWorkflow
             KnowledgeItemStatus::Ready,
         );
 
-        $item->forceFill(['status' => KnowledgeItemStatus::Ready])->save();
+        $item->update(['status' => KnowledgeItemStatus::Ready]);
 
         $item->loadMissing('tenant');
         $this->cache->invalidate($item->tenant);
@@ -64,11 +62,11 @@ class KnowledgeItemWorkflow
             KnowledgeItemStatus::Failed,
         );
 
-        $item->forceFill([
+        $item->update([
             'status' => KnowledgeItemStatus::Failed,
             'error_message' => $exception->getMessage(),
             'failed_at' => now(),
-        ])->save();
+        ]);
     }
 
     /** Failed → Pending + dispatch ProcessKnowledgeItem. Clears error context. */
@@ -80,11 +78,11 @@ class KnowledgeItemWorkflow
             KnowledgeItemStatus::Pending,
         );
 
-        $item->forceFill([
+        $item->update([
             'status' => KnowledgeItemStatus::Pending,
             'error_message' => null,
             'failed_at' => null,
-        ])->save();
+        ]);
 
         ProcessKnowledgeItem::dispatch($item);
     }

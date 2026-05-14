@@ -213,7 +213,11 @@ class KnowledgeBaseController extends Controller
         $this->authorize('update', $item);
 
         $item->chunks()->delete();
-        $item->update(['status' => KnowledgeItemStatus::Pending]);
+        $item->update([
+            'status' => KnowledgeItemStatus::Pending,
+            'error_message' => null,
+            'failed_at' => null,
+        ]);
 
         $this->dispatchProcessing($item);
         $this->cache->invalidate($this->getTenant());
