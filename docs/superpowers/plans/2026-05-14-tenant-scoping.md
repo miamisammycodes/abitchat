@@ -84,9 +84,9 @@ Run:
 ./vendor/bin/phpstan analyse --memory-limit=512M 2>&1 | tail -20
 ```
 
-Expected: clean run (PHPStan baseline currently has zero errors; level 6).
+Expected: PHPStan runs to completion (regardless of error count). 11 pre-existing errors on `main` as of Task 0 verification (missing-generics on HasFactory, one alwaysTrue in ChatService, two covariance argument-type errors in UsageTracker) — these are accepted and will land in the baseline alongside the tenant_id violations. `reportUnmatchedIgnoredErrors: true` will still flag *new* violations of either kind. Cluster E baseline-cleanup-sweep can pick them up later.
 
-If errors exist on `main` unrelated to this plan, fix them on a separate PR first or the new baseline will contaminate.
+If PHPStan fails to RUN (config error, exception thrown), report BLOCKED.
 
 - [ ] **Step 5: Decide whether to proceed**
 
