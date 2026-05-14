@@ -68,6 +68,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/{item}', [KnowledgeBaseController::class, 'update'])->name('update');
         Route::delete('/{item}', [KnowledgeBaseController::class, 'destroy'])->name('destroy');
         Route::post('/{item}/reprocess', [KnowledgeBaseController::class, 'reprocess'])->name('reprocess');
+        Route::post('/{item}/retry', [KnowledgeBaseController::class, 'retry'])->name('retry');
     });
 
     // Widget Settings

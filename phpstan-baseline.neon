@@ -28,12 +28,6 @@ parameters:
 			message: '#^Raw where\(''tenant_id'', \.\.\.\) bypasses tenant scoping\. Use forTenant\(\$tenant\) instead\.$#'
 			identifier: tenancy.rawTenantId
 			count: 2
-			path: app/Http/Controllers/Client/KnowledgeBaseController.php
-
-		-
-			message: '#^Raw where\(''tenant_id'', \.\.\.\) bypasses tenant scoping\. Use forTenant\(\$tenant\) instead\.$#'
-			identifier: tenancy.rawTenantId
-			count: 2
 			path: app/Http/Controllers/Client/LeadController.php
 
 		-

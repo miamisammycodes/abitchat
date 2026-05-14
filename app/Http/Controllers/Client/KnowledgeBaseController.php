@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Client;
 
+use App\Enums\KnowledgeItemStatus;
 use App\Http\Controllers\Controller;
 use App\Jobs\ProcessKnowledgeItem;
 use App\Models\KnowledgeItem;
-use App\Models\Tenant;
 use App\Rules\SafeExternalUrl;
+use App\Services\Knowledge\KnowledgeCache;
+use App\Services\Knowledge\KnowledgeItemWorkflow;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -19,15 +20,20 @@ use Inertia\Response;
 
 class KnowledgeBaseController extends Controller
 {
+    public function __construct(
+        private KnowledgeCache $cache,
+        private KnowledgeItemWorkflow $workflow,
+    ) {}
+
     public function index(): Response
     {
         $tenant = $this->getTenant();
 
-        $items = KnowledgeItem::where('tenant_id', $tenant->id)
+        $items = KnowledgeItem::forTenant($tenant)
             ->withCount('chunks')
             ->orderBy('created_at', 'desc')
             ->get()
-            ->map(function ($item) {
+            ->map(function (KnowledgeItem $item): array {
                 return [
                     'id' => $item->id,
                     'title' => $item->title,
@@ -35,10 +41,12 @@ class KnowledgeBaseController extends Controller
                     'status' => $item->status,
                     'chunks_count' => $item->chunks_count,
                     'created_at' => $item->created_at->format('M d, Y'),
+                    'error_message' => $item->error_message,
+                    'failed_at' => $item->failed_at?->format('M d, Y H:i'),
                 ];
             });
 
-        $statsByType = KnowledgeItem::where('tenant_id', $tenant->id)
+        $statsByType = KnowledgeItem::forTenant($tenant)
             ->selectRaw('type, COUNT(*) as count')
             ->groupBy('type')
             ->pluck('count', 'type');
@@ -82,7 +90,7 @@ class KnowledgeBaseController extends Controller
         $item->tenant_id = $tenant->id;
         $item->title = $validated['title'];
         $item->type = $validated['type'];
-        $item->status = 'pending';
+        $item->status = KnowledgeItemStatus::Pending;
 
         if ($validated['type'] === 'document' && $request->hasFile('file')) {
             $file = $request->file('file');
@@ -101,10 +109,8 @@ class KnowledgeBaseController extends Controller
 
         $item->save();
 
-        // Dispatch job to process the knowledge item
         $this->dispatchProcessing($item);
-
-        $this->clearKnowledgeCache($tenant);
+        $this->cache->invalidate($tenant);
 
         Log::debug('[Knowledge] (NO $) Item created, processing queued', [
             'item_id' => $item->id,
@@ -132,6 +138,8 @@ class KnowledgeBaseController extends Controller
                 'chunks_count' => $item->chunks_count,
                 'created_at' => $item->created_at->format('M d, Y H:i'),
                 'updated_at' => $item->updated_at->format('M d, Y H:i'),
+                'error_message' => $item->error_message,
+                'failed_at' => $item->failed_at?->format('M d, Y H:i'),
             ],
         ]);
     }
@@ -165,16 +173,15 @@ class KnowledgeBaseController extends Controller
             'title' => $validated['title'],
             'content' => $validated['content'] ?? $item->content,
             'source_url' => $validated['source_url'] ?? $item->source_url,
-            'status' => 'pending',
+            'status' => KnowledgeItemStatus::Pending,
         ]);
 
-        // Re-process if content changed
         if ($item->wasChanged('content') || $item->wasChanged('source_url')) {
             $item->chunks()->delete();
             $this->dispatchProcessing($item);
         }
 
-        $this->clearKnowledgeCache($this->getTenant());
+        $this->cache->invalidate($this->getTenant());
 
         return redirect()->route('client.knowledge.index')
             ->with('success', 'Knowledge item updated.');
@@ -188,16 +195,14 @@ class KnowledgeBaseController extends Controller
             'item_id' => $item->id,
         ]);
 
-        // Delete file if exists
         if ($item->file_path && Storage::disk('local')->exists($item->file_path)) {
             Storage::disk('local')->delete($item->file_path);
         }
 
-        // Delete chunks first
         $item->chunks()->delete();
         $item->delete();
 
-        $this->clearKnowledgeCache($this->getTenant());
+        $this->cache->invalidate($this->getTenant());
 
         return redirect()->route('client.knowledge.index')
             ->with('success', 'Knowledge item deleted.');
@@ -208,19 +213,23 @@ class KnowledgeBaseController extends Controller
         $this->authorize('update', $item);
 
         $item->chunks()->delete();
-        $item->update(['status' => 'pending']);
+        $item->update(['status' => KnowledgeItemStatus::Pending]);
 
         $this->dispatchProcessing($item);
-
-        $this->clearKnowledgeCache($this->getTenant());
+        $this->cache->invalidate($this->getTenant());
 
         return redirect()->back()
             ->with('success', 'Knowledge item queued for reprocessing.');
     }
 
-    private function clearKnowledgeCache(Tenant $tenant): void
+    public function retry(KnowledgeItem $item): RedirectResponse
     {
-        Cache::increment("knowledge_version:{$tenant->id}");
+        $this->authorize('update', $item);
+
+        $this->workflow->retry($item);
+
+        return redirect()->back()
+            ->with('success', 'Knowledge item queued for retry.');
     }
 
     /**
