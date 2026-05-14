@@ -501,8 +501,8 @@ class RawTenantIdWhereFixture
 
     public function flaggedQualified(int $tenantId): mixed
     {
-        return Lead::join('users', 'users.id', 'leads.id')
-            ->where('leads.tenant_id', $tenantId)                  // line 26 — flagged
+        return Lead::join('users', 'users.id', 'leads.id')         // line 25 — flagged (chained MethodCall anchors at chain-start)
+            ->where('leads.tenant_id', $tenantId)
             ->get();
     }
 }
@@ -571,7 +571,8 @@ class NoRawTenantIdWhereTest extends RuleTestCase
             [
                 ["Raw where('tenant_id', ...) bypasses tenant scoping. Use forTenant(\$tenant) instead.", 15],
                 ["Raw whereIn('tenant_id', ...) bypasses tenant scoping. Use forTenant(\$tenant) instead.", 20],
-                ["Raw where('leads.tenant_id', ...) bypasses tenant scoping. Use forTenant(\$tenant) instead.", 26],
+                // PHP-Parser anchors a chained MethodCall AST at the chain-start line.
+                ["Raw where('leads.tenant_id', ...) bypasses tenant scoping. Use forTenant(\$tenant) instead.", 25],
             ],
         );
     }
@@ -627,10 +628,13 @@ declare(strict_types=1);
 namespace App\Rules\PHPStan;
 
 use PhpParser\Node;
+use PhpParser\Node\Expr\CallLike;
 use PhpParser\Node\Expr\MethodCall;
+use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Scalar\String_;
 use PHPStan\Analyser\Scope;
 use PHPStan\Rules\Rule;
+use PHPStan\Rules\RuleError;
 use PHPStan\Rules\RuleErrorBuilder;
 
 /**
@@ -638,12 +642,14 @@ use PHPStan\Rules\RuleErrorBuilder;
  * qualified `where('leads.tenant_id', ...)` patterns. Use the
  * `forTenant($tenant)` scope provided by `App\Models\Concerns\BelongsToTenant`.
  *
- * Scope-by-design: matches Eloquent-style `where*` MethodCall nodes with a
- * string-literal first argument equal to 'tenant_id' or '*.tenant_id'.
- * Does NOT cover `DB::table(...)->where('tenant_id', ...)` (qualified column
- * on the DB facade) — those sites are converted to Eloquent in Cluster B.
+ * Scope-by-design: matches Eloquent-style `where*` Method/StaticCall nodes
+ * with a string-literal first argument equal to 'tenant_id' or '*.tenant_id'.
+ * Covers both `$builder->where('tenant_id', ...)` (MethodCall) and
+ * `Model::where('tenant_id', ...)` (StaticCall, magic-forwarded to the
+ * builder by Eloquent). Does NOT cover `DB::table(...)->where('tenant_id', ...)`
+ * — those sites are converted to Eloquent in Cluster B.
  *
- * @implements Rule<MethodCall>
+ * @implements Rule<CallLike>
  */
 class NoRawTenantIdWhere implements Rule
 {
@@ -659,14 +665,18 @@ class NoRawTenantIdWhere implements Rule
 
     public function getNodeType(): string
     {
-        return MethodCall::class;
+        return CallLike::class;
     }
 
     /**
-     * @return array<int, \PHPStan\Rules\RuleError>
+     * @return array<int, RuleError>
      */
     public function processNode(Node $node, Scope $scope): array
     {
+        if (! $node instanceof MethodCall && ! $node instanceof StaticCall) {
+            return [];
+        }
+
         if (! $node->name instanceof Node\Identifier) {
             return [];
         }
@@ -705,6 +715,8 @@ class NoRawTenantIdWhere implements Rule
     }
 }
 ```
+
+**Why `CallLike` not `MethodCall`:** Eloquent's `Model::where(...)` is a PHP `StaticCall` (the magic `__callStatic` forwards to the builder), not a `MethodCall`. A rule registered on `MethodCall::class` alone would miss the dominant `Model::where(...)` pattern across the codebase. `CallLike` is the parent of both — narrow inside `processNode` via `instanceof`.
 
 - [ ] **Step 4: Register the rule in `phpstan.neon` (no baseline include yet)**
 
