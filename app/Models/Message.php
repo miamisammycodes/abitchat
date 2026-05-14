@@ -26,8 +26,10 @@ class Message extends Model
         static::saving(function (Message $message) {
             // Only recompute when content actually changed. Without this guard,
             // every unrelated update (tokens_used, metadata) re-writes the hash
-            // column with the same value and marks it dirty.
-            if (! $message->exists || $message->isDirty('content')) {
+            // column with the same value and marks it dirty. isDirty returns
+            // true on a fresh unsaved model when content has been set, so this
+            // covers both create and update paths.
+            if ($message->isDirty('content')) {
                 $message->content_hash = md5((string) $message->content);
             }
         });
