@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Jobs;
 
+use App\Enums\KnowledgeItemStatus;
 use App\Exceptions\EmbeddingGenerationException;
 use App\Jobs\GenerateEmbeddings;
 use App\Jobs\ProcessKnowledgeItem;
@@ -11,7 +12,7 @@ use App\Models\KnowledgeItem;
 use App\Models\Tenant;
 use App\Services\Knowledge\DocumentProcessor;
 use App\Services\Knowledge\EmbeddingService;
-use App\Services\Knowledge\TextChunker;
+use App\Services\Knowledge\KnowledgeItemWorkflow;
 use Illuminate\Support\Facades\Queue;
 use Mockery;
 use Tests\TestCase;
@@ -22,7 +23,7 @@ class KnowledgeStatusFlowTest extends TestCase
     {
         $tenant = Tenant::create([
             'name' => 'Flow Co',
-            'slug' => 'flow-co-' . uniqid(),
+            'slug' => 'flow-co-'.uniqid(),
             'status' => 'active',
         ]);
 
@@ -42,12 +43,12 @@ class KnowledgeStatusFlowTest extends TestCase
 
         (new ProcessKnowledgeItem($item))->handle(
             app(DocumentProcessor::class),
-            app(TextChunker::class),
+            app(KnowledgeItemWorkflow::class),
         );
 
         $item->refresh();
         $this->assertSame(
-            'processing',
+            KnowledgeItemStatus::Processing,
             $item->status,
             'Item must NOT be ready until embeddings complete'
         );
@@ -62,39 +63,39 @@ class KnowledgeStatusFlowTest extends TestCase
             'chunk_index' => 0,
             'embedding' => null,
         ]);
-        $item->markAsProcessing();
+        $item->forceFill(['status' => KnowledgeItemStatus::Processing])->save();
 
         $embedder = Mockery::mock(EmbeddingService::class);
         $embedder->shouldReceive('generate')->andReturn('[0.1,0.2,0.3]');
 
-        (new GenerateEmbeddings($item))->handle($embedder);
+        (new GenerateEmbeddings($item))->handle($embedder, app(KnowledgeItemWorkflow::class));
 
         $item->refresh();
-        $this->assertSame('ready', $item->status);
+        $this->assertSame(KnowledgeItemStatus::Ready, $item->status);
     }
 
     public function test_embeddings_job_failed_callback_marks_failed(): void
     {
         $item = $this->makeItem();
-        $item->markAsProcessing();
+        $item->forceFill(['status' => KnowledgeItemStatus::Processing])->save();
 
         $job = new GenerateEmbeddings($item);
         $job->failed(new EmbeddingGenerationException('all retries exhausted'));
 
         $item->refresh();
-        $this->assertSame('failed', $item->status);
+        $this->assertSame(KnowledgeItemStatus::Failed, $item->status);
     }
 
     public function test_process_job_failed_callback_marks_failed(): void
     {
         $item = $this->makeItem();
-        $item->markAsProcessing();
+        $item->forceFill(['status' => KnowledgeItemStatus::Processing])->save();
 
         $job = new ProcessKnowledgeItem($item);
         $job->failed(new \RuntimeException('all retries exhausted'));
 
         $item->refresh();
-        $this->assertSame('failed', $item->status);
+        $this->assertSame(KnowledgeItemStatus::Failed, $item->status);
     }
 
     public function test_process_job_catch_does_not_prematurely_mark_failed(): void
@@ -105,12 +106,12 @@ class KnowledgeStatusFlowTest extends TestCase
         // flaps between failed/processing during retries.
         $item = $this->makeItem();
         $item->update(['type' => 'document', 'file_path' => '/does/not/exist']);
-        $item->markAsProcessing();
+        $item->forceFill(['status' => KnowledgeItemStatus::Processing])->save();
 
         $job = new ProcessKnowledgeItem($item);
 
         try {
-            $job->handle(app(DocumentProcessor::class), app(TextChunker::class));
+            $job->handle(app(DocumentProcessor::class), app(KnowledgeItemWorkflow::class));
             $this->fail('Expected exception to be re-thrown');
         } catch (\Throwable) {
             // Expected — DocumentProcessor will throw on a missing file.
@@ -118,7 +119,7 @@ class KnowledgeStatusFlowTest extends TestCase
 
         $item->refresh();
         $this->assertSame(
-            'processing',
+            KnowledgeItemStatus::Processing,
             $item->status,
             'Catch block must not call markAsFailed; that is the failed() callbacks job',
         );

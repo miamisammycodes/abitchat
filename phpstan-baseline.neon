@@ -28,12 +28,6 @@ parameters:
 			message: '#^Raw where\(''tenant_id'', \.\.\.\) bypasses tenant scoping\. Use forTenant\(\$tenant\) instead\.$#'
 			identifier: tenancy.rawTenantId
 			count: 2
-			path: app/Http/Controllers/Client/KnowledgeBaseController.php
-
-		-
-			message: '#^Raw where\(''tenant_id'', \.\.\.\) bypasses tenant scoping\. Use forTenant\(\$tenant\) instead\.$#'
-			identifier: tenancy.rawTenantId
-			count: 2
 			path: app/Http/Controllers/Client/LeadController.php
 
 		-
@@ -125,12 +119,6 @@ parameters:
 			identifier: tenancy.rawTenantId
 			count: 12
 			path: app/Services/Analytics/AnalyticsService.php
-
-		-
-			message: '#^Raw where\(''ki\.tenant_id'', \.\.\.\) bypasses tenant scoping\. Use forTenant\(\$tenant\) instead\.$#'
-			identifier: tenancy.rawTenantId
-			count: 2
-			path: app/Services/Knowledge/RetrievalService.php
 
 		-
 			message: '#^Strict comparison using \!\=\= between string and null will always evaluate to true\.$#'

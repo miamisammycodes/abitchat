@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Jobs;
 
+use App\Enums\KnowledgeItemStatus;
 use App\Jobs\GenerateEmbeddings;
 use App\Models\KnowledgeChunk;
 use App\Models\KnowledgeItem;
 use App\Models\Tenant;
 use App\Services\Knowledge\EmbeddingService;
+use App\Services\Knowledge\KnowledgeItemWorkflow;
 use Prism\Prism\Facades\Prism;
 use Tests\Support\EmbeddingFakeFactory;
 use Tests\TestCase;
@@ -50,10 +52,10 @@ class GenerateEmbeddingsLazyTest extends TestCase
         // Fake 30 embedding responses with valid 768-dim vectors.
         Prism::fake(EmbeddingFakeFactory::many(30));
 
-        (new GenerateEmbeddings($item))->handle(app(EmbeddingService::class));
+        (new GenerateEmbeddings($item))->handle(app(EmbeddingService::class), app(KnowledgeItemWorkflow::class));
 
         $item->refresh();
-        $this->assertSame('ready', $item->status);
+        $this->assertSame(KnowledgeItemStatus::Ready, $item->status);
         $this->assertSame(
             0,
             $item->chunks()->whereNull('embedding')->count(),

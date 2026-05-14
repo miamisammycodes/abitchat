@@ -4,11 +4,18 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\KnowledgeItemStatus;
 use App\Models\Concerns\BelongsToTenant;
 use App\Models\Concerns\BustsTenantUsageCache;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property KnowledgeItemStatus $status
+ * @property string|null $error_message
+ * @property Carbon|null $failed_at
+ */
 class KnowledgeItem extends Model
 {
     use BelongsToTenant, BustsTenantUsageCache;
@@ -22,6 +29,8 @@ class KnowledgeItem extends Model
         'file_path',
         'status',
         'metadata',
+        'error_message',
+        'failed_at',
     ];
 
     /** @return array<string, string> */
@@ -29,6 +38,8 @@ class KnowledgeItem extends Model
     {
         return [
             'metadata' => 'array',
+            'status' => KnowledgeItemStatus::class,
+            'failed_at' => 'datetime',
         ];
     }
 
@@ -40,36 +51,21 @@ class KnowledgeItem extends Model
 
     public function isPending(): bool
     {
-        return $this->status === 'pending';
+        return $this->status === KnowledgeItemStatus::Pending;
     }
 
     public function isProcessing(): bool
     {
-        return $this->status === 'processing';
+        return $this->status === KnowledgeItemStatus::Processing;
     }
 
     public function isReady(): bool
     {
-        return $this->status === 'ready';
+        return $this->status === KnowledgeItemStatus::Ready;
     }
 
     public function isFailed(): bool
     {
-        return $this->status === 'failed';
-    }
-
-    public function markAsProcessing(): void
-    {
-        $this->update(['status' => 'processing']);
-    }
-
-    public function markAsReady(): void
-    {
-        $this->update(['status' => 'ready']);
-    }
-
-    public function markAsFailed(): void
-    {
-        $this->update(['status' => 'failed']);
+        return $this->status === KnowledgeItemStatus::Failed;
     }
 }

@@ -7,7 +7,9 @@ namespace Tests\Unit\Services\Knowledge;
 use App\Exceptions\EmbeddingGenerationException;
 use App\Models\KnowledgeChunk;
 use App\Models\KnowledgeItem;
+use App\Models\Tenant;
 use App\Services\Knowledge\EmbeddingService;
+use App\Services\Knowledge\KnowledgeCache;
 use App\Services\Knowledge\RetrievalService;
 use Illuminate\Support\Facades\Cache;
 use Mockery;
@@ -34,7 +36,7 @@ class RetrievalServiceTest extends TestCase
         $embedder->shouldReceive('generate')
             ->andThrow(new EmbeddingGenerationException('test stub'));
 
-        return new RetrievalService($embedder);
+        return new RetrievalService($embedder, new KnowledgeCache);
     }
 
     private function makeServiceWithSuccessfulEmbeddings(string $vector = '[0.1,0.2,0.3]'): RetrievalService
@@ -42,7 +44,7 @@ class RetrievalServiceTest extends TestCase
         $embedder = Mockery::mock(EmbeddingService::class);
         $embedder->shouldReceive('generate')->andReturn($vector);
 
-        return new RetrievalService($embedder);
+        return new RetrievalService($embedder, new KnowledgeCache);
     }
 
     private function callExtractKeywords(RetrievalService $service, string $text): array
@@ -179,7 +181,7 @@ class RetrievalServiceTest extends TestCase
         $this->seedReadyKnowledgeWithChunks(['Refund within 14 days for tenant A.']);
 
         // Other tenant with overlapping keyword — must NOT leak.
-        $otherTenant = \App\Models\Tenant::create([
+        $otherTenant = Tenant::create([
             'name' => 'Other Co',
             'slug' => 'other-co',
             'status' => 'active',

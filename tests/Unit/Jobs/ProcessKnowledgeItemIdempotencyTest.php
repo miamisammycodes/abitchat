@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Jobs;
 
+use App\Enums\KnowledgeItemStatus;
 use App\Jobs\GenerateEmbeddings;
 use App\Jobs\ProcessKnowledgeItem;
 use App\Models\KnowledgeChunk;
 use App\Models\KnowledgeItem;
 use App\Models\Tenant;
 use App\Services\Knowledge\DocumentProcessor;
-use App\Services\Knowledge\TextChunker;
+use App\Services\Knowledge\KnowledgeItemWorkflow;
 use Illuminate\Support\Facades\Queue;
 use Mockery;
 use Tests\TestCase;
@@ -21,7 +22,7 @@ class ProcessKnowledgeItemIdempotencyTest extends TestCase
     {
         $tenant = Tenant::create([
             'name' => 'Idem Co',
-            'slug' => 'idem-co',
+            'slug' => 'idem-co-'.uniqid(),
             'status' => 'active',
             'trial_ends_at' => now()->addDays(14),
             'settings' => ['allowed_domains' => []],
@@ -41,17 +42,18 @@ class ProcessKnowledgeItemIdempotencyTest extends TestCase
         Queue::fake([GenerateEmbeddings::class]);
         $item = $this->makeItem();
 
-        $chunker = Mockery::mock(TextChunker::class);
-        $chunker->shouldReceive('chunk')->andReturn(['chunk-a', 'chunk-b']);
         $processor = Mockery::mock(DocumentProcessor::class);
+        $processor->shouldReceive('process')->andReturn(['chunk-a', 'chunk-b']);
 
-        // First invocation — clean state.
-        (new ProcessKnowledgeItem($item))->handle($processor, $chunker);
+        (new ProcessKnowledgeItem($item))->handle($processor, app(KnowledgeItemWorkflow::class));
         $this->assertSame(2, KnowledgeChunk::where('knowledge_item_id', $item->id)->count());
 
-        // Second invocation — simulates a Laravel retry. Must produce the
-        // same 2 chunks, not 4.
-        (new ProcessKnowledgeItem($item))->handle($processor, $chunker);
+        // Simulates a Laravel retry. Must produce the same 2 chunks, not 4.
+        // Reset status to allow re-entry; the workflow forbids
+        // Processing → Processing.
+        $item->refresh()->forceFill(['status' => KnowledgeItemStatus::Pending])->save();
+        (new ProcessKnowledgeItem($item))->handle($processor, app(KnowledgeItemWorkflow::class));
+
         $this->assertSame(
             2,
             KnowledgeChunk::where('knowledge_item_id', $item->id)->count(),
@@ -64,18 +66,26 @@ class ProcessKnowledgeItemIdempotencyTest extends TestCase
         Queue::fake([GenerateEmbeddings::class]);
         $item = $this->makeItem();
 
-        $first = Mockery::mock(TextChunker::class);
-        $first->shouldReceive('chunk')->andReturn(['old-1', 'old-2']);
-        (new ProcessKnowledgeItem($item))->handle(Mockery::mock(DocumentProcessor::class), $first);
+        $first = Mockery::mock(DocumentProcessor::class);
+        $first->shouldReceive('process')->andReturn(['old-1', 'old-2']);
+        (new ProcessKnowledgeItem($item))->handle($first, app(KnowledgeItemWorkflow::class));
 
-        $second = Mockery::mock(TextChunker::class);
-        $second->shouldReceive('chunk')->andReturn(['new-1', 'new-2', 'new-3']);
-        (new ProcessKnowledgeItem($item))->handle(Mockery::mock(DocumentProcessor::class), $second);
+        $item->refresh()->forceFill(['status' => KnowledgeItemStatus::Pending])->save();
+
+        $second = Mockery::mock(DocumentProcessor::class);
+        $second->shouldReceive('process')->andReturn(['new-1', 'new-2', 'new-3']);
+        (new ProcessKnowledgeItem($item))->handle($second, app(KnowledgeItemWorkflow::class));
 
         $contents = KnowledgeChunk::where('knowledge_item_id', $item->id)
             ->orderBy('chunk_index')
             ->pluck('content')
             ->all();
         $this->assertSame(['new-1', 'new-2', 'new-3'], $contents);
+    }
+
+    protected function tearDown(): void
+    {
+        Mockery::close();
+        parent::tearDown();
     }
 }
