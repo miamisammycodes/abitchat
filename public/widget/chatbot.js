@@ -787,7 +787,7 @@
         const launcherIcon = script.getAttribute('data-chatbot-launcher-icon');
 
         if (apiKey) {
-            document.addEventListener('DOMContentLoaded', function() {
+            const initWithOptions = function() {
                 const options = {
                     apiKey: apiKey,
                     baseUrl: baseUrl,
@@ -801,7 +801,17 @@
                 if (launcherIcon) options.launcherIcon = launcherIcon;
 
                 ChatbotWidget.init(options);
-            });
+            };
+
+            // readyState is 'loading' before DOMContentLoaded fires, then
+            // 'interactive', then 'complete'. If the script loads (e.g. via
+            // GTM, async/defer, or any dynamic injection) after the event
+            // already fired, the listener never runs — so call init now.
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initWithOptions);
+            } else {
+                initWithOptions();
+            }
         }
     }
 
