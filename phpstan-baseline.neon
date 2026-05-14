@@ -127,12 +127,6 @@ parameters:
 			path: app/Services/LLM/ChatService.php
 
 		-
-			message: '#^Raw where\(''tenant_id'', \.\.\.\) bypasses tenant scoping\. Use forTenant\(\$tenant\) instead\.$#'
-			identifier: tenancy.rawTenantId
-			count: 1
-			path: app/Services/Leads/LeadService.php
-
-		-
 			message: '#^Parameter \#1 \$relation of method App\\Services\\Usage\\UsageTracker\:\:countByPeriod\(\) expects Illuminate\\Database\\Eloquent\\Relations\\HasMany\<Illuminate\\Database\\Eloquent\\Model, App\\Models\\Tenant\>, Illuminate\\Database\\Eloquent\\Relations\\HasMany\<App\\Models\\Conversation, App\\Models\\Tenant\> given\.$#'
 			identifier: argument.type
 			count: 1

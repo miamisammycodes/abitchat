@@ -6,7 +6,6 @@ namespace App\Services\Leads;
 
 use App\Models\Conversation;
 use App\Models\Lead;
-use App\Models\Message;
 use App\Models\Tenant;
 use App\Notifications\NewLeadNotification;
 use Illuminate\Support\Facades\DB;
@@ -14,30 +13,7 @@ use Illuminate\Support\Facades\Log;
 
 class LeadService
 {
-    /**
-     * Scoring weights for different actions
-     */
-    private const SCORE_WEIGHTS = [
-        'message_sent' => 2,
-        'provided_email' => 20,
-        'provided_phone' => 15,
-        'provided_name' => 10,
-        'provided_company' => 10,
-        'long_conversation' => 5,  // 5+ messages
-        'return_visitor' => 10,
-        'asked_pricing' => 15,
-        'asked_demo' => 20,
-    ];
-
-    /**
-     * Keywords that indicate high intent
-     */
-    private const HIGH_INTENT_KEYWORDS = [
-        'pricing' => ['price', 'pricing', 'cost', 'how much', 'quote', 'estimate'],
-        'demo' => ['demo', 'demonstration', 'trial', 'try', 'test'],
-        'contact' => ['contact', 'call me', 'reach out', 'talk to someone', 'speak with'],
-        'purchase' => ['buy', 'purchase', 'subscribe', 'sign up', 'get started'],
-    ];
+    public function __construct(private LeadScoring $scoring) {}
 
     /**
      * Create or update a lead from conversation data. Concurrent first-message
@@ -74,30 +50,35 @@ class LeadService
     }
 
     /**
-     * Create a new lead
+     * Create a new lead. Builds the model in memory, scores it via
+     * LeadScoring (with the captured conversation in context), then saves
+     * everything in one shot so the persisted score matches the metadata.
      *
      * @param  array<string, mixed>  $contactInfo
      */
     private function createLead(Tenant $tenant, Conversation $conversation, array $contactInfo): Lead
     {
-        $score = $this->calculateInitialScore($conversation, $contactInfo);
-
-        $lead = Lead::create([
+        $lead = new Lead([
             'tenant_id' => $tenant->id,
             'conversation_id' => $conversation->id,
             'name' => $contactInfo['name'] ?? null,
             'email' => $contactInfo['email'] ?? null,
             'phone' => $contactInfo['phone'] ?? null,
             'company' => $contactInfo['company'] ?? null,
-            'score' => $score,
             'status' => 'new',
             'source' => 'chatbot',
+        ]);
+
+        $score = $this->scoring->score($lead, $conversation);
+        $lead->fill([
+            'score' => $score,
             'metadata' => [
                 'first_conversation_id' => $conversation->id,
                 'captured_at' => now()->toIso8601String(),
                 'initial_score' => $score,
             ],
         ]);
+        $lead->save();
 
         // Link conversation to lead
         $conversation->update(['lead_id' => $lead->id]);
@@ -115,7 +96,8 @@ class LeadService
     }
 
     /**
-     * Update existing lead with new info
+     * Update existing lead with new info. Scoring goes through the canonical
+     * LeadScoring service.
      *
      * @param  array<string, mixed>  $contactInfo
      */
@@ -134,13 +116,18 @@ class LeadService
             $updates['company'] = $contactInfo['company'];
         }
 
-        // Recalculate score
-        $newScore = $this->calculateScore($lead, $conversation, $contactInfo);
+        // Apply the contact-info updates in memory so the rescored value
+        // reflects the latest state (LeadScoring reads from $lead attributes).
+        if ($updates !== []) {
+            $lead->fill($updates);
+        }
+
+        $newScore = $this->scoring->score($lead, $conversation);
         if ($newScore !== $lead->score) {
             $updates['score'] = $newScore;
         }
 
-        if (! empty($updates)) {
+        if ($updates !== []) {
             $lead->update($updates);
         }
 
@@ -152,98 +139,6 @@ class LeadService
         $lead->refresh();
 
         return $lead;
-    }
-
-    /**
-     * Calculate initial score for new lead
-     *
-     * @param  array<string, mixed>  $contactInfo
-     */
-    private function calculateInitialScore(Conversation $conversation, array $contactInfo): int
-    {
-        $score = 0;
-
-        // Score for contact info provided
-        if (! empty($contactInfo['email'])) {
-            $score += self::SCORE_WEIGHTS['provided_email'];
-        }
-        if (! empty($contactInfo['phone'])) {
-            $score += self::SCORE_WEIGHTS['provided_phone'];
-        }
-        if (! empty($contactInfo['name'])) {
-            $score += self::SCORE_WEIGHTS['provided_name'];
-        }
-        if (! empty($contactInfo['company'])) {
-            $score += self::SCORE_WEIGHTS['provided_company'];
-        }
-
-        // Score for message count
-        $messageCount = $conversation->messages()->where('role', 'user')->count();
-        $score += $messageCount * self::SCORE_WEIGHTS['message_sent'];
-
-        // Check for high intent keywords
-        $score += $this->scoreHighIntentKeywords($conversation);
-
-        return min(100, $score);
-    }
-
-    /**
-     * Calculate updated score for existing lead
-     *
-     * @param  array<string, mixed>  $contactInfo
-     */
-    private function calculateScore(Lead $lead, Conversation $conversation, array $contactInfo): int
-    {
-        $score = $lead->score;
-
-        // Add points for new contact info
-        if (! empty($contactInfo['phone']) && empty($lead->phone)) {
-            $score += self::SCORE_WEIGHTS['provided_phone'];
-        }
-        if (! empty($contactInfo['company']) && empty($lead->company)) {
-            $score += self::SCORE_WEIGHTS['provided_company'];
-        }
-
-        // Return visitor bonus
-        $conversationCount = Conversation::where('lead_id', $lead->id)->count();
-        if ($conversationCount > 1) {
-            $score += self::SCORE_WEIGHTS['return_visitor'];
-        }
-
-        // Check for high intent keywords in current conversation
-        $score += $this->scoreHighIntentKeywords($conversation);
-
-        return min(100, $score);
-    }
-
-    /**
-     * Score based on high intent keywords in messages
-     */
-    private function scoreHighIntentKeywords(Conversation $conversation): int
-    {
-        $score = 0;
-        $messages = $conversation->messages()->where('role', 'user')->get();
-        $allContent = $messages->pluck('content')->implode(' ');
-        $allContentLower = strtolower($allContent);
-
-        $detectedIntents = [];
-
-        foreach (self::HIGH_INTENT_KEYWORDS as $intent => $keywords) {
-            foreach ($keywords as $keyword) {
-                if (str_contains($allContentLower, $keyword) && ! in_array($intent, $detectedIntents)) {
-                    $detectedIntents[] = $intent;
-
-                    if ($intent === 'pricing') {
-                        $score += self::SCORE_WEIGHTS['asked_pricing'];
-                    } elseif ($intent === 'demo') {
-                        $score += self::SCORE_WEIGHTS['asked_demo'];
-                    }
-                    break;
-                }
-            }
-        }
-
-        return $score;
     }
 
     /**
@@ -363,7 +258,7 @@ class LeadService
      */
     public function getStats(Tenant $tenant): array
     {
-        $leads = Lead::where('tenant_id', $tenant->id);
+        $leads = Lead::forTenant($tenant);
 
         return [
             'total' => $leads->count(),
