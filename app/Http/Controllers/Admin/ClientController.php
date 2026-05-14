@@ -42,6 +42,14 @@ class ClientController extends Controller
             $query->where('plan_id', $request->plan);
         }
 
+        // Trashed filter — preserve default of active-only.
+        $trashed = $request->input('trashed');
+        if ($trashed === 'with') {
+            $query->withTrashed();
+        } elseif ($trashed === 'only') {
+            $query->onlyTrashed();
+        }
+
         // Sort
         $sortField = (string) $request->input('sort', 'created_at');
         $sortDirection = (string) $request->input('direction', 'desc');
@@ -65,6 +73,7 @@ class ClientController extends Controller
                 'search' => $request->input('search', ''),
                 'status' => $request->input('status', 'all'),
                 'plan' => $request->input('plan', 'all'),
+                'trashed' => $request->input('trashed', ''),
                 'sort' => $sortField,
                 'direction' => $sortDirection,
             ],
@@ -139,6 +148,16 @@ class ClientController extends Controller
                 ['value' => 'casual', 'label' => 'Casual', 'description' => 'Very relaxed, peer-like communication style.'],
             ],
         ]);
+    }
+
+    public function restore(int $id): RedirectResponse
+    {
+        $tenant = Tenant::onlyTrashed()->findOrFail($id);
+        $tenant->restore();
+
+        return redirect()
+            ->route('admin.clients.show', $tenant->id)
+            ->with('success', 'Tenant restored.');
     }
 
     public function updateStatus(Request $request, Tenant $client): RedirectResponse
