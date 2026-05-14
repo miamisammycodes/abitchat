@@ -18,14 +18,7 @@ class BelongsToTenantTest extends TestCase
 
     private function fixtureModel(): Model
     {
-        // Use a real existing tenant-scoped table for the fixture so we don't
-        // need to manage extra migrations. `leads` has tenant_id NOT NULL.
-        //
-        // FALLBACK: if these tests fail with "model not booted" or class-resolution
-        // errors related to the anonymous class, replace this with a real fixture
-        // class at tests/Fixtures/TenantScopedFixture.php that extends Model,
-        // sets protected $table = 'leads', and uses BelongsToTenant — then
-        // instantiate that here instead.
+        // Uses the existing `leads` table (tenant_id NOT NULL) so no extra migration is needed.
         return new class extends Model
         {
             use BelongsToTenant;

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Rules\PHPStan;
 
+use App\Models\Concerns\BelongsToTenant;
 use PhpParser\Node;
 use PhpParser\Node\Expr\CallLike;
 use PhpParser\Node\Expr\MethodCall;
@@ -77,8 +78,10 @@ class NoRawTenantIdWhere implements Rule
             return [];
         }
 
-        // Self-exempt the trait file itself — its scope method must be raw.
-        if (str_ends_with($scope->getFile(), 'BelongsToTenant.php')) {
+        // Self-exempt the trait itself — its scope method must use raw `where`.
+        // Pin by FQN (not filename) so the exemption survives a file rename.
+        $classReflection = $scope->getClassReflection();
+        if ($classReflection !== null && $classReflection->getName() === BelongsToTenant::class) {
             return [];
         }
 
