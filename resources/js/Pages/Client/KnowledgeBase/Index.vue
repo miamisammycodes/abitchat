@@ -13,6 +13,8 @@ import {
   Plus,
   Pencil,
   Trash2,
+  RefreshCw,
+  AlertCircle,
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -26,6 +28,12 @@ const deleteItem = (id) => {
   if (confirm('Are you sure you want to delete this item?')) {
     router.delete(route('client.knowledge.destroy', id))
   }
+}
+
+const retryItem = (id) => {
+  router.post(route('client.knowledge.retry', id), {}, {
+    preserveScroll: true,
+  })
 }
 
 const getStatusVariant = (status) => {
@@ -167,6 +175,15 @@ const getTypeIcon = (type) => {
                     {{ item.status }}
                   </Badge>
                   <div class="flex items-center gap-1">
+                    <Button
+                      v-if="item.status === 'failed'"
+                      variant="ghost"
+                      size="icon"
+                      title="Retry processing"
+                      @click="retryItem(item.id)"
+                    >
+                      <RefreshCw class="h-4 w-4 text-primary" />
+                    </Button>
                     <Button variant="ghost" size="icon" as-child>
                       <Link :href="route('client.knowledge.edit', item.id)">
                         <Pencil class="h-4 w-4" />
@@ -175,6 +192,27 @@ const getTypeIcon = (type) => {
                     <Button variant="ghost" size="icon" @click="deleteItem(item.id)">
                       <Trash2 class="h-4 w-4 text-destructive" />
                     </Button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Failure detail row -->
+              <div
+                v-if="item.status === 'failed' && (item.error_message || item.failed_at)"
+                class="mt-3 ml-12 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm"
+              >
+                <div class="flex items-start gap-2">
+                  <AlertCircle class="h-4 w-4 mt-0.5 flex-shrink-0 text-destructive" />
+                  <div class="min-w-0">
+                    <p v-if="item.error_message" class="text-destructive font-medium break-words">
+                      {{ item.error_message }}
+                    </p>
+                    <p v-else class="text-destructive font-medium">
+                      Processing failed (no detail recorded).
+                    </p>
+                    <p v-if="item.failed_at" class="text-xs text-muted-foreground mt-0.5">
+                      Failed at {{ item.failed_at }}
+                    </p>
                   </div>
                 </div>
               </div>
