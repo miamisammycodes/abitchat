@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Models\KnowledgeItem;
 use App\Services\Knowledge\EmbeddingService;
+use App\Services\Knowledge\KnowledgeItemWorkflow;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -26,7 +27,7 @@ class GenerateEmbeddings implements NotTenantAware, ShouldQueue
         public KnowledgeItem $item
     ) {}
 
-    public function handle(EmbeddingService $embeddingService): void
+    public function handle(EmbeddingService $embeddingService, KnowledgeItemWorkflow $workflow): void
     {
         $processed = 0;
 
@@ -40,7 +41,7 @@ class GenerateEmbeddings implements NotTenantAware, ShouldQueue
                     $processed++;
                 });
 
-            $this->item->markAsReady();
+            $workflow->markReady($this->item);
 
             Log::debug('[Embeddings] (NO $) Embeddings generated; item ready', [
                 'item_id' => $this->item->id,
@@ -61,6 +62,7 @@ class GenerateEmbeddings implements NotTenantAware, ShouldQueue
             'item_id' => $this->item->id,
             'error' => $exception->getMessage(),
         ]);
-        $this->item->markAsFailed();
+
+        app(KnowledgeItemWorkflow::class)->markFailed($this->item->refresh(), $exception);
     }
 }
