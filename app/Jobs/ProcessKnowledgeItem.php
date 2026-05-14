@@ -7,7 +7,7 @@ namespace App\Jobs;
 use App\Models\KnowledgeChunk;
 use App\Models\KnowledgeItem;
 use App\Services\Knowledge\DocumentProcessor;
-use App\Services\Knowledge\TextChunker;
+use App\Services\Knowledge\KnowledgeItemWorkflow;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -29,30 +29,21 @@ class ProcessKnowledgeItem implements NotTenantAware, ShouldQueue
         public KnowledgeItem $item
     ) {}
 
-    public function handle(DocumentProcessor $processor, TextChunker $chunker): void
+    public function handle(DocumentProcessor $processor, KnowledgeItemWorkflow $workflow): void
     {
         Log::debug('[Knowledge] (NO $) Processing item', [
             'item_id' => $this->item->id,
             'type' => $this->item->type,
         ]);
 
-        $this->item->markAsProcessing();
+        $workflow->markProcessing($this->item);
 
         try {
-            // Extract text content based on type
-            $content = $this->extractContent($processor);
+            $chunks = $processor->process($this->item);
 
-            if (empty($content)) {
+            if ($chunks === []) {
                 throw new \Exception('No content could be extracted');
             }
-
-            // Update item with extracted content
-            if ($this->item->type !== 'faq' && $this->item->type !== 'text') {
-                $this->item->update(['content' => $content]);
-            }
-
-            // Chunk the content
-            $chunks = $chunker->chunk($content);
 
             Log::debug('[Knowledge] (NO $) Content chunked', [
                 'item_id' => $this->item->id,
@@ -62,7 +53,7 @@ class ProcessKnowledgeItem implements NotTenantAware, ShouldQueue
             // Replace any prior chunk set atomically — guards against the
             // tries=3 retry path appending a duplicate set, and against a
             // partial-insert state surviving when the transaction throws.
-            DB::transaction(function () use ($chunks) {
+            DB::transaction(function () use ($chunks): void {
                 $this->item->chunks()->delete();
 
                 $now = now();
@@ -77,12 +68,9 @@ class ProcessKnowledgeItem implements NotTenantAware, ShouldQueue
                         'updated_at' => $now,
                     ];
                 }
-                if ($rows !== []) {
-                    KnowledgeChunk::insert($rows);
-                }
+                KnowledgeChunk::insert($rows);
             });
 
-            // Dispatch embedding job for each chunk
             GenerateEmbeddings::dispatch($this->item);
 
             Log::debug('[Knowledge] (NO $) Chunks written; embedding job dispatched', [
@@ -104,16 +92,7 @@ class ProcessKnowledgeItem implements NotTenantAware, ShouldQueue
             'item_id' => $this->item->id,
             'error' => $exception->getMessage(),
         ]);
-        $this->item->markAsFailed();
-    }
 
-    private function extractContent(DocumentProcessor $processor): string
-    {
-        return match ($this->item->type) {
-            'document' => $processor->extractFromFile($this->item->file_path),
-            'webpage' => $processor->extractFromUrl($this->item->source_url),
-            'faq', 'text' => $this->item->content ?? '',
-            default => '',
-        };
+        app(KnowledgeItemWorkflow::class)->markFailed($this->item->refresh(), $exception);
     }
 }

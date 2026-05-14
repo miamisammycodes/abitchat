@@ -13,7 +13,6 @@ use App\Models\Tenant;
 use App\Services\Knowledge\DocumentProcessor;
 use App\Services\Knowledge\EmbeddingService;
 use App\Services\Knowledge\KnowledgeItemWorkflow;
-use App\Services\Knowledge\TextChunker;
 use Illuminate\Support\Facades\Queue;
 use Mockery;
 use Tests\TestCase;
@@ -44,7 +43,7 @@ class KnowledgeStatusFlowTest extends TestCase
 
         (new ProcessKnowledgeItem($item))->handle(
             app(DocumentProcessor::class),
-            app(TextChunker::class),
+            app(KnowledgeItemWorkflow::class),
         );
 
         $item->refresh();
@@ -112,7 +111,7 @@ class KnowledgeStatusFlowTest extends TestCase
         $job = new ProcessKnowledgeItem($item);
 
         try {
-            $job->handle(app(DocumentProcessor::class), app(TextChunker::class));
+            $job->handle(app(DocumentProcessor::class), app(KnowledgeItemWorkflow::class));
             $this->fail('Expected exception to be re-thrown');
         } catch (\Throwable) {
             // Expected — DocumentProcessor will throw on a missing file.
