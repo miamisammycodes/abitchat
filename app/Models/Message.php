@@ -16,9 +16,17 @@ class Message extends Model
         'conversation_id',
         'role',
         'content',
+        'content_hash',
         'tokens_used',
         'metadata',
     ];
+
+    protected static function booted(): void
+    {
+        static::saving(function (Message $message) {
+            $message->content_hash = md5((string) $message->content);
+        });
+    }
 
     /** @return array<string, string> */
     protected function casts(): array
