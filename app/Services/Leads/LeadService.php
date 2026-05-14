@@ -103,32 +103,31 @@ class LeadService
      */
     private function updateLead(Lead $lead, Conversation $conversation, array $contactInfo): Lead
     {
-        $updates = [];
-
-        // Update contact info if provided and not already set
+        $contactUpdates = [];
         if (! empty($contactInfo['name']) && empty($lead->name)) {
-            $updates['name'] = $contactInfo['name'];
+            $contactUpdates['name'] = $contactInfo['name'];
         }
         if (! empty($contactInfo['phone']) && empty($lead->phone)) {
-            $updates['phone'] = $contactInfo['phone'];
+            $contactUpdates['phone'] = $contactInfo['phone'];
         }
         if (! empty($contactInfo['company']) && empty($lead->company)) {
-            $updates['company'] = $contactInfo['company'];
+            $contactUpdates['company'] = $contactInfo['company'];
         }
 
-        // Apply the contact-info updates in memory so the rescored value
-        // reflects the latest state (LeadScoring reads from $lead attributes).
-        if ($updates !== []) {
-            $lead->fill($updates);
+        // Apply contact-info updates in memory so LeadScoring reads the
+        // up-to-date attributes (e.g., provided_company fires on the freshly
+        // filled $lead->company).
+        if ($contactUpdates !== []) {
+            $lead->fill($contactUpdates);
         }
 
         $newScore = $this->scoring->score($lead, $conversation);
         if ($newScore !== $lead->score) {
-            $updates['score'] = $newScore;
+            $lead->fill(['score' => $newScore]);
         }
 
-        if ($updates !== []) {
-            $lead->update($updates);
+        if ($lead->isDirty()) {
+            $lead->save();
         }
 
         // Link conversation to lead if not already linked

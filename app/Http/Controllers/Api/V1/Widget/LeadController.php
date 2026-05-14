@@ -69,13 +69,16 @@ class LeadController extends Controller
             }
 
             if ($updates !== []) {
-                $existingLead->update($updates);
+                $existingLead->fill($updates);
             }
 
             $conversation->update(['lead_id' => $existingLead->id]);
 
-            $existingLead->score = $this->scoring->score($existingLead, $conversation);
-            $existingLead->save();
+            $existingLead->fill(['score' => $this->scoring->score($existingLead, $conversation)]);
+
+            if ($existingLead->isDirty()) {
+                $existingLead->save();
+            }
 
             Log::debug('[Lead] (NO $) Existing lead reattached to conversation', [
                 'lead_id' => $existingLead->id,
@@ -88,8 +91,7 @@ class LeadController extends Controller
             ]);
         }
 
-        // Create new lead (score=0 placeholder, rescored below before save).
-        $lead = Lead::create([
+        $lead = new Lead([
             'tenant_id' => $tenant->id,
             'conversation_id' => $conversation->id,
             'name' => $request->name,
@@ -98,15 +100,11 @@ class LeadController extends Controller
             'company' => $request->company,
             'custom_fields' => $request->custom_fields,
             'status' => 'new',
-            'score' => 0,
         ]);
-
-        // Update conversation
-        $conversation->update(['lead_id' => $lead->id]);
-
-        // Calculate and persist score
-        $lead->score = $this->scoring->score($lead, $conversation);
+        $lead->fill(['score' => $this->scoring->score($lead, $conversation)]);
         $lead->save();
+
+        $conversation->update(['lead_id' => $lead->id]);
 
         Log::debug('[Lead] (NO $) New lead captured', [
             'lead_id' => $lead->id,

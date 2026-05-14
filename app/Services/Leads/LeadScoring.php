@@ -123,7 +123,7 @@ class LeadScoring
         }
 
         // Return-visitor signal (cross-conversation).
-        if ($lead->exists && Conversation::where('lead_id', $lead->id)->count() >= 2) {
+        if ($lead->exists && $lead->conversations()->count() >= 2) {
             $score += $this->weights['return_visitor'];
             $fired[] = 'return_visitor';
         }
