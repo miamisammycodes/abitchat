@@ -24,4 +24,19 @@ A meterable event for billing — currently only token consumption per LLM call.
 A YYYY-MM string identifying a calendar month for usage aggregation (e.g. `"2026-05"`). Always derived from `now()->format('Y-m')` at write time.
 
 ## UsageTracker
-The single Module that owns tenant usage: writes Usage Records, answers "how much of X has tenant T used in period P", resolves Plan/Trial limits, and busts the per-tenant usage cache on write. Lives at `app/Services/Usage/UsageTracker.php`. Every read or write of usage goes through it; direct `UsageRecord::create` or per-tenant aggregation queries should not appear elsewhere.
+The single Module that owns tenant usage: writes Usage Records, answers "how much of X has tenant T used in period P", resolves Plan/Trial limits, decides whether a tenant may record more usage of a type (`canRecordUsage(Tenant, type): bool` — the canonical "is this action allowed by usage rules" answer; future home for grace periods / soft caps / overage rules), and busts the per-tenant usage cache on write. Lives at `app/Services/Usage/UsageTracker.php`. Every read, write, or enforcement decision about usage goes through it; direct `UsageRecord::create`, per-tenant aggregation queries, or threshold tests like `remaining(...) === 0` should not appear elsewhere.
+
+## DocumentProcessor
+The single Module that owns "knowledge item → text → chunks". Lives at `app/Services/Knowledge/DocumentProcessor.php`. Public interface is `process(KnowledgeItem): array<string>` — dispatches by type (document/webpage/faq/text), extracts text (with SSRF protection for URLs), chunks at fixed size 500 / overlap 50, returns the chunk strings. Extraction internals and chunking helpers are private. Callers (currently only `ProcessKnowledgeItem`) get the full pipeline behind one method.
+
+## KnowledgeCache
+The single Module that owns the retrieval cache for knowledge chunks. Lives at `app/Services/Knowledge/KnowledgeCache.php`. Owns the cache key shape (`knowledge:{tenant}:v{version}:{md5(query)}`), the version-key shape (`knowledge_version:{tenant}`), and the TTL (600s). Public interface is `get(Tenant, string $query): ?array`, `put(Tenant, string $query, array $chunks): void`, `invalidate(Tenant): void`. Direct `Cache::increment("knowledge_version:...")` calls or knowledge cache-key string construction should not appear elsewhere; mutations on KnowledgeItem call `invalidate()`.
+
+## KnowledgeItemWorkflow
+The single Module that owns Knowledge Item state transitions. Lives at `app/Services/Knowledge/KnowledgeItemWorkflow.php`. Backed by a `KnowledgeItemStatus` PHP enum (Pending, Processing, Ready, Failed). Public methods `markProcessing`, `markReady`, `markFailed(Throwable)`, `retry` enforce precondition checks and throw `InvalidTransitionException` on illegal transitions. Failed items capture `error_message` and `failed_at`; `retry` clears both and re-dispatches `ProcessKnowledgeItem`. Direct `$item->status = ...` or `$item->update(['status' => ...])` should not occur outside the workflow.
+
+## LeadScoring
+The single Module that owns Lead Score computation. Lives at `app/Services/Leads/LeadScoring.php`. Holds signal definitions, weight tables, keyword dictionaries, and temperature thresholds (hot/warm/cold). Public interface is `score(Lead, ?Conversation): int` and `temperature(int): string`. Both the chat-message-driven path (`LeadService::captureFromConversation`) and the widget-form path (`Widget\LeadController::store`) go through it. Direct manipulation of `lead->score` outside `Lead::updateScore()` should not occur.
+
+## BelongsToTenant
+The trait at `app/Models/Concerns/BelongsToTenant.php` that all tenant-scoped models use. Provides the `forTenant(Tenant|int)` query scope and a `creating` boot hook that auto-stamps `tenant_id` from `Auth::user()->tenant_id` when omitted. A Larastan rule blocks raw `where('tenant_id', ...)` calls outside the trait — all tenant scoping flows through `forTenant`.
