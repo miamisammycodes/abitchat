@@ -469,10 +469,10 @@ perf(analytics): group top questions by indexed content_hash (M-NEW-10)
 Previously GROUP BY content (unindexed text column) forced a full
 scan + filesort. At a million messages per tenant, the analytics
 page gateway-timed out. Add a char(32) content_hash column with a
-composite (conversation_id, role, content_hash) index, populate via
-a Message::saving boot hook, and backfill non-SQLite drivers in the
-migration. The refactored getTopQuestions groups by the hash and
-returns MAX(content) as a representative sample per group.
+standalone index, populate via a Message::saving boot hook, and
+backfill non-SQLite drivers in the migration. The refactored
+getTopQuestions groups by the hash and returns MAX(content) as a
+representative sample per group.
 
 🤖 Generated with Claude Code
 Co-Authored-By: Claude <noreply@anthropic.com>
@@ -851,7 +851,7 @@ Cluster 5 of the medium-backlog spec — misc operational fixes. M3 was dropped 
    SELECT COUNT(*) FROM messages;
    \`\`\`
    Under 10M rows: run migrate normally. Over 10M: run in a maintenance window, or batch the backfill in 100k-row chunks via a follow-up data migration.
-3. \`php artisan migrate\` — adds the column + composite index. The composite \`(conversation_id, role, content_hash)\` is online-safe on MySQL 8.
+3. \`php artisan migrate\` — adds the column + standalone \`content_hash\` index. \`ALTER TABLE ... ADD INDEX\` on InnoDB is online-safe on MySQL 8.
 
 ## ⚠️ Behavior changes
 
