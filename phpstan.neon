@@ -19,3 +19,6 @@ parameters:
         # Metadata array casts work correctly at runtime
         - '#Property App\\Models\\KnowledgeItem::\$metadata .* does not accept array#'
     reportUnmatchedIgnoredErrors: true
+
+rules:
+    - App\Rules\PHPStan\NoRawTenantIdWhere
