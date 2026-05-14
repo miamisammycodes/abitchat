@@ -88,6 +88,18 @@ function adjustScore() {
   })
 }
 
+function cancelStatus() {
+  statusForm.reset()
+  statusForm.clearErrors()
+  showStatusModal.value = false
+}
+
+function cancelScore() {
+  scoreForm.reset()
+  scoreForm.clearErrors()
+  showScoreModal.value = false
+}
+
 function deleteLead() {
   if (confirm('Are you sure you want to delete this lead? This action cannot be undone.')) {
     router.delete(route('client.leads.destroy', props.lead.id))
@@ -292,7 +304,7 @@ function deleteLead() {
     <!-- Status Modal -->
     <div v-if="showStatusModal" class="fixed inset-0 z-50 overflow-y-auto">
       <div class="flex items-center justify-center min-h-screen px-4">
-        <div class="fixed inset-0 bg-black/50" @click="showStatusModal = false"></div>
+        <div class="fixed inset-0 bg-black/50" @click="cancelStatus"></div>
         <Card class="relative max-w-md w-full">
           <CardHeader>
             <CardTitle>Change Status</CardTitle>
@@ -316,7 +328,7 @@ function deleteLead() {
             </div>
 
             <div class="flex gap-3">
-              <Button variant="outline" class="flex-1" @click="showStatusModal = false">
+              <Button variant="outline" class="flex-1" @click="cancelStatus">
                 Cancel
               </Button>
               <Button class="flex-1" @click="updateStatus" :disabled="statusForm.processing">
@@ -331,7 +343,7 @@ function deleteLead() {
     <!-- Score Modal -->
     <div v-if="showScoreModal" class="fixed inset-0 z-50 overflow-y-auto">
       <div class="flex items-center justify-center min-h-screen px-4">
-        <div class="fixed inset-0 bg-black/50" @click="showScoreModal = false"></div>
+        <div class="fixed inset-0 bg-black/50" @click="cancelScore"></div>
         <Card class="relative max-w-md w-full">
           <CardHeader>
             <CardTitle>Adjust Score</CardTitle>
@@ -373,7 +385,7 @@ function deleteLead() {
             </div>
 
             <div class="flex gap-3">
-              <Button variant="outline" class="flex-1" @click="showScoreModal = false">
+              <Button variant="outline" class="flex-1" @click="cancelScore">
                 Cancel
               </Button>
               <Button
