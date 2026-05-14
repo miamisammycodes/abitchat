@@ -16,9 +16,24 @@ class Message extends Model
         'conversation_id',
         'role',
         'content',
+        'content_hash',
         'tokens_used',
         'metadata',
     ];
+
+    protected static function booted(): void
+    {
+        static::saving(function (Message $message) {
+            // Only recompute when content actually changed. Without this guard,
+            // every unrelated update (tokens_used, metadata) re-writes the hash
+            // column with the same value and marks it dirty. isDirty returns
+            // true on a fresh unsaved model when content has been set, so this
+            // covers both create and update paths.
+            if ($message->isDirty('content')) {
+                $message->content_hash = md5((string) $message->content);
+            }
+        });
+    }
 
     /** @return array<string, string> */
     protected function casts(): array

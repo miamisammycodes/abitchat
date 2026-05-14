@@ -188,26 +188,31 @@ class AnalyticsService
     }
 
     /**
-     * Get top questions (most common user messages)
+     * Get top questions (most common user messages).
+     *
+     * Groups by content_hash (indexed) so the query is index-eligible
+     * regardless of message volume. MAX(content) returns one
+     * representative content string per group — duplicates share the
+     * same hash so any sample is equivalent.
      *
      * @return array<int, array<string, mixed>>
      */
     public function getTopQuestions(Tenant $tenant, int $limit = 10): array
     {
-        $messages = Message::whereHas('conversation', fn ($q) => $q->where('tenant_id', $tenant->id))
+        $rows = Message::whereHas('conversation', fn ($q) => $q->where('tenant_id', $tenant->id))
             ->where('role', 'user')
             ->where('created_at', '>=', now()->subDays(30))
-            ->selectRaw('content, COUNT(*) as count')
-            ->groupBy('content')
+            ->selectRaw('MAX(content) AS sample, COUNT(*) AS count')
+            ->groupBy('content_hash')
             ->orderByDesc('count')
             ->limit($limit)
             ->get();
 
         $result = [];
-        foreach ($messages as $m) {
+        foreach ($rows as $row) {
             $result[] = [
-                'question' => strlen($m->content) > 100 ? substr($m->content, 0, 100).'...' : $m->content,
-                'count' => $m->count,
+                'question' => strlen($row->sample) > 100 ? substr($row->sample, 0, 100).'...' : $row->sample,
+                'count' => (int) $row->count,
             ];
         }
 

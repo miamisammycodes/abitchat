@@ -128,6 +128,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::put('clients/{client}/status', [AdminClientController::class, 'updateStatus'])->name('clients.update-status');
         Route::put('clients/{client}/plan', [AdminClientController::class, 'updatePlan'])->name('clients.update-plan');
         Route::put('clients/{client}/bot-personality', [AdminClientController::class, 'updateBotPersonality'])->name('clients.update-bot-personality');
+        Route::post('clients/{id}/restore', [AdminClientController::class, 'restore'])->name('clients.restore');
 
         // Plan Management
         Route::get('plans', [AdminPlanController::class, 'index'])->name('plans.index');

@@ -42,15 +42,23 @@ class ClientController extends Controller
             $query->where('plan_id', $request->plan);
         }
 
+        // Trashed filter — preserve default of active-only.
+        $trashed = $request->input('trashed');
+        if ($trashed === 'with') {
+            $query->withTrashed();
+        } elseif ($trashed === 'only') {
+            $query->onlyTrashed();
+        }
+
         // Sort
         $sortField = (string) $request->input('sort', 'created_at');
         $sortDirection = (string) $request->input('direction', 'desc');
         $allowedSorts = ['name', 'created_at', 'status', 'conversations_count', 'leads_count'];
 
-        if (!in_array($sortField, $allowedSorts, true)) {
+        if (! in_array($sortField, $allowedSorts, true)) {
             $sortField = 'created_at';
         }
-        if (!in_array($sortDirection, ['asc', 'desc'], true)) {
+        if (! in_array($sortDirection, ['asc', 'desc'], true)) {
             $sortDirection = 'desc';
         }
 
@@ -65,6 +73,7 @@ class ClientController extends Controller
                 'search' => $request->input('search', ''),
                 'status' => $request->input('status', 'all'),
                 'plan' => $request->input('plan', 'all'),
+                'trashed' => $request->input('trashed', ''),
                 'sort' => $sortField,
                 'direction' => $sortDirection,
             ],
@@ -141,6 +150,19 @@ class ClientController extends Controller
         ]);
     }
 
+    public function restore(int $id): RedirectResponse
+    {
+        // Route uses {id} (not {client}) so the global Route::bind('client')
+        // — which calls Tenant::findOrFail under the default soft-delete
+        // scope — doesn't 404 on the row we need to restore.
+        $tenant = Tenant::onlyTrashed()->findOrFail($id);
+        $tenant->restore();
+
+        return redirect()
+            ->route('admin.clients.show', $tenant->id)
+            ->with('success', 'Tenant restored.');
+    }
+
     public function updateStatus(Request $request, Tenant $client): RedirectResponse
     {
         $validated = $request->validate([
@@ -180,7 +202,7 @@ class ClientController extends Controller
         $validated = $request->validate([
             'bot_type' => 'required|in:support,sales,information,hybrid',
             'bot_tone' => 'required|in:formal,friendly,casual',
-            'bot_custom_instructions' => 'nullable|string|max:' . Tenant::MAX_CUSTOM_INSTRUCTIONS_CHARS,
+            'bot_custom_instructions' => 'nullable|string|max:'.Tenant::MAX_CUSTOM_INSTRUCTIONS_CHARS,
         ]);
 
         $client->update($validated);
