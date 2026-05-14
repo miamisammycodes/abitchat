@@ -43,6 +43,8 @@ class UsageTrackerCanRecordUsageTest extends TestCase
 
     private function consumeConversations(Tenant $tenant, int $count): void
     {
+        // BustsTenantUsageCache (on Conversation) fires forgetCacheForTenant
+        // on each created event — no explicit cache-bust needed here.
         for ($i = 0; $i < $count; $i++) {
             Conversation::create([
                 'tenant_id' => $tenant->id,
@@ -50,8 +52,6 @@ class UsageTrackerCanRecordUsageTest extends TestCase
                 'status' => 'active',
             ]);
         }
-        // Bust the per-tenant usage cache so the next remaining() call hits DB.
-        app(UsageTracker::class)->forgetCache($tenant);
     }
 
     public function test_returns_true_when_limit_is_unlimited(): void
