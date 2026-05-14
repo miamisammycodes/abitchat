@@ -10,6 +10,11 @@ use App\Models\Concerns\BustsTenantUsageCache;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property KnowledgeItemStatus $status
+ * @property string|null $error_message
+ * @property \Illuminate\Support\Carbon|null $failed_at
+ */
 class KnowledgeItem extends Model
 {
     use BelongsToTenant, BustsTenantUsageCache;
