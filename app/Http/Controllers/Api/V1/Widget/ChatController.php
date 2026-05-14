@@ -128,8 +128,9 @@ class ChatController extends Controller
         }
 
         try {
-            $conversation = Conversation::where('id', $conversationId)
-                ->where('tenant_id', $tenant->id)
+            $conversation = Conversation::query()
+                ->whereKey($conversationId)
+                ->forTenant($tenant)
                 ->first();
 
             if (! $conversation) {
@@ -208,8 +209,9 @@ class ChatController extends Controller
         }
 
         try {
-            $conversation = Conversation::where('id', $conversationId)
-                ->where('tenant_id', $tenant->id)
+            $conversation = Conversation::query()
+                ->whereKey($conversationId)
+                ->forTenant($tenant)
                 ->first();
         } catch (\Throwable $e) {
             Log::error('[Widget] Failed to prepare stream', ['error' => $e->getMessage()]);
@@ -294,8 +296,9 @@ class ChatController extends Controller
             return $this->errorResponse('Invalid API key', 'TENANT_NOT_FOUND', 401);
         }
 
-        $conversation = Conversation::where('id', $request->conversation_id)
-            ->where('tenant_id', $tenant->id)
+        $conversation = Conversation::query()
+            ->whereKey($request->conversation_id)
+            ->forTenant($tenant)
             ->first();
 
         if (! $conversation) {
