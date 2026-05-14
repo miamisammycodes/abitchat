@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class UsageRecord extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
         'tenant_id',
         'conversation_id',
@@ -25,12 +28,6 @@ class UsageRecord extends Model
             'quantity' => 'integer',
             'metadata' => 'array',
         ];
-    }
-
-    /** @return BelongsTo<Tenant, $this> */
-    public function tenant(): BelongsTo
-    {
-        return $this->belongsTo(Tenant::class);
     }
 
     /** @return BelongsTo<Conversation, $this> */

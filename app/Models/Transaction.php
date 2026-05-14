@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Transaction extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
         'tenant_id',
         'plan_id',
@@ -30,12 +33,6 @@ class Transaction extends Model
         'payment_date' => 'date',
         'approved_at' => 'datetime',
     ];
-
-    /** @return BelongsTo<Tenant, $this> */
-    public function tenant(): BelongsTo
-    {
-        return $this->belongsTo(Tenant::class);
-    }
 
     /** @return BelongsTo<Plan, $this> */
     public function plan(): BelongsTo

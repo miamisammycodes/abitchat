@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToTenant;
 use App\Models\Concerns\BustsTenantUsageCache;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Lead extends Model
 {
-    use BustsTenantUsageCache;
+    use BelongsToTenant, BustsTenantUsageCache;
 
     protected $fillable = [
         'tenant_id',
@@ -35,12 +36,6 @@ class Lead extends Model
             'custom_fields' => 'array',
             'metadata' => 'array',
         ];
-    }
-
-    /** @return BelongsTo<Tenant, $this> */
-    public function tenant(): BelongsTo
-    {
-        return $this->belongsTo(Tenant::class);
     }
 
     /** @return BelongsTo<Conversation, $this> */

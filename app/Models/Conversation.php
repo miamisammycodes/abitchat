@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToTenant;
 use App\Models\Concerns\BustsTenantUsageCache;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Conversation extends Model
 {
-    use BustsTenantUsageCache, HasFactory;
+    use BelongsToTenant, BustsTenantUsageCache, HasFactory;
 
     protected $fillable = [
         'tenant_id',
@@ -30,12 +31,6 @@ class Conversation extends Model
         return [
             'metadata' => 'array',
         ];
-    }
-
-    /** @return BelongsTo<Tenant, $this> */
-    public function tenant(): BelongsTo
-    {
-        return $this->belongsTo(Tenant::class);
     }
 
     /** @return BelongsTo<Lead, $this> */
@@ -74,15 +69,6 @@ class Conversation extends Model
     public function archive(): void
     {
         $this->update(['status' => 'archived']);
-    }
-
-    /**
-     * @param  Builder<Conversation>  $query
-     * @return Builder<Conversation>
-     */
-    public function scopeForTenant(Builder $query, Tenant $tenant): Builder
-    {
-        return $query->where('tenant_id', $tenant->id);
     }
 
     /**

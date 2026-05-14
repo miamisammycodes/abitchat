@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class EnterpriseInquiry extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
         'tenant_id',
         'name',
@@ -24,12 +26,6 @@ class EnterpriseInquiry extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
-
-    /** @return BelongsTo<Tenant, $this> */
-    public function tenant(): BelongsTo
-    {
-        return $this->belongsTo(Tenant::class);
-    }
 
     /** @param Builder<self> $query */
     public function scopePending(Builder $query): void
