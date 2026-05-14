@@ -9,12 +9,6 @@ parameters:
 		-
 			message: '#^Raw where\(''tenant_id'', \.\.\.\) bypasses tenant scoping\. Use forTenant\(\$tenant\) instead\.$#'
 			identifier: tenancy.rawTenantId
-			count: 8
-			path: app/Http/Controllers/Admin/ClientController.php
-
-		-
-			message: '#^Raw where\(''tenant_id'', \.\.\.\) bypasses tenant scoping\. Use forTenant\(\$tenant\) instead\.$#'
-			identifier: tenancy.rawTenantId
 			count: 3
 			path: app/Http/Controllers/Api/V1/Widget/ChatController.php
 
