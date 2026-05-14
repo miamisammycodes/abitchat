@@ -8,7 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Conversation;
 use App\Models\Lead;
 use App\Models\Tenant;
-use App\Services\Leads\LeadScoringService;
+use App\Services\Leads\LeadScoring;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Log;
 class LeadController extends Controller
 {
     public function __construct(
-        private LeadScoringService $scoringService
+        private LeadScoring $scoring
     ) {}
 
     /**
@@ -40,8 +40,9 @@ class LeadController extends Controller
             return response()->json(['error' => 'Invalid API key'], 401);
         }
 
-        $conversation = Conversation::where('id', $request->conversation_id)
-            ->where('tenant_id', $tenant->id)
+        $conversation = Conversation::query()
+            ->whereKey($request->conversation_id)
+            ->forTenant($tenant)
             ->first();
 
         if (! $conversation) {
@@ -51,7 +52,7 @@ class LeadController extends Controller
         // Check for existing lead by email (deduplication)
         $existingLead = null;
         if ($request->email) {
-            $existingLead = Lead::where('tenant_id', $tenant->id)
+            $existingLead = Lead::forTenant($tenant)
                 ->where('email', $request->email)
                 ->first();
         }
@@ -73,7 +74,8 @@ class LeadController extends Controller
 
             $conversation->update(['lead_id' => $existingLead->id]);
 
-            $this->scoringService->updateLeadScore($existingLead);
+            $existingLead->score = $this->scoring->score($existingLead, $conversation);
+            $existingLead->save();
 
             Log::debug('[Lead] (NO $) Existing lead reattached to conversation', [
                 'lead_id' => $existingLead->id,
@@ -86,7 +88,7 @@ class LeadController extends Controller
             ]);
         }
 
-        // Create new lead
+        // Create new lead (score=0 placeholder, rescored below before save).
         $lead = Lead::create([
             'tenant_id' => $tenant->id,
             'conversation_id' => $conversation->id,
@@ -102,8 +104,9 @@ class LeadController extends Controller
         // Update conversation
         $conversation->update(['lead_id' => $lead->id]);
 
-        // Calculate and update score
-        $this->scoringService->updateLeadScore($lead);
+        // Calculate and persist score
+        $lead->score = $this->scoring->score($lead, $conversation);
+        $lead->save();
 
         Log::debug('[Lead] (NO $) New lead captured', [
             'lead_id' => $lead->id,
