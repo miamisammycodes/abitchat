@@ -258,11 +258,11 @@ function deleteLead() {
             </CardHeader>
             <CardContent>
               <div
-                v-if="(lead.conversations?.length ?? 0) > 1"
+                v-if="(lead.conversations?.length ?? 0) > 1 && lead.conversation?.messages?.length"
                 class="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-200"
                 role="note"
               >
-                Showing the latest of {{ lead.conversations.length }} conversations. Older transcripts aren't displayed on this page.
+                Showing the conversation where this lead was captured. This lead has {{ lead.conversations.length }} conversations in total — other transcripts aren't displayed on this page.
               </div>
               <div v-if="lead.conversation?.messages?.length" class="space-y-4 max-h-[500px] overflow-y-auto">
                 <div
