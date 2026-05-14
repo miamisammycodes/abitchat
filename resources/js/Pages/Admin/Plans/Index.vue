@@ -1,7 +1,7 @@
 <script setup>
 import AdminLayout from '@/Layouts/AdminLayout.vue'
 import { Link, router } from '@inertiajs/vue3'
-import { ref, watch } from 'vue'
+import { reactive, ref, watch } from 'vue'
 import { useRoute } from '@/composables/useRoute'
 import { debounce } from 'lodash'
 import { Card, CardContent } from '@/Components/ui/card'
@@ -29,6 +29,7 @@ const props = defineProps({
 
 const search = ref(props.filters.search)
 const status = ref(props.filters.status)
+const togglingIds = reactive(new Set())
 
 const applyFilters = debounce(() => {
     router.get(route('admin.plans.index'), {
@@ -53,8 +54,15 @@ const filterByStatus = (newStatus) => {
 }
 
 const togglePlanStatus = (plan) => {
+    if (togglingIds.has(plan.id)) {
+        return
+    }
+    togglingIds.add(plan.id)
     router.patch(route('admin.plans.toggle', plan.id), {}, {
         preserveState: true,
+        onFinish: () => {
+            togglingIds.delete(plan.id)
+        },
     })
 }
 
@@ -186,6 +194,7 @@ const formatLimit = (limit) => {
                             <TableCell>
                                 <Switch
                                     :checked="plan.is_active"
+                                    :disabled="togglingIds.has(plan.id)"
                                     @update:checked="togglePlanStatus(plan)"
                                 />
                             </TableCell>

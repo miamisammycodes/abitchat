@@ -59,6 +59,18 @@ const updatePlan = () => {
     })
 }
 
+const cancelStatus = () => {
+    statusForm.reset()
+    statusForm.clearErrors()
+    showStatusModal.value = false
+}
+
+const cancelPlan = () => {
+    planForm.reset()
+    planForm.clearErrors()
+    showPlanModal.value = false
+}
+
 const updateBotPersonality = () => {
     botPersonalityForm.put(route('admin.clients.update-bot-personality', props.client.id))
 }
@@ -351,7 +363,7 @@ const getStatusVariant = (status) => {
                             <Button
                                 type="button"
                                 variant="ghost"
-                                @click="showStatusModal = false"
+                                @click="cancelStatus"
                             >
                                 Cancel
                             </Button>
@@ -401,7 +413,7 @@ const getStatusVariant = (status) => {
                             <Button
                                 type="button"
                                 variant="ghost"
-                                @click="showPlanModal = false"
+                                @click="cancelPlan"
                             >
                                 Cancel
                             </Button>

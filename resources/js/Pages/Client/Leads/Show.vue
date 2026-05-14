@@ -88,6 +88,18 @@ function adjustScore() {
   })
 }
 
+function cancelStatus() {
+  statusForm.reset()
+  statusForm.clearErrors()
+  showStatusModal.value = false
+}
+
+function cancelScore() {
+  scoreForm.reset()
+  scoreForm.clearErrors()
+  showScoreModal.value = false
+}
+
 function deleteLead() {
   if (confirm('Are you sure you want to delete this lead? This action cannot be undone.')) {
     router.delete(route('client.leads.destroy', props.lead.id))
@@ -245,6 +257,13 @@ function deleteLead() {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              <div
+                v-if="(lead.conversations?.length ?? 0) > 1 && lead.conversation?.messages?.length"
+                class="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-200"
+                role="note"
+              >
+                Showing the conversation where this lead was captured. This lead has {{ lead.conversations.length }} conversations in total — other transcripts aren't displayed on this page.
+              </div>
               <div v-if="lead.conversation?.messages?.length" class="space-y-4 max-h-[500px] overflow-y-auto">
                 <div
                   v-for="message in lead.conversation.messages"
@@ -285,7 +304,7 @@ function deleteLead() {
     <!-- Status Modal -->
     <div v-if="showStatusModal" class="fixed inset-0 z-50 overflow-y-auto">
       <div class="flex items-center justify-center min-h-screen px-4">
-        <div class="fixed inset-0 bg-black/50" @click="showStatusModal = false"></div>
+        <div class="fixed inset-0 bg-black/50" @click="cancelStatus"></div>
         <Card class="relative max-w-md w-full">
           <CardHeader>
             <CardTitle>Change Status</CardTitle>
@@ -309,7 +328,7 @@ function deleteLead() {
             </div>
 
             <div class="flex gap-3">
-              <Button variant="outline" class="flex-1" @click="showStatusModal = false">
+              <Button variant="outline" class="flex-1" @click="cancelStatus">
                 Cancel
               </Button>
               <Button class="flex-1" @click="updateStatus" :disabled="statusForm.processing">
@@ -324,7 +343,7 @@ function deleteLead() {
     <!-- Score Modal -->
     <div v-if="showScoreModal" class="fixed inset-0 z-50 overflow-y-auto">
       <div class="flex items-center justify-center min-h-screen px-4">
-        <div class="fixed inset-0 bg-black/50" @click="showScoreModal = false"></div>
+        <div class="fixed inset-0 bg-black/50" @click="cancelScore"></div>
         <Card class="relative max-w-md w-full">
           <CardHeader>
             <CardTitle>Adjust Score</CardTitle>
@@ -366,7 +385,7 @@ function deleteLead() {
             </div>
 
             <div class="flex gap-3">
-              <Button variant="outline" class="flex-1" @click="showScoreModal = false">
+              <Button variant="outline" class="flex-1" @click="cancelScore">
                 Cancel
               </Button>
               <Button
