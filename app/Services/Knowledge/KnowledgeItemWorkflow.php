@@ -93,11 +93,10 @@ class KnowledgeItemWorkflow
     private function assertSourceIn(KnowledgeItem $item, array $allowed, KnowledgeItemStatus $target): void
     {
         if (! in_array($item->status, $allowed, true)) {
-            $current = is_string($item->status) ? $item->status : $item->status->value;
             throw new InvalidTransitionException(sprintf(
                 'KnowledgeItem #%d cannot transition %s → %s (allowed sources: %s)',
                 $item->id,
-                $current,
+                $item->status->value,
                 $target->value,
                 implode(', ', array_map(fn (KnowledgeItemStatus $s) => $s->value, $allowed)),
             ));
@@ -108,11 +107,10 @@ class KnowledgeItemWorkflow
     private function assertSourceNotIn(KnowledgeItem $item, array $forbidden, KnowledgeItemStatus $target): void
     {
         if (in_array($item->status, $forbidden, true)) {
-            $current = is_string($item->status) ? $item->status : $item->status->value;
             throw new InvalidTransitionException(sprintf(
                 'KnowledgeItem #%d cannot transition %s → %s (forbidden source)',
                 $item->id,
-                $current,
+                $item->status->value,
                 $target->value,
             ));
         }
