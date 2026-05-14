@@ -24,7 +24,12 @@ class Message extends Model
     protected static function booted(): void
     {
         static::saving(function (Message $message) {
-            $message->content_hash = md5((string) $message->content);
+            // Only recompute when content actually changed. Without this guard,
+            // every unrelated update (tokens_used, metadata) re-writes the hash
+            // column with the same value and marks it dirty.
+            if (! $message->exists || $message->isDirty('content')) {
+                $message->content_hash = md5((string) $message->content);
+            }
         });
     }
 

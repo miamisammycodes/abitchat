@@ -152,6 +152,9 @@ class ClientController extends Controller
 
     public function restore(int $id): RedirectResponse
     {
+        // Route uses {id} (not {client}) so the global Route::bind('client')
+        // — which calls Tenant::findOrFail under the default soft-delete
+        // scope — doesn't 404 on the row we need to restore.
         $tenant = Tenant::onlyTrashed()->findOrFail($id);
         $tenant->restore();
 
