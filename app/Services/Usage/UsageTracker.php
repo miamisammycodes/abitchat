@@ -71,7 +71,7 @@ final class UsageTracker
     public function usageInPeriod(Tenant $tenant, string $type, string $period): int
     {
         return match ($type) {
-            self::TYPE_TOKENS => (int) UsageRecord::where('tenant_id', $tenant->id)
+            self::TYPE_TOKENS => (int) UsageRecord::forTenant($tenant)
                 ->where('type', self::TYPE_TOKENS)
                 ->where('period', $period)
                 ->sum('quantity'),
@@ -133,6 +133,23 @@ final class UsageTracker
         $used = $this->monthlyUsage($tenant)[$type] ?? 0;
 
         return max(0, $limit - $used);
+    }
+
+    /**
+     * May this tenant record more usage of the given type?
+     *
+     * Returns true when the type is unlimited / unknown OR when remaining > 0.
+     * Returns false when remaining is finite AND ≤ 0. The `<= 0` check (vs a
+     * strict `=== 0`) is defensive: today `remaining()` clamps to ≥ 0, but if
+     * an over-consumed tenant somehow lands a negative remainder, the gate
+     * must still block. Future grace periods / soft caps / overage allowances
+     * would slot in here.
+     */
+    public function canRecordUsage(Tenant $tenant, string $type): bool
+    {
+        $remaining = $this->remaining($tenant, $type);
+
+        return $remaining === null || $remaining > 0;
     }
 
     public static function currentPeriod(): string
