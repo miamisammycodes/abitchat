@@ -131,9 +131,3 @@ parameters:
 			identifier: argument.type
 			count: 1
 			path: app/Services/Usage/UsageTracker.php
-
-		-
-			message: '#^Raw where\(''tenant_id'', \.\.\.\) bypasses tenant scoping\. Use forTenant\(\$tenant\) instead\.$#'
-			identifier: tenancy.rawTenantId
-			count: 1
-			path: app/Services/Usage/UsageTracker.php

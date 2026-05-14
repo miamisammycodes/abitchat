@@ -18,7 +18,7 @@ class CheckUsageLimits
     /**
      * Handle an incoming request.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * @param  Closure(Request): (Response)  $next
      * @param  string  $type  The type of limit to check (conversations, knowledge_items, leads, tokens)
      */
     public function handle(Request $request, Closure $next, string $type): Response
@@ -43,8 +43,7 @@ class CheckUsageLimits
             );
         }
 
-        $remaining = $this->tracker->remaining($tenant, $type);
-        if ($remaining === 0) {
+        if (! $this->tracker->canRecordUsage($tenant, $type)) {
             $messages = [
                 'conversations' => 'You have reached your monthly conversation limit.',
                 'knowledge_items' => 'You have reached your knowledge items limit.',
