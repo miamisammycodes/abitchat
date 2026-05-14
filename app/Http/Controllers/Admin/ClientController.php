@@ -55,10 +55,10 @@ class ClientController extends Controller
         $sortDirection = (string) $request->input('direction', 'desc');
         $allowedSorts = ['name', 'created_at', 'status', 'conversations_count', 'leads_count'];
 
-        if (!in_array($sortField, $allowedSorts, true)) {
+        if (! in_array($sortField, $allowedSorts, true)) {
             $sortField = 'created_at';
         }
-        if (!in_array($sortDirection, ['asc', 'desc'], true)) {
+        if (! in_array($sortDirection, ['asc', 'desc'], true)) {
             $sortDirection = 'desc';
         }
 
@@ -199,7 +199,7 @@ class ClientController extends Controller
         $validated = $request->validate([
             'bot_type' => 'required|in:support,sales,information,hybrid',
             'bot_tone' => 'required|in:formal,friendly,casual',
-            'bot_custom_instructions' => 'nullable|string|max:' . Tenant::MAX_CUSTOM_INSTRUCTIONS_CHARS,
+            'bot_custom_instructions' => 'nullable|string|max:'.Tenant::MAX_CUSTOM_INSTRUCTIONS_CHARS,
         ]);
 
         $client->update($validated);
