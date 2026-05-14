@@ -140,6 +140,8 @@ function truncate(text, n = 80) {
               :key="link.label"
               :href="link.url || ''"
               v-html="link.label"
+              :tabindex="link.url ? null : -1"
+              :aria-disabled="!link.url"
               :class="[
                 'rounded px-3 py-1 text-sm',
                 link.active ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
