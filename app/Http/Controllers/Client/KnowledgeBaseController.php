@@ -102,7 +102,7 @@ class KnowledgeBaseController extends Controller
         $item->save();
 
         // Dispatch job to process the knowledge item
-        ProcessKnowledgeItem::dispatch($item);
+        $this->dispatchProcessing($item);
 
         $this->clearKnowledgeCache($tenant);
 
@@ -171,7 +171,7 @@ class KnowledgeBaseController extends Controller
         // Re-process if content changed
         if ($item->wasChanged('content') || $item->wasChanged('source_url')) {
             $item->chunks()->delete();
-            ProcessKnowledgeItem::dispatch($item);
+            $this->dispatchProcessing($item);
         }
 
         $this->clearKnowledgeCache($this->getTenant());
@@ -210,7 +210,7 @@ class KnowledgeBaseController extends Controller
         $item->chunks()->delete();
         $item->update(['status' => 'pending']);
 
-        ProcessKnowledgeItem::dispatch($item);
+        $this->dispatchProcessing($item);
 
         $this->clearKnowledgeCache($this->getTenant());
 
@@ -221,5 +221,29 @@ class KnowledgeBaseController extends Controller
     private function clearKnowledgeCache(Tenant $tenant): void
     {
         Cache::increment("knowledge_version:{$tenant->id}");
+    }
+
+    /**
+     * Dispatch ProcessKnowledgeItem in a way that doesn't block the HTTP response.
+     *
+     * Under a real queue driver (redis, database) plain dispatch() is already
+     * non-blocking. Under QUEUE_CONNECTION=sync (dev or misconfigured prod),
+     * plain dispatch() blocks the request for the full processing duration —
+     * including DocumentProcessor::extractFromUrl's 30s HTTP fetch. Use
+     * dispatchAfterResponse only in that case so the response goes out first.
+     *
+     * Note: dispatchAfterResponse internally calls dispatchSync which forces
+     * the 'sync' connection regardless of config. Routing through it only
+     * makes sense when the configured driver is already sync.
+     */
+    private function dispatchProcessing(KnowledgeItem $item): void
+    {
+        if (config('queue.default') === 'sync') {
+            ProcessKnowledgeItem::dispatchAfterResponse($item);
+
+            return;
+        }
+
+        ProcessKnowledgeItem::dispatch($item);
     }
 }

@@ -97,7 +97,11 @@ class DocumentProcessor
             $zip->close();
 
             if ($xmlContent) {
-                // Strip XML tags to get plain text
+                // OOXML splits text across <w:t> runs within <w:r> elements;
+                // strip_tags alone would merge adjacent runs into one word.
+                // Insert a space at every </w:t> and a newline at every </w:p>
+                // before stripping.
+                $xmlContent = str_replace(['</w:t>', '</w:p>'], [' ', "\n"], $xmlContent);
                 $content = strip_tags($xmlContent);
             }
         }
@@ -110,7 +114,7 @@ class DocumentProcessor
         // Use DOMDocument for proper HTML parsing
         $dom = new \DOMDocument;
         libxml_use_internal_errors(true);
-        $dom->loadHTML('<?xml encoding="UTF-8">' . $html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+        $dom->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
         libxml_clear_errors();
 
         // Remove non-content elements

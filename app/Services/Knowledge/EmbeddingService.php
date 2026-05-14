@@ -64,17 +64,30 @@ class EmbeddingService
             );
         }
 
+        if (count($vector) !== self::DIMENSIONS) {
+            Log::error('[Embeddings] Provider returned wrong-dimension vector', [
+                'provider' => $providerName,
+                'model' => $model,
+                'expected_dimensions' => self::DIMENSIONS,
+                'actual_dimensions' => count($vector),
+            ]);
+            throw new EmbeddingGenerationException(
+                "Embedding provider {$providerName} returned ".count($vector)
+                .'-dimension vector; expected '.self::DIMENSIONS,
+            );
+        }
+
         return self::toPgVector($vector);
     }
 
     /**
      * Format a numeric array as a pgvector literal: "[1.0,2.0,...]".
      *
-     * @param array<int, float|int> $vector
+     * @param  array<int, float|int>  $vector
      */
     public static function toPgVector(array $vector): string
     {
-        return '[' . implode(',', array_map(static fn ($v) => (float) $v, $vector)) . ']';
+        return '['.implode(',', array_map(static fn ($v) => (float) $v, $vector)).']';
     }
 
     private function resolveProvider(string $name): Provider
@@ -91,6 +104,7 @@ class EmbeddingService
             Log::warning('[Embeddings] Unknown provider, falling back to Ollama', [
                 'requested' => $name,
             ]);
+
             return Provider::Ollama;
         }
 
