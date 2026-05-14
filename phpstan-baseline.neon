@@ -1,0 +1,163 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Method App\\Models\\Tenant\:\:extendPlan\(\) invoked with 2 parameters, 1 required\.$#'
+			identifier: arguments.count
+			count: 1
+			path: app/Http/Controllers/Admin/ClientController.php
+
+		-
+			message: '#^Raw where\(''tenant_id'', \.\.\.\) bypasses tenant scoping\. Use forTenant\(\$tenant\) instead\.$#'
+			identifier: tenancy.rawTenantId
+			count: 8
+			path: app/Http/Controllers/Admin/ClientController.php
+
+		-
+			message: '#^Raw where\(''tenant_id'', \.\.\.\) bypasses tenant scoping\. Use forTenant\(\$tenant\) instead\.$#'
+			identifier: tenancy.rawTenantId
+			count: 3
+			path: app/Http/Controllers/Api/V1/Widget/ChatController.php
+
+		-
+			message: '#^Raw where\(''tenant_id'', \.\.\.\) bypasses tenant scoping\. Use forTenant\(\$tenant\) instead\.$#'
+			identifier: tenancy.rawTenantId
+			count: 2
+			path: app/Http/Controllers/Api/V1/Widget/LeadController.php
+
+		-
+			message: '#^Raw where\(''tenant_id'', \.\.\.\) bypasses tenant scoping\. Use forTenant\(\$tenant\) instead\.$#'
+			identifier: tenancy.rawTenantId
+			count: 2
+			path: app/Http/Controllers/Client/KnowledgeBaseController.php
+
+		-
+			message: '#^Raw where\(''tenant_id'', \.\.\.\) bypasses tenant scoping\. Use forTenant\(\$tenant\) instead\.$#'
+			identifier: tenancy.rawTenantId
+			count: 2
+			path: app/Http/Controllers/Client/LeadController.php
+
+		-
+			message: '#^Unable to resolve the template type TKey in call to function collect$#'
+			identifier: argument.templateType
+			count: 1
+			path: app/Http/Controllers/Client/WidgetController.php
+
+		-
+			message: '#^Unable to resolve the template type TValue in call to function collect$#'
+			identifier: argument.templateType
+			count: 1
+			path: app/Http/Controllers/Client/WidgetController.php
+
+		-
+			message: '#^Offset ''limit'' on array\{used\: int, limit\: int\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Http/Middleware/HandleInertiaRequests.php
+
+		-
+			message: '#^Offset ''used'' on array\{used\: int, limit\: int\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Http/Middleware/HandleInertiaRequests.php
+
+		-
+			message: '#^Class App\\Models\\Conversation uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Conversation.php
+
+		-
+			message: '#^Method App\\Models\\Conversation\:\:tenant\(\) should return Illuminate\\Database\\Eloquent\\Relations\\BelongsTo\<App\\Models\\Tenant, static\(App\\Models\\Conversation\)\> but returns Illuminate\\Database\\Eloquent\\Relations\\BelongsTo\<App\\Models\\Tenant, \$this\(App\\Models\\Conversation\)\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Models/Conversation.php
+
+		-
+			message: '#^Method App\\Models\\EnterpriseInquiry\:\:tenant\(\) should return Illuminate\\Database\\Eloquent\\Relations\\BelongsTo\<App\\Models\\Tenant, static\(App\\Models\\EnterpriseInquiry\)\> but returns Illuminate\\Database\\Eloquent\\Relations\\BelongsTo\<App\\Models\\Tenant, \$this\(App\\Models\\EnterpriseInquiry\)\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Models/EnterpriseInquiry.php
+
+		-
+			message: '#^Method App\\Models\\KnowledgeItem\:\:tenant\(\) should return Illuminate\\Database\\Eloquent\\Relations\\BelongsTo\<App\\Models\\Tenant, static\(App\\Models\\KnowledgeItem\)\> but returns Illuminate\\Database\\Eloquent\\Relations\\BelongsTo\<App\\Models\\Tenant, \$this\(App\\Models\\KnowledgeItem\)\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Models/KnowledgeItem.php
+
+		-
+			message: '#^Method App\\Models\\Lead\:\:tenant\(\) should return Illuminate\\Database\\Eloquent\\Relations\\BelongsTo\<App\\Models\\Tenant, static\(App\\Models\\Lead\)\> but returns Illuminate\\Database\\Eloquent\\Relations\\BelongsTo\<App\\Models\\Tenant, \$this\(App\\Models\\Lead\)\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Models/Lead.php
+
+		-
+			message: '#^Class App\\Models\\Message uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Message.php
+
+		-
+			message: '#^Class App\\Models\\Tenant uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/Models/Tenant.php
+
+		-
+			message: '#^Method App\\Models\\Transaction\:\:tenant\(\) should return Illuminate\\Database\\Eloquent\\Relations\\BelongsTo\<App\\Models\\Tenant, static\(App\\Models\\Transaction\)\> but returns Illuminate\\Database\\Eloquent\\Relations\\BelongsTo\<App\\Models\\Tenant, \$this\(App\\Models\\Transaction\)\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Models/Transaction.php
+
+		-
+			message: '#^Method App\\Models\\UsageRecord\:\:tenant\(\) should return Illuminate\\Database\\Eloquent\\Relations\\BelongsTo\<App\\Models\\Tenant, static\(App\\Models\\UsageRecord\)\> but returns Illuminate\\Database\\Eloquent\\Relations\\BelongsTo\<App\\Models\\Tenant, \$this\(App\\Models\\UsageRecord\)\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Models/UsageRecord.php
+
+		-
+			message: '#^Method App\\Models\\User\:\:tenant\(\) should return Illuminate\\Database\\Eloquent\\Relations\\BelongsTo\<App\\Models\\Tenant, static\(App\\Models\\User\)\> but returns Illuminate\\Database\\Eloquent\\Relations\\BelongsTo\<App\\Models\\Tenant, \$this\(App\\Models\\User\)\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Models/User.php
+
+		-
+			message: '#^Raw where\(''tenant_id'', \.\.\.\) bypasses tenant scoping\. Use forTenant\(\$tenant\) instead\.$#'
+			identifier: tenancy.rawTenantId
+			count: 12
+			path: app/Services/Analytics/AnalyticsService.php
+
+		-
+			message: '#^Raw where\(''ki\.tenant_id'', \.\.\.\) bypasses tenant scoping\. Use forTenant\(\$tenant\) instead\.$#'
+			identifier: tenancy.rawTenantId
+			count: 2
+			path: app/Services/Knowledge/RetrievalService.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between string and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: app/Services/LLM/ChatService.php
+
+		-
+			message: '#^Raw where\(''tenant_id'', \.\.\.\) bypasses tenant scoping\. Use forTenant\(\$tenant\) instead\.$#'
+			identifier: tenancy.rawTenantId
+			count: 1
+			path: app/Services/Leads/LeadService.php
+
+		-
+			message: '#^Parameter \#1 \$relation of method App\\Services\\Usage\\UsageTracker\:\:countByPeriod\(\) expects Illuminate\\Database\\Eloquent\\Relations\\HasMany\<Illuminate\\Database\\Eloquent\\Model, App\\Models\\Tenant\>, Illuminate\\Database\\Eloquent\\Relations\\HasMany\<App\\Models\\Conversation, App\\Models\\Tenant\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/Usage/UsageTracker.php
+
+		-
+			message: '#^Parameter \#1 \$relation of method App\\Services\\Usage\\UsageTracker\:\:countByPeriod\(\) expects Illuminate\\Database\\Eloquent\\Relations\\HasMany\<Illuminate\\Database\\Eloquent\\Model, App\\Models\\Tenant\>, Illuminate\\Database\\Eloquent\\Relations\\HasMany\<App\\Models\\Lead, App\\Models\\Tenant\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/Usage/UsageTracker.php
+
+		-
+			message: '#^Raw where\(''tenant_id'', \.\.\.\) bypasses tenant scoping\. Use forTenant\(\$tenant\) instead\.$#'
+			identifier: tenancy.rawTenantId
+			count: 1
+			path: app/Services/Usage/UsageTracker.php
