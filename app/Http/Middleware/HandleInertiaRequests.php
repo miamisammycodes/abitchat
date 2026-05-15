@@ -103,7 +103,7 @@ class HandleInertiaRequests extends Middleware
             $limit = $stat['limit'];
 
             if ($limit <= 0) {
-                continue; // unlimited (-1) or unset (0)
+                continue;
             }
 
             $percent = (int) min(100, round(($used / $limit) * 100));
