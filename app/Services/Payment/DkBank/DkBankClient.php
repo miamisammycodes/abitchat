@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
-final class DkBankClient
+class DkBankClient
 {
     private const TOKEN_CACHE_KEY = 'dk_bank:access_token';
 
