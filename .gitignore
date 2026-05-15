@@ -23,3 +23,8 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 .remember/
+.claude/
+.playwright-mcp/
+
+# Local screenshot / smoke-test artifacts in repo root
+/*.png
