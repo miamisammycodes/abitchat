@@ -18,6 +18,8 @@ class Transaction extends Model
         'plan_id',
         'transaction_number',
         'reference_number',
+        'dk_reference_no',
+        'dk_rrn',
         'amount',
         'payment_method',
         'payment_date',
@@ -26,12 +28,14 @@ class Transaction extends Model
         'admin_notes',
         'approved_by',
         'approved_at',
+        'dk_status_last_checked_at',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
         'payment_date' => 'date',
         'approved_at' => 'datetime',
+        'dk_status_last_checked_at' => 'datetime',
     ];
 
     /** @return BelongsTo<Plan, $this> */
