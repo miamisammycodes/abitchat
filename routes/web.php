@@ -15,6 +15,7 @@ use App\Http\Controllers\Client\AnalyticsController;
 use App\Http\Controllers\Client\BillingController;
 use App\Http\Controllers\Client\ConversationController;
 use App\Http\Controllers\Client\DashboardController;
+use App\Http\Controllers\Client\DkBankQrController;
 use App\Http\Controllers\Client\EnterpriseInquiryController;
 use App\Http\Controllers\Client\KnowledgeBaseController;
 use App\Http\Controllers\Client\LeadController;
@@ -111,8 +112,16 @@ Route::middleware('auth')->group(function () {
         Route::post('/enterprise-inquiry', [EnterpriseInquiryController::class, 'store'])->name('enterprise-inquiry');
 
         // DK Bank QR payment flow
-        Route::post('/dk-qr/{plan}', [\App\Http\Controllers\Client\DkBankQrController::class, 'start'])
+        Route::post('/dk-qr/{plan}', [DkBankQrController::class, 'start'])
             ->name('dk-qr.start');
+
+        Route::get('/dk-qr/{transaction}/status', [DkBankQrController::class, 'status'])
+            ->name('dk-qr.status')
+            ->middleware('throttle:60,1');
+
+        Route::post('/dk-qr/{transaction}/verify-rrn', [DkBankQrController::class, 'verifyRrn'])
+            ->name('dk-qr.verify-rrn')
+            ->middleware('throttle:dk-rrn-verify');
     });
 });
 
