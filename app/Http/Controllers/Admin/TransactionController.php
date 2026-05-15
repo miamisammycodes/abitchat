@@ -90,48 +90,21 @@ class TransactionController extends Controller
         $admin = Auth::guard('admin')->user();
 
         try {
-            DB::transaction(function () use ($transaction, $validated, $admin) {
-                $locked = Transaction::with(['tenant', 'plan'])
-                    ->whereKey($transaction->id)
-                    ->lockForUpdate()
-                    ->first();
+            $transaction->approveAndActivate(
+                allowedFromStatuses: ['pending'],
+                adminId: $admin?->id,
+                adminNotes: $validated['admin_notes'] ?? null,
+            );
+        } catch (\App\Exceptions\Billing\TransactionAlreadyProcessed) {
+            return back()->with('error', 'Transaction has already been processed.');
+        } catch (\App\Exceptions\Billing\TransactionPlanInactive) {
+            return back()->with('error', 'Cannot approve transaction: the plan is no longer active.');
+        } catch (\App\Exceptions\Billing\TransactionRecordMissing) {
+            Log::error('[Admin] Transaction approve hit missing tenant or plan', [
+                'transaction_id' => $transaction->id,
+            ]);
 
-                if (! $locked || $locked->status !== 'pending') {
-                    throw new \RuntimeException('ALREADY_PROCESSED');
-                }
-
-                if (! $locked->tenant || ! $locked->plan) {
-                    throw new \RuntimeException('RECORD_MISSING');
-                }
-
-                if (! $locked->plan->is_active) {
-                    throw new \RuntimeException('PLAN_INACTIVE');
-                }
-
-                $locked->update([
-                    'status' => 'approved',
-                    'admin_notes' => $validated['admin_notes'] ?? null,
-                    'approved_by' => $admin?->id,
-                    'approved_at' => now(),
-                ]);
-
-                $locked->tenant->extendPlan($locked->plan);
-            });
-        } catch (\RuntimeException $e) {
-            if ($e->getMessage() === 'ALREADY_PROCESSED') {
-                return back()->with('error', 'Transaction has already been processed.');
-            }
-            if ($e->getMessage() === 'PLAN_INACTIVE') {
-                return back()->with('error', 'Cannot approve transaction: the plan is no longer active.');
-            }
-            if ($e->getMessage() === 'RECORD_MISSING') {
-                Log::error('[Admin] Transaction approve hit missing tenant or plan', [
-                    'transaction_id' => $transaction->id,
-                ]);
-
-                return back()->with('error', 'Cannot approve transaction: referenced tenant or plan no longer exists.');
-            }
-            throw $e;
+            return back()->with('error', 'Cannot approve transaction: referenced tenant or plan no longer exists.');
         }
 
         return back()->with('success', 'Transaction approved and plan activated.');
