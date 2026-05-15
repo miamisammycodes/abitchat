@@ -48,6 +48,64 @@ final class DkBankClient
         return str_replace('-', '', (string) Str::uuid());
     }
 
+    public function postSigned(string $endpoint, array $body): array
+    {
+        return $this->doSignedRequest($endpoint, $body, allowRetry: true);
+    }
+
+    public function postUnsigned(string $endpoint, array $body): array
+    {
+        $response = Http::timeout((int) config('services.dk_bank.http_timeout'))
+            ->withHeaders(['X-gravitee-api-key' => config('services.dk_bank.api_key')])
+            ->post(config('services.dk_bank.base_url').$endpoint, $body);
+
+        return $response->json() ?? [];
+    }
+
+    public function postPlain(string $endpoint, array $body): string
+    {
+        $response = Http::timeout((int) config('services.dk_bank.http_timeout'))
+            ->withHeaders([
+                'X-gravitee-api-key' => config('services.dk_bank.api_key'),
+                'Authorization' => 'bearer '.$this->accessToken(),
+            ])
+            ->post(config('services.dk_bank.base_url').$endpoint, $body);
+
+        return $response->body();
+    }
+
+    private function doSignedRequest(string $endpoint, array $body, bool $allowRetry): array
+    {
+        $timestamp = gmdate('Y-m-d\TH:i:s\Z');
+        $nonce = $this->generateRequestId();
+        $signature = $this->signBody($body, $timestamp, $nonce);
+
+        $response = Http::timeout((int) config('services.dk_bank.http_timeout'))
+            ->withHeaders([
+                'X-gravitee-api-key' => config('services.dk_bank.api_key'),
+                'Authorization' => 'bearer '.$this->accessToken(),
+                'DK-Timestamp' => $timestamp,
+                'DK-Nonce' => $nonce,
+                'DK-Signature' => 'DKSignature '.$signature,
+                'source_app' => config('services.dk_bank.source_app'),
+            ])
+            ->post(config('services.dk_bank.base_url').$endpoint, $body);
+
+        $payload = $response->json() ?? [];
+
+        if (($payload['response_code'] ?? null) === '5001' && $allowRetry) {
+            Cache::forget(self::TOKEN_CACHE_KEY);
+
+            return $this->doSignedRequest($endpoint, $body, allowRetry: false);
+        }
+
+        if (($payload['response_code'] ?? null) === '5001') {
+            throw new \RuntimeException('DK Bank auth failure after token refresh: '.json_encode($payload));
+        }
+
+        return $payload;
+    }
+
     private function canonicalJson(array $body): string
     {
         return json_encode($this->sortKeysRecursive($body), JSON_UNESCAPED_SLASHES);
