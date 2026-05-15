@@ -12,9 +12,6 @@ import { Alert, AlertDescription } from '@/Components/ui/alert'
 import { Loader2, CheckCircle2, AlertCircle } from 'lucide-vue-next'
 
 const route = useRoute()
-// axios is pre-configured in resources/js/bootstrap.js with X-Requested-With.
-// Laravel's VerifyCsrfToken middleware accepts X-XSRF-TOKEN via the cookie,
-// which axios reads + sends automatically for same-origin requests.
 
 const props = defineProps({
   plan: Object,
@@ -22,8 +19,7 @@ const props = defineProps({
   qrImageBase64: String,
 })
 
-const state = ref('polling')  // polling | verifying | paid | failed | timeout
-const errorMessage = ref('')
+const state = ref('polling')  // polling | verifying | paid | timeout
 const rrn = ref('')
 const rrnError = ref('')
 let pollTimer = null

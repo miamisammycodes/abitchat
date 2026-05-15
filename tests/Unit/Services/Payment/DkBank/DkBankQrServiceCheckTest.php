@@ -60,8 +60,14 @@ class DkBankQrServiceCheckTest extends TestCase
         $this->assertSame('approved', $this->tx->status);
     }
 
-    public function test_retries_with_next_day_when_first_returns_3001(): void
+    public function test_retries_with_today_date_when_session_started_yesterday(): void
     {
+        // Simulate a session that crossed UTC midnight: created_at is yesterday,
+        // payment landed today. checkDkIntraStatus should try the session date
+        // first (3001), then today (success).
+        $this->tx->created_at = now()->subDay()->setTime(23, 55);
+        $this->tx->save();
+
         $mock = Mockery::mock(DkBankClient::class);
         $mock->shouldReceive('generateRequestId')->andReturn(str_repeat('a', 32));
         $mock->shouldReceive('postSigned')
@@ -70,7 +76,7 @@ class DkBankQrServiceCheckTest extends TestCase
                 ['response_code' => '3001'],
                 ['response_code' => '0000', 'response_data' => [[
                     'status' => '0', 'amount' => '1000.00',
-                    'credit_account' => '110158212197', 'txn_ts' => '2026-05-15 12:00:00',
+                    'credit_account' => '110158212197', 'txn_ts' => now()->toDateTimeString(),
                 ]]],
             );
         $this->app->instance(DkBankClient::class, $mock);
@@ -80,8 +86,26 @@ class DkBankQrServiceCheckTest extends TestCase
         $this->assertSame(DkStatusState::Paid, $result->state);
     }
 
+    public function test_skips_second_candidate_when_session_within_same_day(): void
+    {
+        // Default: created_at is now(). Session and today are the same date.
+        // checkDkIntraStatus should call DK exactly ONCE — no wasteful retry.
+        $mock = Mockery::mock(DkBankClient::class);
+        $mock->shouldReceive('generateRequestId')->andReturn(str_repeat('a', 32));
+        $mock->shouldReceive('postSigned')->once()->andReturn(['response_code' => '3001']);
+        $this->app->instance(DkBankClient::class, $mock);
+
+        $result = $this->app->make(DkBankQrService::class)->checkDkIntraStatus($this->tx);
+
+        $this->assertSame(DkStatusState::Pending, $result->state);
+    }
+
     public function test_returns_pending_when_both_dates_3001(): void
     {
+        // Session crossed midnight: tries today's date + yesterday's date, both 3001.
+        $this->tx->created_at = now()->subDay()->setTime(23, 55);
+        $this->tx->save();
+
         $mock = Mockery::mock(DkBankClient::class);
         $mock->shouldReceive('generateRequestId')->andReturn(str_repeat('a', 32));
         $mock->shouldReceive('postSigned')->twice()->andReturn(['response_code' => '3001']);

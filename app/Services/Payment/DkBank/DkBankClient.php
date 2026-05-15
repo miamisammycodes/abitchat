@@ -7,7 +7,6 @@ namespace App\Services\Payment\DkBank;
 use Firebase\JWT\JWT;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Str;
 
 class DkBankClient
 {
@@ -45,7 +44,7 @@ class DkBankClient
 
     public function generateRequestId(): string
     {
-        return str_replace('-', '', (string) Str::uuid());
+        return bin2hex(random_bytes(16));
     }
 
     /**
@@ -55,34 +54,6 @@ class DkBankClient
     public function postSigned(string $endpoint, array $body): array
     {
         return $this->doSignedRequest($endpoint, $body, allowRetry: true);
-    }
-
-    /**
-     * @param  array<string, mixed>  $body
-     * @return array<string, mixed>
-     */
-    public function postUnsigned(string $endpoint, array $body): array
-    {
-        $response = Http::timeout((int) config('services.dk_bank.http_timeout'))
-            ->withHeaders(['X-gravitee-api-key' => config('services.dk_bank.api_key')])
-            ->post(config('services.dk_bank.base_url').$endpoint, $body);
-
-        return $response->json() ?? [];
-    }
-
-    /**
-     * @param  array<string, mixed>  $body
-     */
-    public function postPlain(string $endpoint, array $body): string
-    {
-        $response = Http::timeout((int) config('services.dk_bank.http_timeout'))
-            ->withHeaders([
-                'X-gravitee-api-key' => config('services.dk_bank.api_key'),
-                'Authorization' => 'bearer '.$this->accessToken(),
-            ])
-            ->post(config('services.dk_bank.base_url').$endpoint, $body);
-
-        return $response->body();
     }
 
     /**

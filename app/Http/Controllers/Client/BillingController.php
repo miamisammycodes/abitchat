@@ -97,39 +97,29 @@ class BillingController extends Controller
 
         $tenant = $this->getTenant($request);
 
+        $payload = [
+            'transaction_number' => $validated['transaction_number'],
+            'reference_number' => strtoupper($validated['reference_number']),
+            'amount' => $validated['amount'],
+            'payment_method' => $validated['payment_method'],
+            'payment_date' => $validated['payment_date'],
+            'notes' => $validated['notes'] ?? null,
+            'status' => 'pending',
+        ];
+
         try {
-            DB::transaction(function () use ($validated, $tenant, $plan) {
+            DB::transaction(function () use ($payload, $tenant, $plan) {
                 $awaiting = $tenant->transactions()
                     ->where('plan_id', $plan->id)
                     ->where('status', 'awaiting_payment')
                     ->lockForUpdate()
                     ->first();
 
-                if ($awaiting) {
-                    $awaiting->update([
-                        'transaction_number' => $validated['transaction_number'],
-                        'reference_number' => strtoupper($validated['reference_number']),
-                        'amount' => $validated['amount'],
-                        'payment_method' => $validated['payment_method'],
-                        'payment_date' => $validated['payment_date'],
-                        'notes' => $validated['notes'] ?? null,
-                        'status' => 'pending',
-                    ]);
-                } else {
-                    Transaction::create([
-                        'tenant_id' => $tenant->id,
-                        'plan_id' => $plan->id,
-                        'transaction_number' => $validated['transaction_number'],
-                        'reference_number' => strtoupper($validated['reference_number']),
-                        'amount' => $validated['amount'],
-                        'payment_method' => $validated['payment_method'],
-                        'payment_date' => $validated['payment_date'],
-                        'notes' => $validated['notes'] ?? null,
-                        'status' => 'pending',
-                    ]);
-                }
+                $awaiting
+                    ? $awaiting->update($payload)
+                    : $tenant->transactions()->create([...$payload, 'plan_id' => $plan->id]);
             });
-        } catch (UniqueConstraintViolationException $e) {
+        } catch (UniqueConstraintViolationException) {
             return back()->withErrors([
                 'transaction_number' => 'This transaction number has already been submitted.',
             ]);

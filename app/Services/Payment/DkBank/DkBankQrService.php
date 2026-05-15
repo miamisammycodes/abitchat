@@ -24,12 +24,9 @@ final class DkBankQrService
     public function startQrSession(Tenant $tenant, Plan $plan): DkQrSession
     {
         return DB::transaction(function () use ($tenant, $plan) {
-            // ULID is sortable (encodes timestamp) + globally unique, so we can
-            // generate the reference up-front in a single insert. No 'TEMP'
-            // placeholder + update dance — that pattern collides on the unique
-            // index when two merchants click "Generate QR" simultaneously.
-            // Support staff can still cross-reference by Transaction.id since
-            // both are stored on the same row.
+            // ULID up-front so two concurrent "Generate QR" clicks don't race
+            // on the unique dk_reference_no index (a TEMP-then-update pattern
+            // would collide).
             $referenceNo = 'DKQR-'.strtoupper((string) Str::ulid());
 
             $transaction = Transaction::create([
@@ -69,14 +66,9 @@ final class DkBankQrService
     public function verifyByRrn(Transaction $transaction, string $rrn): DkStatusResult
     {
         $rrn = strtoupper(trim($rrn));
-        $transaction->update(['dk_status_last_checked_at' => now()]);
+        $this->markChecked($transaction);
 
-        $response = $this->client->postSigned('/v1/intra-transaction/status', [
-            'request_id' => $this->client->generateRequestId(),
-            'reference_no' => $rrn,
-            'transaction_date' => $transaction->created_at->toDateString(),
-            'bene_account_number' => config('services.dk_bank.beneficiary_account'),
-        ]);
+        $response = $this->postIntraStatus($rrn, $transaction->created_at->toDateString());
 
         if (($response['response_code'] ?? null) === '3001') {
             return new DkStatusResult(
@@ -112,7 +104,6 @@ final class DkBankQrService
             return new DkStatusResult(state: DkStatusState::Failed, errorMessage: 'Reference number is older than this QR session — likely a typo. Please re-check.');
         }
 
-        // Amount + credit account guards
         if (abs((float) $data['amount'] - (float) $transaction->amount) > 0.01) {
             return new DkStatusResult(state: DkStatusState::Failed, errorMessage: 'Payment amount did not match this plan. Contact support.');
         }
@@ -147,21 +138,20 @@ final class DkBankQrService
 
     public function checkDkIntraStatus(Transaction $transaction): DkStatusResult
     {
-        $transaction->update(['dk_status_last_checked_at' => now()]);
+        $this->markChecked($transaction);
 
-        $candidates = [
-            $transaction->created_at->toDateString(),
-            $transaction->created_at->copy()->addDay()->toDateString(),
-        ];
+        // Second-date attempt only needed when the QR session straddled a UTC
+        // midnight — DK's transaction_date param may strictly bind to the
+        // payment day. Avoids a wasted signed HTTPS roundtrip on ~99% of polls.
+        $sessionDate = $transaction->created_at->toDateString();
+        $candidates = [$sessionDate];
+        $today = now()->toDateString();
+        if ($today !== $sessionDate) {
+            $candidates[] = $today;
+        }
 
         foreach ($candidates as $date) {
-            $response = $this->client->postSigned('/v1/intra-transaction/status', [
-                'request_id' => $this->client->generateRequestId(),
-                'reference_no' => $transaction->dk_reference_no,
-                'transaction_date' => $date,
-                'bene_account_number' => config('services.dk_bank.beneficiary_account'),
-            ]);
-
+            $response = $this->postIntraStatus($transaction->dk_reference_no, $date);
             $result = $this->interpretStatusResponse($response, $transaction);
             if ($result->state !== DkStatusState::Pending) {
                 return $result;
@@ -169,6 +159,31 @@ final class DkBankQrService
         }
 
         return new DkStatusResult(state: DkStatusState::Pending);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function postIntraStatus(string $referenceNo, string $transactionDate): array
+    {
+        return $this->client->postSigned('/v1/intra-transaction/status', [
+            'request_id' => $this->client->generateRequestId(),
+            'reference_no' => $referenceNo,
+            'transaction_date' => $transactionDate,
+            'bene_account_number' => config('services.dk_bank.beneficiary_account'),
+        ]);
+    }
+
+    /**
+     * Throttle telemetry writes — once per minute is enough for support queries.
+     * Avoids ~40 DB writes per QR session at the 3s polling cadence.
+     */
+    private function markChecked(Transaction $transaction): void
+    {
+        $last = $transaction->dk_status_last_checked_at;
+        if ($last === null || $last->lt(now()->subMinute())) {
+            $transaction->update(['dk_status_last_checked_at' => now()]);
+        }
     }
 
     /**

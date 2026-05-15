@@ -91,6 +91,7 @@ class Transaction extends Model
     public function getStatusColorAttribute(): string
     {
         return match ($this->status) {
+            'awaiting_payment' => 'sky',
             'pending' => 'amber',
             'approved' => 'emerald',
             'rejected' => 'red',
@@ -105,6 +106,7 @@ class Transaction extends Model
             'upi' => 'UPI',
             'card' => 'Card',
             'cash' => 'Cash',
+            'dk_qr' => 'DK Bank QR',
             default => $this->payment_method ?? 'Unknown',
         };
     }

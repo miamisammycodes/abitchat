@@ -27,11 +27,10 @@ final class DkBankQrController extends Controller
 
         try {
             $session = $this->service->startQrSession($tenant, $plan);
-        } catch (DkQrGenerationException $e) {
+        } catch (DkQrGenerationException) {
             return redirect()
                 ->route('client.billing.subscribe', $plan)
-                ->with('error', 'Could not generate the DK QR right now. Please use the manual form below.')
-                ->with('dk_failed', true);
+                ->with('error', 'Could not generate the DK QR right now. Please use the manual form below.');
         }
 
         return Inertia::render('Client/Billing/DkQrSession', [
@@ -43,8 +42,8 @@ final class DkBankQrController extends Controller
 
     public function status(Request $request, Transaction $transaction): JsonResponse
     {
-        $this->authorizeOwnership($request, $transaction);
-        abort_if($transaction->status !== 'awaiting_payment' && $transaction->status !== 'approved', 410);
+        $this->authorize('view', $transaction);
+        abort_unless(in_array($transaction->status, ['awaiting_payment', 'approved'], true), 410);
 
         if ($transaction->status === 'approved') {
             return response()->json(['state' => 'paid']);
@@ -60,8 +59,8 @@ final class DkBankQrController extends Controller
 
     public function verifyRrn(Request $request, Transaction $transaction): JsonResponse
     {
-        $this->authorizeOwnership($request, $transaction);
-        abort_if($transaction->status !== 'awaiting_payment', 410);
+        $this->authorize('view', $transaction);
+        abort_unless($transaction->status === 'awaiting_payment', 410);
 
         $validated = $request->validate([
             'rrn' => 'required|alpha_num|min:4|max:32',
@@ -73,10 +72,5 @@ final class DkBankQrController extends Controller
             'state' => $result->state->value,
             'message' => $result->errorMessage,
         ]);
-    }
-
-    private function authorizeOwnership(Request $request, Transaction $transaction): void
-    {
-        abort_if($transaction->tenant_id !== $this->getTenant($request)->id, 403);
     }
 }
