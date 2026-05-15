@@ -10,12 +10,14 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Knowledge\RetrievalService;
 use App\Services\LLM\ChatService;
+use Illuminate\Testing\TestResponse;
 use Mockery;
 use Tests\TestCase;
 
 class ChatSendMessageOrphanTest extends TestCase
 {
     protected Tenant $tenant;
+
     private Conversation $conversation;
 
     protected function setUp(): void
@@ -44,7 +46,7 @@ class ChatSendMessageOrphanTest extends TestCase
         ]);
     }
 
-    private function postMessage(): \Illuminate\Testing\TestResponse
+    private function postMessage(): TestResponse
     {
         return $this->postJson('/api/v1/widget/message', [
             'api_key' => $this->tenant->api_key,

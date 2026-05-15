@@ -35,7 +35,7 @@ class ApproveInactivePlanTest extends TestCase
         return Transaction::create([
             'tenant_id' => $this->tenant->id,
             'plan_id' => $plan->id,
-            'transaction_number' => 'TXN-' . uniqid(),
+            'transaction_number' => 'TXN-'.uniqid(),
             'reference_number' => 'ABC123',
             'amount' => $plan->price,
             'payment_method' => 'bob',

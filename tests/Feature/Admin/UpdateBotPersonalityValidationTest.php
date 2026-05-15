@@ -11,6 +11,7 @@ use Tests\TestCase;
 class UpdateBotPersonalityValidationTest extends TestCase
 {
     private AdminUser $admin;
+
     protected Tenant $tenantTarget;
 
     protected function setUp(): void

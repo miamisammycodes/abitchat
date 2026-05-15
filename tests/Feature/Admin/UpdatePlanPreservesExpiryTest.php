@@ -7,6 +7,7 @@ namespace Tests\Feature\Admin;
 use App\Models\AdminUser;
 use App\Models\Plan;
 use App\Models\Tenant;
+use Carbon\Carbon;
 use Tests\TestCase;
 
 class UpdatePlanPreservesExpiryTest extends TestCase
@@ -23,11 +24,11 @@ class UpdatePlanPreservesExpiryTest extends TestCase
         ]);
     }
 
-    private function makeTenant(?\Carbon\Carbon $expires = null): Tenant
+    private function makeTenant(?Carbon $expires = null): Tenant
     {
         return Tenant::create([
             'name' => 'Tenant',
-            'slug' => 'tenant-' . uniqid(),
+            'slug' => 'tenant-'.uniqid(),
             'status' => 'active',
             'plan_expires_at' => $expires,
         ]);
@@ -36,8 +37,8 @@ class UpdatePlanPreservesExpiryTest extends TestCase
     private function makePlan(string $billingPeriod = 'monthly'): Plan
     {
         return Plan::create([
-            'name' => 'Plan ' . $billingPeriod,
-            'slug' => 'plan-' . $billingPeriod . '-' . uniqid(),
+            'name' => 'Plan '.$billingPeriod,
+            'slug' => 'plan-'.$billingPeriod.'-'.uniqid(),
             'price' => 100,
             'billing_period' => $billingPeriod,
             'is_active' => true,

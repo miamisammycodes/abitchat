@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
 use App\Models\Conversation;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -24,7 +25,7 @@ class ConversationController extends Controller
             'page' => ['nullable', 'integer', 'min:1'],
         ]);
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
         $tenant = $user->tenant;
 
@@ -64,7 +65,7 @@ class ConversationController extends Controller
 
     public function show(Request $request, Conversation $conversation): InertiaResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
         abort_if($conversation->tenant_id !== $user->tenant_id, 404);
 
@@ -80,7 +81,7 @@ class ConversationController extends Controller
 
     public function archive(Request $request, Conversation $conversation): RedirectResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
         abort_if($conversation->tenant_id !== $user->tenant_id, 404);
 
@@ -92,7 +93,7 @@ class ConversationController extends Controller
 
     public function unarchive(Request $request, Conversation $conversation): RedirectResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
         abort_if($conversation->tenant_id !== $user->tenant_id, 404);
 
@@ -104,7 +105,7 @@ class ConversationController extends Controller
 
     public function export(Request $request, Conversation $conversation): StreamedResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
         abort_if($conversation->tenant_id !== $user->tenant_id, 404);
 

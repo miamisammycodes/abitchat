@@ -41,7 +41,7 @@ class AdminActivityLog extends Model
     /**
      * Log an admin activity
      *
-     * @param array<string, mixed> $details
+     * @param  array<string, mixed>  $details
      */
     public static function log(
         string $actionType,

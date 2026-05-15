@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Unit\Models;
 
 use App\Models\Plan;
-use App\Models\Tenant;
 use Tests\TestCase;
 
 class TenantExtendPlanTest extends TestCase

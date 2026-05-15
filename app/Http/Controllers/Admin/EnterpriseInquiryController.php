@@ -37,10 +37,10 @@ class EnterpriseInquiryController extends Controller
         $sortDirection = (string) $request->input('direction', 'desc');
         $allowedSorts = ['created_at', 'status', 'name', 'email', 'company'];
 
-        if (!in_array($sortField, $allowedSorts, true)) {
+        if (! in_array($sortField, $allowedSorts, true)) {
             $sortField = 'created_at';
         }
-        if (!in_array($sortDirection, ['asc', 'desc'], true)) {
+        if (! in_array($sortDirection, ['asc', 'desc'], true)) {
             $sortDirection = 'desc';
         }
 

@@ -58,7 +58,7 @@ return new class extends Migration
         if (DB::table('usage_records')->exists()) {
             $expr = DB::connection()->getDriverName() === 'pgsql'
                 ? 'created_at::date'
-                : "date(created_at)";
+                : 'date(created_at)';
             DB::table('usage_records')
                 ->whereNull('recorded_date')
                 ->update(['recorded_date' => DB::raw($expr)]);

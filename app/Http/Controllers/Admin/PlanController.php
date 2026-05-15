@@ -38,10 +38,10 @@ class PlanController extends Controller
         $sortDirection = (string) $request->input('direction', 'asc');
         $allowedSorts = ['sort_order', 'name', 'price', 'created_at', 'is_active'];
 
-        if (!in_array($sortField, $allowedSorts, true)) {
+        if (! in_array($sortField, $allowedSorts, true)) {
             $sortField = 'sort_order';
         }
-        if (!in_array($sortDirection, ['asc', 'desc'], true)) {
+        if (! in_array($sortDirection, ['asc', 'desc'], true)) {
             $sortDirection = 'asc';
         }
 
@@ -78,7 +78,7 @@ class PlanController extends Controller
         $validated = $request->validated();
 
         // Set sort_order to max + 1 if not provided
-        if (!isset($validated['sort_order'])) {
+        if (! isset($validated['sort_order'])) {
             $validated['sort_order'] = Plan::max('sort_order') + 1;
         }
 
@@ -110,7 +110,7 @@ class PlanController extends Controller
     public function toggleStatus(Plan $plan): RedirectResponse
     {
         $plan->update([
-            'is_active' => !$plan->is_active,
+            'is_active' => ! $plan->is_active,
         ]);
 
         $status = $plan->is_active ? 'activated' : 'deactivated';

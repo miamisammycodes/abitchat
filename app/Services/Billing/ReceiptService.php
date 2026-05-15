@@ -29,7 +29,7 @@ class ReceiptService
             'transaction' => $transaction,
         ]);
 
-        $filename = 'receipt-' . $transaction->transaction_number . '.pdf';
+        $filename = 'receipt-'.$transaction->transaction_number.'.pdf';
 
         return $pdf->download($filename);
     }
@@ -42,7 +42,7 @@ class ReceiptService
             'transaction' => $transaction,
         ]);
 
-        $filename = 'receipt-' . $transaction->transaction_number . '.pdf';
+        $filename = 'receipt-'.$transaction->transaction_number.'.pdf';
 
         return $pdf->stream($filename);
     }

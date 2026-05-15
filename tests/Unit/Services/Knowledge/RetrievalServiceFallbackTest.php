@@ -17,7 +17,7 @@ class RetrievalServiceFallbackTest extends TestCase
     {
         $tenant = Tenant::create([
             'name' => 'Co',
-            'slug' => 'co-' . uniqid(),
+            'slug' => 'co-'.uniqid(),
             'status' => 'active',
         ]);
 

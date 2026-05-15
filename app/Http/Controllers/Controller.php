@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Auth;
 abstract class Controller
 {
     use AuthorizesRequests;
+
     /**
      * Get the authenticated user as a User model.
      * Only use this in client routes where User is guaranteed.

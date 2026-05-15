@@ -22,7 +22,7 @@ class UsageTrackerRemainingTest extends TestCase
 
         $plan = Plan::create([
             'name' => 'Test Plan',
-            'slug' => 'test-plan-' . uniqid(),
+            'slug' => 'test-plan-'.uniqid(),
             'price' => 100,
             'billing_period' => 'monthly',
             'is_active' => true,

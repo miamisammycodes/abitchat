@@ -128,6 +128,7 @@ class TransactionController extends Controller
                 Log::error('[Admin] Transaction approve hit missing tenant or plan', [
                     'transaction_id' => $transaction->id,
                 ]);
+
                 return back()->with('error', 'Cannot approve transaction: referenced tenant or plan no longer exists.');
             }
             throw $e;

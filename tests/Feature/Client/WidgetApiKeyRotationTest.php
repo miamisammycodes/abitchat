@@ -41,6 +41,7 @@ class WidgetApiKeyRotationTest extends TestCase
             ->with("tenant:api_key:{$oldKey}")
             ->andReturnUsing(function () use (&$events) {
                 $events[] = 'forget';
+
                 return true;
             });
 
