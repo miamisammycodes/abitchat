@@ -37,30 +37,6 @@ parameters:
 			path: app/Models/Conversation.php
 
 		-
-			message: '#^Method App\\Models\\Conversation\:\:tenant\(\) should return Illuminate\\Database\\Eloquent\\Relations\\BelongsTo\<App\\Models\\Tenant, static\(App\\Models\\Conversation\)\> but returns Illuminate\\Database\\Eloquent\\Relations\\BelongsTo\<App\\Models\\Tenant, \$this\(App\\Models\\Conversation\)\>\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/Conversation.php
-
-		-
-			message: '#^Method App\\Models\\EnterpriseInquiry\:\:tenant\(\) should return Illuminate\\Database\\Eloquent\\Relations\\BelongsTo\<App\\Models\\Tenant, static\(App\\Models\\EnterpriseInquiry\)\> but returns Illuminate\\Database\\Eloquent\\Relations\\BelongsTo\<App\\Models\\Tenant, \$this\(App\\Models\\EnterpriseInquiry\)\>\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/EnterpriseInquiry.php
-
-		-
-			message: '#^Method App\\Models\\KnowledgeItem\:\:tenant\(\) should return Illuminate\\Database\\Eloquent\\Relations\\BelongsTo\<App\\Models\\Tenant, static\(App\\Models\\KnowledgeItem\)\> but returns Illuminate\\Database\\Eloquent\\Relations\\BelongsTo\<App\\Models\\Tenant, \$this\(App\\Models\\KnowledgeItem\)\>\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/KnowledgeItem.php
-
-		-
-			message: '#^Method App\\Models\\Lead\:\:tenant\(\) should return Illuminate\\Database\\Eloquent\\Relations\\BelongsTo\<App\\Models\\Tenant, static\(App\\Models\\Lead\)\> but returns Illuminate\\Database\\Eloquent\\Relations\\BelongsTo\<App\\Models\\Tenant, \$this\(App\\Models\\Lead\)\>\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/Lead.php
-
-		-
 			message: '#^Class App\\Models\\Message uses generic trait Illuminate\\Database\\Eloquent\\Factories\\HasFactory but does not specify its types\: TFactory$#'
 			identifier: missingType.generics
 			count: 1
@@ -71,24 +47,6 @@ parameters:
 			identifier: missingType.generics
 			count: 1
 			path: app/Models/Tenant.php
-
-		-
-			message: '#^Method App\\Models\\Transaction\:\:tenant\(\) should return Illuminate\\Database\\Eloquent\\Relations\\BelongsTo\<App\\Models\\Tenant, static\(App\\Models\\Transaction\)\> but returns Illuminate\\Database\\Eloquent\\Relations\\BelongsTo\<App\\Models\\Tenant, \$this\(App\\Models\\Transaction\)\>\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/Transaction.php
-
-		-
-			message: '#^Method App\\Models\\UsageRecord\:\:tenant\(\) should return Illuminate\\Database\\Eloquent\\Relations\\BelongsTo\<App\\Models\\Tenant, static\(App\\Models\\UsageRecord\)\> but returns Illuminate\\Database\\Eloquent\\Relations\\BelongsTo\<App\\Models\\Tenant, \$this\(App\\Models\\UsageRecord\)\>\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/UsageRecord.php
-
-		-
-			message: '#^Method App\\Models\\User\:\:tenant\(\) should return Illuminate\\Database\\Eloquent\\Relations\\BelongsTo\<App\\Models\\Tenant, static\(App\\Models\\User\)\> but returns Illuminate\\Database\\Eloquent\\Relations\\BelongsTo\<App\\Models\\Tenant, \$this\(App\\Models\\User\)\>\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Models/User.php
 
 		-
 			message: '#^Strict comparison using \!\=\= between string and null will always evaluate to true\.$#'
