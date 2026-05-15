@@ -1,11 +1,20 @@
 # DK Bank QR Payment — Design
 
 **Date:** 2026-05-15
-**Status:** Brainstorm locked; ready for implementation plan.
+**Status:** Brainstorm locked + advisor-reviewed; ready for implementation plan.
 **Sources:**
 - `/Users/sam/Dev/laravel/abitpay/docs/zala.bt Payment Gateway-doc.docx (1) (1).pdf` (29-page DK Bank API spec — confidential)
 - `/Users/sam/Dev/laravel/abitpay/docs/dk-bank-qr-api-guide.md` (standalone QR integration guide)
 - DK Bank email reply (2026-05-15) clarifying that `/v1/intra-transaction/status` accepts cross-bank RRN, contradicting page 27 of the spec
+
+**Advisor review changes (2026-05-15):**
+- Strengthened Task 0 with a **blocking** real-cross-bank verification probe (#4). Non-DK design depends entirely on DK's email contradicting their own doc; not committing to RRN-path code until empirically verified.
+- Added unique constraint on `dk_rrn` + a recency guard (`txn_ts >= transaction.created_at`) to close the cross-tenant RRN replay exploit.
+- Fixed `transaction_date` source: two-candidate-date polling (`created_at` day + next day) instead of single day; handles midnight-rollover edge case.
+- Flagged `Transaction::approveAndActivate()` extraction as ~30 lines + 4 typed exceptions, not a one-liner — read the admin approve action to confirm.
+- Custom `dk-rrn-verify` rate limiter keyed per Transaction + per Tenant, not per-IP (NAT-shared offices would otherwise share rate-limit budget).
+- `request_id` length gotcha: UUID v4 with dashes is 36 chars but DK requires 10-32; strip dashes for a 32-char hex.
+- Amount comparison cast explicitly to float on both sides (DK returns string `"150.00"`, our column is Decimal cast).
 
 ## Goal
 
@@ -121,10 +130,12 @@ RRN path (non-DK):
 ```php
 Schema::table('transactions', function (Blueprint $table) {
     $table->string('dk_reference_no', 32)->nullable()->unique()->after('reference_number');
-    $table->string('dk_rrn', 32)->nullable()->after('dk_reference_no');
+    $table->string('dk_rrn', 32)->nullable()->unique()->after('dk_reference_no');
     $table->timestamp('dk_status_last_checked_at')->nullable()->after('admin_notes');
 });
 ```
+
+**Why both `dk_reference_no` and `dk_rrn` are unique**: prevents the cross-tenant RRN replay attack. If Tenant A pastes Tenant B's real RRN (same beneficiary account, same plan price would otherwise match), the unique constraint on `dk_rrn` makes the second `verifyByRrn` attempt fail at DB-write time. Combined with the recency check below, this closes the free-upgrade exploit.
 
 **Transaction status values** (additive — existing values unchanged):
 - `pending` (existing)
@@ -180,6 +191,8 @@ final class DkBankClient
     private function refreshTokenAndRetry(callable $request): array;      // for 5001 retry-once
 }
 ```
+
+**`request_id` generation (spec gotcha)**: DK's spec requires `request_id` length 10-32 (page 4). PHP's `Str::uuid()->toString()` returns 36 chars (with dashes). Use `str_replace('-', '', (string) Str::uuid())` to get a 32-char hex string. Centralize this in `DkBankClient::generateRequestId()` so it's never wrong twice.
 
 **Canonical JSON rule (critical):**
 
@@ -242,23 +255,33 @@ readonly class DkStatusResult
 
 **`checkDkIntraStatus`** flow:
 1. Update `dk_status_last_checked_at = now()`.
-2. Call `DkBankClient::postSigned('/v1/intra-transaction/status', {request_id, reference_no: $transaction->dk_reference_no, transaction_date: $transaction->created_at->toDateString(), bene_account_number: config('services.dk_bank.beneficiary_account')})`.
-3. On `response_code='0000'` AND `response_data[0].status='0'`:
-   - Verify `response_data[0].amount == $transaction->amount` → mismatch = fail
-   - Verify `response_data[0].credit_account == config('services.dk_bank.beneficiary_account')` → mismatch = fail
+2. **Try the call with two candidate dates** — `$transaction->created_at->toDateString()` first; on `3001` retry with `$transaction->created_at->addDay()->toDateString()`. DK's `transaction_date` parameter means "the date the customer initiated the payment," not "the date we generated the QR" — a merchant who opens the QR at 23:55 and pays at 00:02 would otherwise fail the same-day query. After 2 days, the next poll moves on as normal `pending`.
+3. Request body: `{request_id, reference_no: $transaction->dk_reference_no, transaction_date: <candidate>, bene_account_number: config('services.dk_bank.beneficiary_account')}`.
+4. On `response_code='0000'` AND `response_data[0].status='0'`:
+   - Verify `(float) $response['response_data'][0]['amount'] === (float) $transaction->amount` (DK returns amount as a string like `"150.00"` per the doc; cast both sides explicitly — strict `==` between string and Decimal-cast will surprise)
+   - Verify `response_data[0].credit_account === config('services.dk_bank.beneficiary_account')` → mismatch = fail
    - Wrap in DB transaction, lock Transaction row, call `Transaction::approveAndActivate()`.
    - Return `state: 'paid'`.
-4. On `response_code='3001'` → return `state: 'pending'` (normal "not paid yet").
-5. Other errors → log + return `state: 'pending'` (transient failure; don't fail the polling loop).
+5. On `response_code='3001'` after both candidate-date attempts → return `state: 'pending'` (normal "not paid yet").
+6. Other errors → log + return `state: 'pending'` (transient failure; don't fail the polling loop).
 
 **`verifyByRrn`** flow: identical to `checkDkIntraStatus` except:
 - `reference_no = strtoupper(trim($rrn))` (instead of `$transaction->dk_reference_no`)
-- On success, set `$transaction->dk_rrn = $rrn` before calling `approveAndActivate()`
+- **Recency guard**: parse `response_data[0].txn_ts` as Carbon; reject if it's earlier than `$transaction->created_at` (the QR was generated AFTER the alleged payment — impossible for a legitimate payment, certain proof of RRN replay)
+- On success, set `$transaction->dk_rrn = $rrn` inside the DB transaction. The unique constraint on `dk_rrn` is what catches the race-condition variant of replay; the recency guard catches the slow variant.
 - On `3001`, return `state: 'failed'` with user-friendly message "Reference number not found — double-check from your bank's receipt"
+- On unique-constraint violation when writing `dk_rrn`, return `state: 'failed'` with message "This reference number has already been used — contact support if this is unexpected" and log a `[security] dk_rrn replay attempt` warning with both transaction_ids.
 
 ### `Transaction::approveAndActivate()` (refactored from admin approve action)
 
-The existing `Admin\TransactionController::approve()` action contains logic to (a) flip status, (b) set `plan_id` / `plan_expires_at` on the Tenant, (c) invalidate cache, (d) audit log. Extract this into `Transaction::approveAndActivate(?int $approvedBy = null)` so both admin and auto-verify paths call the same code. Admin path passes `auth('admin')->id()`; auto-verify path passes `null` (the absence indicates "system-approved via DK API").
+The existing `Admin\TransactionController::approve()` is ~25 lines inside a `DB::transaction(...)` block: it locks the Transaction row (`lockForUpdate`), guards `status === 'pending'`, asserts tenant + plan exist, asserts `plan->is_active`, updates status/admin_notes/approved_by/approved_at, then calls `$tenant->extendPlan($plan)`. Multiple `RuntimeException` short-codes (`ALREADY_PROCESSED`, `PLAN_INACTIVE`, `RECORD_MISSING`) surface as user-friendly flash errors.
+
+The two callers diverge on:
+- **Starting status guard** — admin approves from `pending`; auto-verify approves from `awaiting_payment`. Method signature takes an allowed-from list: `approveAndActivate(array $allowedFromStatuses, ?int $adminId = null, ?string $adminNotes = null)`.
+- **Error handling** — admin path catches and shows flash messages; auto-verify path lets the exception propagate (controller returns JSON error). The method itself just throws cleanly typed exceptions.
+- **`reference_number` requirement** — admin's manual-form path requires a 6-char reference_number; auto-verify path has none. Acceptable since the column is already nullable for `awaiting_payment` rows.
+
+Concretely, extraction is ~30 lines of method body + 4 typed exception classes (`TransactionAlreadyProcessed`, `TransactionPlanInactive`, `TransactionRecordMissing`, `TransactionStatusNotAllowed`). Admin controller becomes a 10-line catch block translating exceptions to flash messages. This is **not a one-line trivial refactor** — flagged as a real task (Task 4 in the PR shape) with its own test suite for both call paths.
 
 ## Controllers + routes
 
@@ -274,8 +297,22 @@ Route::get('/billing/dk-qr/{transaction}/status', [DkBankQrController::class, 's
 
 Route::post('/billing/dk-qr/{transaction}/verify-rrn', [DkBankQrController::class, 'verifyRrn'])
     ->name('client.billing.dk-qr.verify-rrn')
-    ->middleware('throttle:5,60');  // 5/hour per session — RRN brute-force prevention
+    ->middleware('throttle:dk-rrn-verify');  // custom limiter — keyed per Transaction, NOT per IP
 ```
+
+**`dk-rrn-verify` rate limiter** (define in `AppServiceProvider::boot()` or a `RateLimiterServiceProvider`):
+
+```php
+RateLimiter::for('dk-rrn-verify', function (Request $request) {
+    $transactionId = $request->route('transaction')?->id ?? 'unknown';
+    return [
+        Limit::perHour(5)->by("dk-rrn:tx:{$transactionId}"),
+        Limit::perHour(20)->by("dk-rrn:tenant:{$request->user()?->tenant_id}"),
+    ];
+});
+```
+
+Per-transaction limit catches typos on a single QR session; per-tenant limit catches attack attempts across multiple sessions. **Not IP-based** — merchants behind NAT (most Bhutanese offices share an IP) would otherwise lock each other out.
 
 **`DkBankQrController` methods:**
 - `start(Plan)` — calls `DkBankQrService::startQrSession()`, returns Inertia render of a new `Client/Billing/DkQrSession.vue` page with the QR + status polling. On `DkQrGenerationException`, redirect back to Subscribe with a flash error and a `?dk_failed=1` query param so the manual form is auto-focused.
@@ -383,19 +420,28 @@ Run dev server with UAT creds, walk the four paths:
 
 ## Task 0 — verification probes (before any implementation tasks run)
 
-Before Task 1 of the plan does anything, run these against UAT to verify reality matches our model:
+Before Task 1 of the plan does anything, run these against UAT (or production sandbox) to verify reality matches our model. **The non-DK branch of this design is built entirely on DK's email reply that contradicts page 27 of their own doc. We do NOT commit to writing the RRN path code until probe #4 confirms it actually works against a real cross-bank payment.**
 
 1. **Canonical JSON signing matches DK's server**: Sign a sample body with the rules above, POST to `/v1/auth/token` (which doesn't actually validate the body signature, but proves our token fetch works). Then POST to `/v1/sign/key` (which requires the token, also no signature validation). Then POST to `/v1/generate_qr` — this IS signature-validated. Confirm we get `response_code: '0000'` back. **If signature fails here, fix `canonicalJson()` before going further.**
 
-2. **§10 status check with DK→DK reference_no**: Generate a UAT QR with a known `reference_no`. Scan with UAT DK mobile app + complete payment. Then call `/v1/intra-transaction/status` with that `reference_no`. Confirm response shape matches what the doc shows (`response_data[0]` with `status, status_desc, amount, credit_account, srn, ...`).
+2. **§10 status check with DK→DK `reference_no`**: Generate a UAT QR with a known `reference_no`. Scan with UAT DK mobile app + complete payment. Call `/v1/intra-transaction/status` with that `reference_no`. Confirm:
+   - `response_code = '0000'`, `response_data[0].status = '0'`
+   - `response_data[0].amount` matches the QR amount (note exact type — string vs number)
+   - `response_data[0].credit_account` matches our beneficiary
+   - `response_data[0].txn_ts` is present + ISO 8601 (used for recency guard)
+   - Document the literal response shape — the `verifyByRrn` and `checkDkIntraStatus` parsers depend on it being identical to the non-DK case.
 
-3. **§10 status check with arbitrary RRN**: Call `/v1/intra-transaction/status` with a fabricated RRN that doesn't exist. Confirm we get `response_code: '3001'` cleanly.
+3. **§10 status check with arbitrary RRN**: Call `/v1/intra-transaction/status` with a fabricated RRN. Confirm `response_code: '3001'` cleanly. This proves the failure path our UI surfaces.
 
-4. **(If feasible)** Cross-bank scan: try scanning a UAT-generated QR with a non-DK bank's UAT app, if available. UAT environments are often bank-isolated, so this may be impossible until production. Note the limitation in the plan if so.
+4. **🚨 BLOCKING: §10 status check with a REAL cross-bank RRN.** Initiate an actual cross-bank payment to our UAT beneficiary account from a non-DK Bhutanese bank app (BoB, BNB, or any available), grab the RRN from the receipt/SMS, then call `/v1/intra-transaction/status` with that RRN. Confirm we get `response_code = '0000'` + `status = '0'` exactly like the DK→DK case. **If this returns `3001`, the entire non-DK branch of this design is wrong. In that case: rip the RRN path out of the plan, ship DK→DK only, and the manual transaction-number form stays as the only non-DK path. No RRN code gets written until this probe succeeds.**
+
+   If UAT is bank-isolated and we can't run this in UAT, run it in production with a tiny real payment (Nu. 1.00 from sam's personal non-DK account to our merchant account) BEFORE writing the RRN-path code. Don't ship blind.
 
 5. **Token caching observed**: Make two `/v1/generate_qr` calls back-to-back; confirm Redis has the cached token and DK's token endpoint was hit only once.
 
-Findings update the implementation plan **before** any production-shape code is committed.
+6. **Response date sensitivity** for §10: take the successful response from probe #2, then call `/v1/intra-transaction/status` again with the SAME `reference_no` but `transaction_date` set to the next day. Document whether DK returns `0000` (date param doesn't strictly bind) or `3001` (date param is strict). This determines whether the two-candidate-date polling logic is necessary.
+
+Findings update the implementation plan **before** any production-shape code is committed. Specifically: probe #4 outcome decides whether the plan has 11 tasks or 7.
 
 ## Out of scope
 
