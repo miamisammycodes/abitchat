@@ -22,15 +22,17 @@
 
 declare(strict_types=1);
 
-require __DIR__ . '/../vendor/autoload.php';
+require __DIR__.'/../vendor/autoload.php';
 
 use Firebase\JWT\JWT;
 use GuzzleHttp\Client as Guzzle;
 use GuzzleHttp\Exception\RequestException;
+use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
-$app = require_once __DIR__ . '/../bootstrap/app.php';
-$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+$app = require_once __DIR__.'/../bootstrap/app.php';
+$app->make(Kernel::class)->bootstrap();
 
 $args = $argv;
 array_shift($args);
@@ -57,7 +59,7 @@ $config = [
 
 foreach (['base_url', 'username', 'password', 'client_id', 'client_secret', 'source_app', 'beneficiary'] as $required) {
     if (empty($config[$required])) {
-        echo "✗ Missing config: DK_BANK_" . strtoupper($required) . "\n";
+        echo '✗ Missing config: DK_BANK_'.strtoupper($required)."\n";
         echo "  Check your .env per the runbook prerequisites section.\n";
         exit(1);
     }
@@ -79,8 +81,10 @@ function canonicalJson(array $body): string
                 $b[$k] = $sort($v);
             }
         }
+
         return $b;
     };
+
     return json_encode($sort($body), JSON_UNESCAPED_SLASHES);
 }
 
@@ -88,7 +92,7 @@ function fetchToken(Guzzle $http, array $config): string
 {
     echo "  → POST {$config['base_url']}/v1/auth/token\n";
 
-    $response = $http->post($config['base_url'] . '/v1/auth/token', [
+    $response = $http->post($config['base_url'].'/v1/auth/token', [
         'headers' => ['X-gravitee-api-key' => $config['api_key_auth']],
         'form_params' => [
             'username' => $config['username'],
@@ -106,11 +110,12 @@ function fetchToken(Guzzle $http, array $config): string
 
     if (($body['response_code'] ?? null) !== '0000') {
         echo "  ✗ Token fetch failed:\n";
-        echo "    " . json_encode($body, JSON_PRETTY_PRINT) . "\n";
+        echo '    '.json_encode($body, JSON_PRETTY_PRINT)."\n";
         exit(1);
     }
 
-    echo "  ✓ response_code 0000, access_token starts with " . substr($body['response_data']['access_token'], 0, 10) . "...\n";
+    echo '  ✓ response_code 0000, access_token starts with '.substr($body['response_data']['access_token'], 0, 10)."...\n";
+
     return $body['response_data']['access_token'];
 }
 
@@ -118,15 +123,16 @@ function fetchOrLoadKey(Guzzle $http, array $config, string $token): string
 {
     if (file_exists($config['pem_path']) && filesize($config['pem_path']) > 0) {
         echo "  ✓ Using existing PEM at {$config['pem_path']}\n";
+
         return file_get_contents($config['pem_path']);
     }
 
     echo "  → POST {$config['base_url']}/v1/sign/key\n";
 
-    $response = $http->post($config['base_url'] . '/v1/sign/key', [
+    $response = $http->post($config['base_url'].'/v1/sign/key', [
         'headers' => [
             'X-gravitee-api-key' => $config['api_key_auth'],
-            'Authorization' => 'bearer ' . $token,
+            'Authorization' => 'bearer '.$token,
             'Content-Type' => 'application/json',
         ],
         'body' => json_encode([
@@ -139,13 +145,13 @@ function fetchOrLoadKey(Guzzle $http, array $config, string $token): string
 
     if (! str_contains($body, 'BEGIN RSA PRIVATE KEY') && ! str_contains($body, 'BEGIN PRIVATE KEY')) {
         echo "  ✗ Key fetch response is not a PEM:\n";
-        echo "    " . substr($body, 0, 300) . "\n";
+        echo '    '.substr($body, 0, 300)."\n";
         exit(1);
     }
 
     file_put_contents($config['pem_path'], $body);
     chmod($config['pem_path'], 0600);
-    echo "  ✓ PEM written to {$config['pem_path']} (mode 0600), " . filesize($config['pem_path']) . " bytes\n";
+    echo "  ✓ PEM written to {$config['pem_path']} (mode 0600), ".filesize($config['pem_path'])." bytes\n";
 
     return $body;
 }
@@ -164,16 +170,16 @@ function signedPost(Guzzle $http, array $config, string $endpoint, array $body, 
     $signature = JWT::encode($payload, $privateKey, 'RS256');
 
     echo "  → POST {$config['base_url']}{$endpoint}\n";
-    echo "    request body: " . substr(json_encode($body), 0, 200) . "\n";
+    echo '    request body: '.substr(json_encode($body), 0, 200)."\n";
 
-    $response = $http->post($config['base_url'] . $endpoint, [
+    $response = $http->post($config['base_url'].$endpoint, [
         'headers' => [
             'Content-Type' => 'application/json',
             'X-gravitee-api-key' => $config['api_key'],
-            'Authorization' => 'bearer ' . $token,
+            'Authorization' => 'bearer '.$token,
             'DK-Timestamp' => $timestamp,
             'DK-Nonce' => $nonce,
-            'DK-Signature' => 'DKSignature ' . $signature,
+            'DK-Signature' => 'DKSignature '.$signature,
             'source_app' => $config['source_app'],
         ],
         'body' => json_encode($body),
@@ -195,7 +201,7 @@ function probe1(Guzzle $http, array $config, array $args): void
             $save = true;
         }
     }
-    $reference ??= 'DKQR-PROBE1-' . strtoupper(Str::random(6));
+    $reference ??= 'DKQR-PROBE1-'.strtoupper(Str::random(6));
 
     echo "[Probe 1] Step A: fetching access token...\n";
     $token = fetchToken($http, $config);
@@ -216,7 +222,7 @@ function probe1(Guzzle $http, array $config, array $args): void
 
     if (($response['response_code'] ?? null) !== '0000') {
         echo "  ✗ FAILED:\n";
-        echo "    " . json_encode($response, JSON_PRETTY_PRINT) . "\n";
+        echo '    '.json_encode($response, JSON_PRETTY_PRINT)."\n";
         exit(1);
     }
 
@@ -224,10 +230,10 @@ function probe1(Guzzle $http, array $config, array $args): void
     echo "  ✓ response_code 0000, image is {$imageLen} bytes base64\n";
 
     if ($save) {
-        if (! is_dir(__DIR__ . '/../tmp')) {
-            mkdir(__DIR__ . '/../tmp', 0755, true);
+        if (! is_dir(__DIR__.'/../tmp')) {
+            mkdir(__DIR__.'/../tmp', 0755, true);
         }
-        $pngPath = __DIR__ . "/../tmp/dk-qr-{$reference}.png";
+        $pngPath = __DIR__."/../tmp/dk-qr-{$reference}.png";
         file_put_contents($pngPath, base64_decode($response['response_data']['image']));
         echo "  ✓ QR PNG saved to {$pngPath}\n";
         echo "    Open this file on your monitor and scan from your phone.\n";
@@ -240,7 +246,7 @@ function probe1(Guzzle $http, array $config, array $args): void
 function probe2or6(Guzzle $http, array $config, array $args, int $probeNum): void
 {
     if (! isset($args[1])) {
-        echo "Usage: php scripts/dk-probe.php {$probeNum} <reference_no> " . ($probeNum === 6 ? "+N" : "") . "\n";
+        echo "Usage: php scripts/dk-probe.php {$probeNum} <reference_no> ".($probeNum === 6 ? '+N' : '')."\n";
         exit(1);
     }
 
@@ -264,7 +270,7 @@ function probe2or6(Guzzle $http, array $config, array $args, int $probeNum): voi
     ], $token, $key);
 
     echo "\n  Response:\n";
-    echo json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n\n";
+    echo json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n\n";
 
     $code = $response['response_code'] ?? null;
     $status = $response['response_data'][0]['status'] ?? null;
@@ -285,7 +291,7 @@ function probe3(Guzzle $http, array $config): void
     $token = fetchToken($http, $config);
     $key = fetchOrLoadKey($http, $config, $token);
 
-    $fakeRrn = 'FAKERRN' . random_int(100000000, 999999999);
+    $fakeRrn = 'FAKERRN'.random_int(100000000, 999999999);
 
     echo "\n[Probe 3] Calling /v1/intra-transaction/status with fabricated RRN {$fakeRrn}...\n";
     $response = signedPost($http, $config, '/v1/intra-transaction/status', [
@@ -296,7 +302,7 @@ function probe3(Guzzle $http, array $config): void
     ], $token, $key);
 
     echo "\n  Response:\n";
-    echo json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+    echo json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n";
 
     if (($response['response_code'] ?? null) === '3001') {
         echo "\n[Probe 3] ✓ PASSED — fabricated RRN returns 3001 as documented.\n";
@@ -332,7 +338,7 @@ function probe4(Guzzle $http, array $config, array $args): void
     ], $token, $key);
 
     echo "\n  Response:\n";
-    echo json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n\n";
+    echo json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n\n";
 
     $code = $response['response_code'] ?? null;
     $status = $response['response_data'][0]['status'] ?? null;
@@ -354,23 +360,23 @@ function probe4(Guzzle $http, array $config, array $args): void
 function probe5(Guzzle $http, array $config): void
 {
     echo "[Probe 5] Flushing token cache...\n";
-    \Illuminate\Support\Facades\Cache::forget('dk_bank:access_token');
+    Cache::forget('dk_bank:access_token');
 
     echo "[Probe 5] First QR call (cold cache)...\n";
     $t1Start = microtime(true);
     fetchToken($http, $config);
-    \Illuminate\Support\Facades\Cache::put('dk_bank:access_token', 'observed', 1500);
+    Cache::put('dk_bank:access_token', 'observed', 1500);
     $t1 = (microtime(true) - $t1Start) * 1000;
 
-    echo "  duration: " . number_format($t1, 0) . "ms\n\n";
+    echo '  duration: '.number_format($t1, 0)."ms\n\n";
 
     echo "[Probe 5] Second token call (should hit cache, not network)...\n";
     $t2Start = microtime(true);
-    $cached = \Illuminate\Support\Facades\Cache::get('dk_bank:access_token');
+    $cached = Cache::get('dk_bank:access_token');
     $t2 = (microtime(true) - $t2Start) * 1000;
 
-    echo "  duration: " . number_format($t2, 2) . "ms\n";
-    echo "  Cache::get('dk_bank:access_token') = " . substr((string) $cached, 0, 16) . "...\n\n";
+    echo '  duration: '.number_format($t2, 2)."ms\n";
+    echo "  Cache::get('dk_bank:access_token') = ".substr((string) $cached, 0, 16)."...\n\n";
 
     if ($t2 < ($t1 / 10)) {
         echo "[Probe 5] ✓ PASSED — cache hit is >10x faster than cold fetch.\n";
@@ -390,13 +396,13 @@ try {
         6 => probe2or6($http, $config, $args, 6),
     };
 } catch (RequestException $e) {
-    echo "\n✗ HTTP error: " . $e->getMessage() . "\n";
+    echo "\n✗ HTTP error: ".$e->getMessage()."\n";
     if ($e->getResponse()) {
-        echo "  Response body: " . (string) $e->getResponse()->getBody() . "\n";
+        echo '  Response body: '.(string) $e->getResponse()->getBody()."\n";
     }
     exit(1);
-} catch (\Throwable $e) {
-    echo "\n✗ Error: " . $e->getMessage() . "\n";
-    echo "  File: " . $e->getFile() . ":" . $e->getLine() . "\n";
+} catch (Throwable $e) {
+    echo "\n✗ Error: ".$e->getMessage()."\n";
+    echo '  File: '.$e->getFile().':'.$e->getLine()."\n";
     exit(1);
 }

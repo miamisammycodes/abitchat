@@ -6,6 +6,4 @@ namespace App\Exceptions\Billing;
 
 use RuntimeException;
 
-final class TransactionRecordMissing extends RuntimeException
-{
-}
+final class TransactionRecordMissing extends RuntimeException {}

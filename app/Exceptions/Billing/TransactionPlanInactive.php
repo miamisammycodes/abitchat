@@ -6,6 +6,4 @@ namespace App\Exceptions\Billing;
 
 use RuntimeException;
 
-final class TransactionPlanInactive extends RuntimeException
-{
-}
+final class TransactionPlanInactive extends RuntimeException {}

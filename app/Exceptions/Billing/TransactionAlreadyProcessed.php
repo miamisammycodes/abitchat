@@ -6,6 +6,4 @@ namespace App\Exceptions\Billing;
 
 use RuntimeException;
 
-final class TransactionAlreadyProcessed extends RuntimeException
-{
-}
+final class TransactionAlreadyProcessed extends RuntimeException {}

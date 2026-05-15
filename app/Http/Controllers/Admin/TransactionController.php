@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exceptions\Billing\TransactionAlreadyProcessed;
+use App\Exceptions\Billing\TransactionPlanInactive;
+use App\Exceptions\Billing\TransactionRecordMissing;
 use App\Http\Controllers\Controller;
 use App\Models\Transaction;
 use Illuminate\Http\RedirectResponse;
@@ -95,11 +98,11 @@ class TransactionController extends Controller
                 adminId: $admin?->id,
                 adminNotes: $validated['admin_notes'] ?? null,
             );
-        } catch (\App\Exceptions\Billing\TransactionAlreadyProcessed) {
+        } catch (TransactionAlreadyProcessed) {
             return back()->with('error', 'Transaction has already been processed.');
-        } catch (\App\Exceptions\Billing\TransactionPlanInactive) {
+        } catch (TransactionPlanInactive) {
             return back()->with('error', 'Cannot approve transaction: the plan is no longer active.');
-        } catch (\App\Exceptions\Billing\TransactionRecordMissing) {
+        } catch (TransactionRecordMissing) {
             Log::error('[Admin] Transaction approve hit missing tenant or plan', [
                 'transaction_id' => $transaction->id,
             ]);

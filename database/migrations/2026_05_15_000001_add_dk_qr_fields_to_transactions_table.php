@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 return new class extends Migration
 {
@@ -29,9 +30,9 @@ return new class extends Migration
     {
         // Backfill any NULL transaction_numbers (created by DK QR flow) before
         // re-applying NOT NULL, otherwise the down migration would fail.
-        \DB::table('transactions')
+        DB::table('transactions')
             ->whereNull('transaction_number')
-            ->update(['transaction_number' => 'BACKFILL-'.\Illuminate\Support\Str::random(8)]);
+            ->update(['transaction_number' => 'BACKFILL-'.Str::random(8)]);
 
         Schema::table('transactions', function (Blueprint $table) {
             $table->dropUnique(['dk_reference_no']);

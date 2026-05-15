@@ -6,6 +6,4 @@ namespace App\Exceptions\Billing;
 
 use RuntimeException;
 
-final class TransactionStatusNotAllowed extends RuntimeException
-{
-}
+final class TransactionStatusNotAllowed extends RuntimeException {}
