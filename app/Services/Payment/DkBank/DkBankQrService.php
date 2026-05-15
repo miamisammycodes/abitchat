@@ -9,7 +9,11 @@ use App\Models\Plan;
 use App\Models\Tenant;
 use App\Models\Transaction;
 use App\Services\Payment\DkBank\DTO\DkQrSession;
+use App\Services\Payment\DkBank\DTO\DkStatusResult;
+use App\Services\Payment\DkBank\DTO\DkStatusState;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 final class DkBankQrService
@@ -59,5 +63,87 @@ final class DkBankQrService
                 qrImageBase64: $response['response_data']['image'],
             );
         });
+    }
+
+    public function checkDkIntraStatus(Transaction $transaction): DkStatusResult
+    {
+        $transaction->update(['dk_status_last_checked_at' => now()]);
+
+        $candidates = [
+            $transaction->created_at->toDateString(),
+            $transaction->created_at->copy()->addDay()->toDateString(),
+        ];
+
+        foreach ($candidates as $date) {
+            $response = $this->client->postSigned('/v1/intra-transaction/status', [
+                'request_id' => $this->client->generateRequestId(),
+                'reference_no' => $transaction->dk_reference_no,
+                'transaction_date' => $date,
+                'bene_account_number' => config('services.dk_bank.beneficiary_account'),
+            ]);
+
+            $result = $this->interpretStatusResponse($response, $transaction);
+            if ($result->state !== DkStatusState::Pending) {
+                return $result;
+            }
+        }
+
+        return new DkStatusResult(state: DkStatusState::Pending);
+    }
+
+    /**
+     * @param  array<string, mixed>  $response
+     */
+    private function interpretStatusResponse(array $response, Transaction $transaction): DkStatusResult
+    {
+        if (($response['response_code'] ?? null) === '3001') {
+            return new DkStatusResult(state: DkStatusState::Pending);
+        }
+
+        if (($response['response_code'] ?? null) !== '0000') {
+            Log::warning('[DK QR] (IS $) Status check returned unexpected code', [
+                'transaction_id' => $transaction->id,
+                'response' => $response,
+            ]);
+
+            return new DkStatusResult(state: DkStatusState::Pending);
+        }
+
+        $data = $response['response_data'][0] ?? null;
+        if ($data === null || ($data['status'] ?? null) !== '0') {
+            return new DkStatusResult(state: DkStatusState::Pending);
+        }
+
+        $reportedAmount = (float) ($data['amount'] ?? 0);
+        $expectedAmount = (float) $transaction->amount;
+        if (abs($reportedAmount - $expectedAmount) > 0.01) {
+            Log::warning('[DK QR] (NO $) Status amount mismatch', [
+                'transaction_id' => $transaction->id,
+                'expected' => $expectedAmount,
+                'reported' => $reportedAmount,
+            ]);
+
+            return new DkStatusResult(state: DkStatusState::Failed, errorMessage: 'Amount mismatch');
+        }
+
+        $reportedCredit = (string) ($data['credit_account'] ?? '');
+        $expectedCredit = (string) config('services.dk_bank.beneficiary_account');
+        if ($reportedCredit !== $expectedCredit) {
+            Log::warning('[DK QR] (NO $) Status credit_account mismatch', [
+                'transaction_id' => $transaction->id,
+                'expected' => $expectedCredit,
+                'reported' => $reportedCredit,
+            ]);
+
+            return new DkStatusResult(state: DkStatusState::Failed, errorMessage: 'Credit account mismatch');
+        }
+
+        $transaction->approveAndActivate(allowedFromStatuses: ['awaiting_payment'], adminId: null);
+
+        return new DkStatusResult(
+            state: DkStatusState::Paid,
+            matchedReferenceNo: $transaction->dk_reference_no,
+            paidAt: isset($data['txn_ts']) ? Carbon::parse($data['txn_ts']) : null,
+        );
     }
 }
