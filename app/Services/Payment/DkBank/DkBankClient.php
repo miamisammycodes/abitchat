@@ -4,8 +4,15 @@ declare(strict_types=1);
 
 namespace App\Services\Payment\DkBank;
 
+use Illuminate\Support\Str;
+
 final class DkBankClient
 {
+    public function generateRequestId(): string
+    {
+        return str_replace('-', '', (string) Str::uuid());
+    }
+
     private function canonicalJson(array $body): string
     {
         return json_encode($this->sortKeysRecursive($body), JSON_UNESCAPED_SLASHES);
