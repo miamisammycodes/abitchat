@@ -157,7 +157,11 @@ final class UsageTracker
         return now()->format('Y-m');
     }
 
-    /** @param HasMany<Model, Tenant> $relation */
+    /**
+     * @template TModel of Model
+     *
+     * @param  HasMany<TModel, Tenant>  $relation
+     */
     private function countByPeriod(HasMany $relation, string $period): int
     {
         [$year, $month] = explode('-', $period);

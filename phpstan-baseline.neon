@@ -36,14 +36,3 @@ parameters:
 			count: 1
 			path: app/Services/LLM/ChatService.php
 
-		-
-			message: '#^Parameter \#1 \$relation of method App\\Services\\Usage\\UsageTracker\:\:countByPeriod\(\) expects Illuminate\\Database\\Eloquent\\Relations\\HasMany\<Illuminate\\Database\\Eloquent\\Model, App\\Models\\Tenant\>, Illuminate\\Database\\Eloquent\\Relations\\HasMany\<App\\Models\\Conversation, App\\Models\\Tenant\> given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Services/Usage/UsageTracker.php
-
-		-
-			message: '#^Parameter \#1 \$relation of method App\\Services\\Usage\\UsageTracker\:\:countByPeriod\(\) expects Illuminate\\Database\\Eloquent\\Relations\\HasMany\<Illuminate\\Database\\Eloquent\\Model, App\\Models\\Tenant\>, Illuminate\\Database\\Eloquent\\Relations\\HasMany\<App\\Models\\Lead, App\\Models\\Tenant\> given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Services/Usage/UsageTracker.php
