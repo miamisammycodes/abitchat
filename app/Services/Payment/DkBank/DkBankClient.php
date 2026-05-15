@@ -48,11 +48,19 @@ class DkBankClient
         return str_replace('-', '', (string) Str::uuid());
     }
 
+    /**
+     * @param  array<string, mixed>  $body
+     * @return array<string, mixed>
+     */
     public function postSigned(string $endpoint, array $body): array
     {
         return $this->doSignedRequest($endpoint, $body, allowRetry: true);
     }
 
+    /**
+     * @param  array<string, mixed>  $body
+     * @return array<string, mixed>
+     */
     public function postUnsigned(string $endpoint, array $body): array
     {
         $response = Http::timeout((int) config('services.dk_bank.http_timeout'))
@@ -62,6 +70,9 @@ class DkBankClient
         return $response->json() ?? [];
     }
 
+    /**
+     * @param  array<string, mixed>  $body
+     */
     public function postPlain(string $endpoint, array $body): string
     {
         $response = Http::timeout((int) config('services.dk_bank.http_timeout'))
@@ -74,6 +85,10 @@ class DkBankClient
         return $response->body();
     }
 
+    /**
+     * @param  array<string, mixed>  $body
+     * @return array<string, mixed>
+     */
     private function doSignedRequest(string $endpoint, array $body, bool $allowRetry): array
     {
         $timestamp = gmdate('Y-m-d\TH:i:s\Z');
@@ -106,11 +121,17 @@ class DkBankClient
         return $payload;
     }
 
+    /**
+     * @param  array<string, mixed>  $body
+     */
     private function canonicalJson(array $body): string
     {
         return json_encode($this->sortKeysRecursive($body), JSON_UNESCAPED_SLASHES);
     }
 
+    /**
+     * @param  array<string, mixed>  $body
+     */
     private function signBody(array $body, string $timestamp, string $nonce): string
     {
         $canonical = $this->canonicalJson($body);
@@ -136,6 +157,9 @@ class DkBankClient
      * Recursively sort array keys alphabetically. Matches Python's
      * `json.dumps(sort_keys=True)` behavior, which DK's server uses to
      * re-canonicalize the body and verify the signature.
+     *
+     * @param  array<string, mixed>  $body
+     * @return array<string, mixed>
      */
     private function sortKeysRecursive(array $body): array
     {
