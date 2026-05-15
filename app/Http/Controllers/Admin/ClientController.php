@@ -190,8 +190,7 @@ class ClientController extends Controller
                 'plan_expires_at' => $validated['expires_at'],
             ]);
         } else {
-            $months = $plan->billing_period === 'yearly' ? 12 : 1;
-            $client->extendPlan($plan, $months);
+            $client->extendPlan($plan);
         }
 
         return back()->with('success', "Client plan updated to {$plan->name}.");

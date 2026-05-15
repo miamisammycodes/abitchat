@@ -23,7 +23,7 @@ class ChatService
     // the system prompt, current user message, and the completion reply.
     private const MAX_HISTORY_TOKENS = 4000;
 
-    private const NO_KNOWLEDGE_FALLBACK = "No information has been loaded yet. You cannot answer any specific questions. Only greet the user and offer to connect them with the team.";
+    private const NO_KNOWLEDGE_FALLBACK = 'No information has been loaded yet. You cannot answer any specific questions. Only greet the user and offer to connect them with the team.';
 
     private Provider $provider;
 
@@ -47,7 +47,7 @@ class ChatService
     }
 
     /**
-     * @param array<string, mixed> $context
+     * @param  array<string, mixed>  $context
      */
     public function generateResponse(
         Conversation $conversation,
@@ -98,6 +98,7 @@ class ChatService
                 },
                 when: function (\Throwable $e) {
                     $message = $e->getMessage();
+
                     return str_contains($message, '429')
                         || str_contains($message, '500')
                         || str_contains($message, '503')
@@ -190,7 +191,7 @@ class ChatService
     }
 
     /**
-     * @param array<string, mixed> $context
+     * @param  array<string, mixed>  $context
      */
     public function streamResponse(
         Conversation $conversation,
@@ -225,7 +226,7 @@ class ChatService
 
             foreach ($stream as $event) {
                 // Only process text chunks, skip start/end events
-                if (property_exists($event, 'text') && $event->text !== null) {
+                if (property_exists($event, 'text') && $event->text !== '') {
                     $fullResponse .= $event->text;
                     yield $event->text;
                 }
@@ -256,7 +257,7 @@ class ChatService
     }
 
     /**
-     * @param array<string, mixed> $context
+     * @param  array<string, mixed>  $context
      */
     private function buildSystemPrompt(Tenant $tenant, array $context, ?Conversation $conversation = null): string
     {
@@ -309,13 +310,13 @@ class ChatService
             );
         }
         $sections[] = $chunks !== []
-            ? "<knowledge>\n" . implode("\n", $chunks) . "\n</knowledge>"
+            ? "<knowledge>\n".implode("\n", $chunks)."\n</knowledge>"
             : self::NO_KNOWLEDGE_FALLBACK;
 
         // --- TRUSTED strict rules (LAST) ---
         $sections[] = $this->getStrictRulesBlock();
 
-        return implode("\n\n", array_filter($sections, fn ($s) => $s !== null && $s !== ''));
+        return implode("\n\n", array_filter($sections, fn ($s) => $s !== ''));
     }
 
     private function getLeadCaptureSection(string $botType, bool $leadCaptured, bool $contactRequested): string
@@ -382,12 +383,12 @@ PROMPT;
             return $value;
         }
 
-        Log::warning('[LLM] ' . $logMessage, [
+        Log::warning('[LLM] '.$logMessage, [
             'original_length' => $length,
             'truncated_to' => $maxChars,
         ]);
 
-        return mb_substr($value, 0, $maxChars) . "\u{2026}";
+        return mb_substr($value, 0, $maxChars)."\u{2026}";
     }
 
     private function getBotTypePrompt(string $botType, string $companyName): string
@@ -548,6 +549,6 @@ PROMPT,
      */
     private function wrapUntrusted(string $tag, string $content): string
     {
-        return "<{$tag}>\n" . $this->escapeForPrompt($content) . "\n</{$tag}>";
+        return "<{$tag}>\n".$this->escapeForPrompt($content)."\n</{$tag}>";
     }
 }

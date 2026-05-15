@@ -55,7 +55,7 @@ trait BelongsToTenant
         return $query->where("{$this->getTable()}.tenant_id", $tenantId);
     }
 
-    /** @return BelongsTo<Tenant, static> */
+    /** @return BelongsTo<Tenant, $this> */
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
