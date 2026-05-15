@@ -109,6 +109,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/transactions/{transaction}/receipt', [BillingController::class, 'downloadReceipt'])->name('receipt');
         Route::post('/activate-trial/{plan}', [BillingController::class, 'activateTrial'])->name('activate-trial');
         Route::post('/enterprise-inquiry', [EnterpriseInquiryController::class, 'store'])->name('enterprise-inquiry');
+
+        // DK Bank QR payment flow
+        Route::post('/dk-qr/{plan}', [\App\Http\Controllers\Client\DkBankQrController::class, 'start'])
+            ->name('dk-qr.start');
     });
 });
 
