@@ -84,7 +84,7 @@ class HandleInertiaRequests extends Middleware
         $user = $request->user();
         $tenant = $user?->tenant;
 
-        if (!$tenant) {
+        if (! $tenant) {
             return [];
         }
 
@@ -99,8 +99,8 @@ class HandleInertiaRequests extends Middleware
 
         $rows = [];
         foreach ($stats as $type => $stat) {
-            $used = (int) ($stat['used'] ?? 0);
-            $limit = (int) ($stat['limit'] ?? 0);
+            $used = $stat['used'];
+            $limit = $stat['limit'];
 
             if ($limit <= 0) {
                 continue; // unlimited (-1) or unset (0)

@@ -44,7 +44,9 @@ class WidgetController extends Controller
         $tenant = $this->getTenant($request);
 
         $settings = $tenant->settings ?? [];
-        $domains = collect($validated['allowed_domains'] ?? [])
+        /** @var array<int, string> $rawDomains */
+        $rawDomains = $validated['allowed_domains'] ?? [];
+        $domains = collect($rawDomains)
             ->map(fn (string $d) => strtolower(trim($d)))
             ->filter()
             ->values()
