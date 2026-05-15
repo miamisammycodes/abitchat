@@ -23,10 +23,10 @@ class AnalyticsService
     {
         $startDate = now()->subDays($days)->startOfDay();
 
-        $conversations = Conversation::where('tenant_id', $tenant->id)
+        $conversations = Conversation::forTenant($tenant)
             ->where('created_at', '>=', $startDate);
 
-        $leads = Lead::where('tenant_id', $tenant->id)
+        $leads = Lead::forTenant($tenant)
             ->where('created_at', '>=', $startDate);
 
         $totalConversations = (clone $conversations)->count();
@@ -46,7 +46,7 @@ class AnalyticsService
             : 0;
 
         // Token usage
-        $tokenUsage = UsageRecord::where('tenant_id', $tenant->id)
+        $tokenUsage = UsageRecord::forTenant($tenant)
             ->where('type', 'tokens')
             ->where('created_at', '>=', $startDate)
             ->sum('quantity');
@@ -73,7 +73,7 @@ class AnalyticsService
     {
         $startDate = now()->subDays($days)->startOfDay();
 
-        $data = Conversation::where('tenant_id', $tenant->id)
+        $data = Conversation::forTenant($tenant)
             ->where('created_at', '>=', $startDate)
             ->selectRaw('DATE(created_at) as date, COUNT(*) as count')
             ->groupBy('date')
@@ -103,7 +103,7 @@ class AnalyticsService
     {
         $startDate = now()->subDays($days)->startOfDay();
 
-        $data = Lead::where('tenant_id', $tenant->id)
+        $data = Lead::forTenant($tenant)
             ->where('created_at', '>=', $startDate)
             ->selectRaw('DATE(created_at) as date, COUNT(*) as count')
             ->groupBy('date')
@@ -133,7 +133,7 @@ class AnalyticsService
     {
         $startDate = now()->subDays($days)->startOfDay();
 
-        $data = UsageRecord::where('tenant_id', $tenant->id)
+        $data = UsageRecord::forTenant($tenant)
             ->where('type', 'tokens')
             ->where('created_at', '>=', $startDate)
             ->selectRaw('DATE(created_at) as date, SUM(quantity) as total')
@@ -162,7 +162,7 @@ class AnalyticsService
      */
     public function getLeadScoreDistribution(Tenant $tenant): array
     {
-        $leads = Lead::where('tenant_id', $tenant->id)->get();
+        $leads = Lead::forTenant($tenant)->get();
 
         $distribution = [
             'hot' => $leads->where('score', '>=', 70)->count(),
@@ -180,7 +180,7 @@ class AnalyticsService
      */
     public function getLeadStatusDistribution(Tenant $tenant): array
     {
-        return Lead::where('tenant_id', $tenant->id)
+        return Lead::forTenant($tenant)
             ->selectRaw('status, COUNT(*) as count')
             ->groupBy('status')
             ->pluck('count', 'status')
@@ -199,7 +199,10 @@ class AnalyticsService
      */
     public function getTopQuestions(Tenant $tenant, int $limit = 10): array
     {
-        $rows = Message::whereHas('conversation', fn ($q) => $q->where('tenant_id', $tenant->id))
+        $rows = Message::whereIn(
+            'conversation_id',
+            Conversation::forTenant($tenant)->select('id'),
+        )
             ->where('role', 'user')
             ->where('created_at', '>=', now()->subDays(30))
             ->selectRaw('MAX(content) AS sample, COUNT(*) AS count')
@@ -234,7 +237,7 @@ class AnalyticsService
             default => 'HOUR(created_at)',
         };
 
-        $data = Conversation::where('tenant_id', $tenant->id)
+        $data = Conversation::forTenant($tenant)
             ->where('created_at', '>=', $startDate)
             ->selectRaw("{$hourExpression} as hour, COUNT(*) as count")
             ->groupBy('hour')
@@ -261,7 +264,7 @@ class AnalyticsService
      */
     public function getRecentActivity(Tenant $tenant, int $limit = 10): array
     {
-        $conversations = Conversation::where('tenant_id', $tenant->id)
+        $conversations = Conversation::forTenant($tenant)
             ->latest()
             ->limit($limit)
             ->get()
@@ -274,7 +277,7 @@ class AnalyticsService
                 'time_ago' => $c->created_at->diffForHumans(),
             ]);
 
-        $leads = Lead::where('tenant_id', $tenant->id)
+        $leads = Lead::forTenant($tenant)
             ->latest()
             ->limit($limit)
             ->get()

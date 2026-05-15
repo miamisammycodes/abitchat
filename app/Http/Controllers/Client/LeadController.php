@@ -23,7 +23,7 @@ class LeadController extends Controller
     {
         $tenant = $this->getTenant($request);
 
-        $query = Lead::where('tenant_id', $tenant->id)
+        $query = Lead::forTenant($tenant)
             ->with(['conversation' => fn ($q) => $q->withCount('messages')]);
 
         // Filter by status
@@ -55,10 +55,10 @@ class LeadController extends Controller
         $sortDirection = $request->input('direction', 'desc');
         $allowedSorts = ['created_at', 'score', 'name', 'status'];
 
-        if (!in_array($sortField, $allowedSorts, true)) {
+        if (! in_array($sortField, $allowedSorts, true)) {
             $sortField = 'created_at';
         }
-        if (!in_array($sortDirection, ['asc', 'desc'], true)) {
+        if (! in_array($sortDirection, ['asc', 'desc'], true)) {
             $sortDirection = 'desc';
         }
 
@@ -191,7 +191,7 @@ class LeadController extends Controller
     {
         $tenant = $this->getTenant($request);
 
-        $query = Lead::where('tenant_id', $tenant->id);
+        $query = Lead::forTenant($tenant);
 
         // Apply same filters as index
         if ($request->has('status') && $request->status !== 'all') {

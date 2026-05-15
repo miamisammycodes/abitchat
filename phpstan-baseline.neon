@@ -7,24 +7,6 @@ parameters:
 			path: app/Http/Controllers/Admin/ClientController.php
 
 		-
-			message: '#^Raw where\(''tenant_id'', \.\.\.\) bypasses tenant scoping\. Use forTenant\(\$tenant\) instead\.$#'
-			identifier: tenancy.rawTenantId
-			count: 8
-			path: app/Http/Controllers/Admin/ClientController.php
-
-		-
-			message: '#^Raw where\(''tenant_id'', \.\.\.\) bypasses tenant scoping\. Use forTenant\(\$tenant\) instead\.$#'
-			identifier: tenancy.rawTenantId
-			count: 3
-			path: app/Http/Controllers/Api/V1/Widget/ChatController.php
-
-		-
-			message: '#^Raw where\(''tenant_id'', \.\.\.\) bypasses tenant scoping\. Use forTenant\(\$tenant\) instead\.$#'
-			identifier: tenancy.rawTenantId
-			count: 2
-			path: app/Http/Controllers/Client/LeadController.php
-
-		-
 			message: '#^Unable to resolve the template type TKey in call to function collect$#'
 			identifier: argument.templateType
 			count: 1
@@ -107,12 +89,6 @@ parameters:
 			identifier: return.type
 			count: 1
 			path: app/Models/User.php
-
-		-
-			message: '#^Raw where\(''tenant_id'', \.\.\.\) bypasses tenant scoping\. Use forTenant\(\$tenant\) instead\.$#'
-			identifier: tenancy.rawTenantId
-			count: 12
-			path: app/Services/Analytics/AnalyticsService.php
 
 		-
 			message: '#^Strict comparison using \!\=\= between string and null will always evaluate to true\.$#'

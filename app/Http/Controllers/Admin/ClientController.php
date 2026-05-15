@@ -85,33 +85,33 @@ class ClientController extends Controller
         $client->load(['currentPlan', 'users']);
 
         // Get usage stats
-        $conversationsCount = Conversation::where('tenant_id', $client->id)->count();
-        $conversationsThisMonth = Conversation::where('tenant_id', $client->id)
+        $conversationsCount = Conversation::forTenant($client)->count();
+        $conversationsThisMonth = Conversation::forTenant($client)
             ->where('created_at', '>=', now()->startOfMonth())
             ->count();
 
-        $leadsCount = Lead::where('tenant_id', $client->id)->count();
-        $leadsThisMonth = Lead::where('tenant_id', $client->id)
+        $leadsCount = Lead::forTenant($client)->count();
+        $leadsThisMonth = Lead::forTenant($client)
             ->where('created_at', '>=', now()->startOfMonth())
             ->count();
 
-        $tokensUsed = UsageRecord::where('tenant_id', $client->id)
+        $tokensUsed = UsageRecord::forTenant($client)
             ->where('type', 'tokens')
             ->sum('quantity');
-        $tokensThisMonth = UsageRecord::where('tenant_id', $client->id)
+        $tokensThisMonth = UsageRecord::forTenant($client)
             ->where('type', 'tokens')
             ->where('created_at', '>=', now()->startOfMonth())
             ->sum('quantity');
 
         // Recent transactions
-        $transactions = Transaction::where('tenant_id', $client->id)
+        $transactions = Transaction::forTenant($client)
             ->with('plan')
             ->latest()
             ->limit(10)
             ->get();
 
         // Recent conversations
-        $recentConversations = Conversation::where('tenant_id', $client->id)
+        $recentConversations = Conversation::forTenant($client)
             ->withCount('messages')
             ->latest()
             ->limit(10)
