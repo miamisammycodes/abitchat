@@ -12,6 +12,7 @@ use App\Services\Payment\DkBank\DTO\DkQrSession;
 use App\Services\Payment\DkBank\DTO\DkStatusResult;
 use App\Services\Payment\DkBank\DTO\DkStatusState;
 use Carbon\Carbon;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -63,6 +64,85 @@ final class DkBankQrService
                 qrImageBase64: $response['response_data']['image'],
             );
         });
+    }
+
+    public function verifyByRrn(Transaction $transaction, string $rrn): DkStatusResult
+    {
+        $rrn = strtoupper(trim($rrn));
+        $transaction->update(['dk_status_last_checked_at' => now()]);
+
+        $response = $this->client->postSigned('/v1/intra-transaction/status', [
+            'request_id' => $this->client->generateRequestId(),
+            'reference_no' => $rrn,
+            'transaction_date' => $transaction->created_at->toDateString(),
+            'bene_account_number' => config('services.dk_bank.beneficiary_account'),
+        ]);
+
+        if (($response['response_code'] ?? null) === '3001') {
+            return new DkStatusResult(
+                state: DkStatusState::Failed,
+                errorMessage: 'Reference number not found — double-check from your bank\'s receipt. If you paid within the last few minutes, wait 30 seconds and try again.',
+            );
+        }
+
+        if (($response['response_code'] ?? null) !== '0000') {
+            Log::warning('[DK QR] (IS $) verifyByRrn unexpected response code', [
+                'transaction_id' => $transaction->id,
+                'response' => $response,
+            ]);
+
+            return new DkStatusResult(state: DkStatusState::Failed, errorMessage: 'Verification failed — please try again');
+        }
+
+        $data = $response['response_data'][0] ?? null;
+        if ($data === null || ($data['status'] ?? null) !== '0') {
+            return new DkStatusResult(state: DkStatusState::Failed, errorMessage: 'Reference number not found');
+        }
+
+        // Recency guard — RRN's txn_ts must be after we generated the QR
+        $txnTs = isset($data['txn_ts']) ? Carbon::parse($data['txn_ts']) : null;
+        if ($txnTs === null || $txnTs->lt($transaction->created_at)) {
+            Log::warning('[security] (NO $) dk_rrn replay attempt: txn_ts predates QR generation', [
+                'transaction_id' => $transaction->id,
+                'rrn' => $rrn,
+                'txn_ts' => $txnTs?->toDateTimeString(),
+                'qr_created_at' => $transaction->created_at->toDateTimeString(),
+            ]);
+
+            return new DkStatusResult(state: DkStatusState::Failed, errorMessage: 'Reference number is older than this QR session — likely a typo. Please re-check.');
+        }
+
+        // Amount + credit account guards
+        if (abs((float) $data['amount'] - (float) $transaction->amount) > 0.01) {
+            return new DkStatusResult(state: DkStatusState::Failed, errorMessage: 'Payment amount did not match this plan. Contact support.');
+        }
+        if ((string) $data['credit_account'] !== (string) config('services.dk_bank.beneficiary_account')) {
+            return new DkStatusResult(state: DkStatusState::Failed, errorMessage: 'Payment was not credited to our account. Contact support.');
+        }
+
+        // Write the RRN and approve atomically — unique constraint catches replay race
+        try {
+            DB::transaction(function () use ($transaction, $rrn) {
+                $transaction->update(['dk_rrn' => $rrn]);
+                $transaction->approveAndActivate(allowedFromStatuses: ['awaiting_payment'], adminId: null);
+            });
+        } catch (UniqueConstraintViolationException) {
+            Log::warning('[security] (NO $) dk_rrn replay attempt: unique constraint violation', [
+                'transaction_id' => $transaction->id,
+                'rrn' => $rrn,
+            ]);
+
+            return new DkStatusResult(
+                state: DkStatusState::Failed,
+                errorMessage: 'This reference number has already been used for another payment. Contact support if this is unexpected.',
+            );
+        }
+
+        return new DkStatusResult(
+            state: DkStatusState::Paid,
+            matchedReferenceNo: $rrn,
+            paidAt: $txnTs,
+        );
     }
 
     public function checkDkIntraStatus(Transaction $transaction): DkStatusResult
