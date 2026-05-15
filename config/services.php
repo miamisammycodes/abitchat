@@ -48,4 +48,19 @@ return [
         'model' => env('EMBEDDING_MODEL', 'nomic-embed-text'),
     ],
 
+    'dk_bank' => [
+        'enabled' => env('DK_BANK_ENABLED', false),
+        'base_url' => env('DK_BANK_BASE_URL'),
+        'api_key' => env('DK_BANK_API_KEY'),
+        'username' => env('DK_BANK_USERNAME'),
+        'password' => env('DK_BANK_PASSWORD'),
+        'client_id' => env('DK_BANK_CLIENT_ID'),
+        'client_secret' => env('DK_BANK_CLIENT_SECRET'),
+        'source_app' => env('DK_BANK_SOURCE_APP'),
+        'beneficiary_account' => env('DK_BANK_BENEFICIARY_ACCOUNT'),
+        'mcc_code' => env('DK_BANK_MCC_CODE', '5817'),
+        'private_key_path' => storage_path('app/dk_pg.pem'),
+        'http_timeout' => env('DK_BANK_HTTP_TIMEOUT', 30),
+    ],
+
 ];
