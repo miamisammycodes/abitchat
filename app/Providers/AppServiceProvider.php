@@ -36,5 +36,15 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(20)->by($key);
         });
+
+        RateLimiter::for('dk-rrn-verify', function (Request $request) {
+            $transactionId = $request->route('transaction')?->id ?? 'unknown';
+            $tenantId = $request->user()?->tenant_id ?? 'unknown';
+
+            return [
+                Limit::perHour(5)->by("dk-rrn:tx:{$transactionId}"),
+                Limit::perHour(20)->by("dk-rrn:tenant:{$tenantId}"),
+            ];
+        });
     }
 }
