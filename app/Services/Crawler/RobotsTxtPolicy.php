@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Log;
 
 class RobotsTxtPolicy
 {
-    public const USER_AGENT = 'ChatbotIndexer';
+    private const USER_AGENT = 'ChatbotIndexer';
 
     public const USER_AGENT_HEADER = self::USER_AGENT.'/1.0';
 

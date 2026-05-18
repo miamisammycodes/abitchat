@@ -210,7 +210,7 @@ class SiteCrawler
     /**
      * @return array{skip: bool, last_modified: ?string, etag: ?string}
      */
-    private function probeHeaders(string $url, ?KnowledgeItem $existing): array
+    private function probeHeaders(string $url, KnowledgeItem $existing): array
     {
         try {
             $response = Http::timeout(10)
@@ -220,13 +220,11 @@ class SiteCrawler
             $lastModified = $response->header('Last-Modified') ?: null;
             $etag = $response->header('ETag') ?: null;
 
-            if ($existing !== null) {
-                $priorLm = $existing->metadata['last_modified'] ?? null;
-                $priorEtag = $existing->metadata['etag'] ?? null;
-                if (($priorLm !== null && $priorLm === $lastModified)
-                    || ($priorEtag !== null && $priorEtag === $etag)) {
-                    return ['skip' => true, 'last_modified' => $lastModified, 'etag' => $etag];
-                }
+            $priorLm = $existing->metadata['last_modified'] ?? null;
+            $priorEtag = $existing->metadata['etag'] ?? null;
+            if (($priorLm !== null && $priorLm === $lastModified)
+                || ($priorEtag !== null && $priorEtag === $etag)) {
+                return ['skip' => true, 'last_modified' => $lastModified, 'etag' => $etag];
             }
 
             return ['skip' => false, 'last_modified' => $lastModified, 'etag' => $etag];
