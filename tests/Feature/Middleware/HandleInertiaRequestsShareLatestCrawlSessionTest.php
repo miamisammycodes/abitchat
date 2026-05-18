@@ -1,0 +1,38 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Feature\Middleware;
+
+use App\Models\CrawlSession;
+use App\Models\Tenant;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+class HandleInertiaRequestsShareLatestCrawlSessionTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_dashboard_receives_latest_crawl_session(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $user = User::factory()->create(['tenant_id' => $tenant->id]);
+        $session = CrawlSession::factory()->forTenant($tenant)->create();
+
+        $response = $this->actingAs($user)->get('/dashboard');
+
+        $response->assertInertia(fn ($page) => $page->has('latest_crawl_session', fn ($s) => $s->where('id', $session->id)->etc()));
+    }
+
+    public function test_unrelated_route_does_not_share_session(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $user = User::factory()->create(['tenant_id' => $tenant->id]);
+        CrawlSession::factory()->forTenant($tenant)->create();
+
+        $response = $this->actingAs($user)->get('/');
+
+        $response->assertInertia(fn ($page) => $page->where('latest_crawl_session', null));
+    }
+}

@@ -3,6 +3,7 @@ import { Head, Link } from '@inertiajs/vue3'
 import { useRoute } from '@/composables/useRoute'
 import ClientLayout from '@/Layouts/ClientLayout.vue'
 import { Card, CardContent } from '@/Components/ui/card'
+import IndexingStatusBanner from '@/Components/IndexingStatusBanner.vue'
 import { Badge } from '@/Components/ui/badge'
 import {
   MessageSquare,
@@ -70,6 +71,8 @@ const quickActions = [
 
   <ClientLayout>
     <div class="space-y-6">
+      <IndexingStatusBanner class="mb-4" />
+
       <!-- Header -->
       <div class="flex items-center gap-3">
         <h1 class="text-2xl font-bold text-foreground">Dashboard</h1>
