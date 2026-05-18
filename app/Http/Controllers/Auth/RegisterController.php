@@ -21,7 +21,9 @@ class RegisterController extends Controller
 {
     public function create(): Response
     {
-        return Inertia::render('Auth/Register');
+        return Inertia::render('Auth/Register', [
+            'trialKnowledgeItemsLimit' => (int) config('billing.trial_limits.knowledge_items', 10),
+        ]);
     }
 
     public function store(RegisterRequest $request): RedirectResponse
