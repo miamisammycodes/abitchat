@@ -44,7 +44,7 @@ class DkBankQrServiceCheckTest extends TestCase
         $mock->shouldReceive('postSigned')->once()
             ->andReturn([
                 'response_code' => '0000',
-                'response_data' => [[
+                'response_data' => ['status' => [
                     'status' => '0',
                     'amount' => '1000.00',
                     'credit_account' => '110158212197',
@@ -74,7 +74,7 @@ class DkBankQrServiceCheckTest extends TestCase
             ->twice()
             ->andReturn(
                 ['response_code' => '3001'],
-                ['response_code' => '0000', 'response_data' => [[
+                ['response_code' => '0000', 'response_data' => ['status' => [
                     'status' => '0', 'amount' => '1000.00',
                     'credit_account' => '110158212197', 'txn_ts' => now()->toDateTimeString(),
                 ]]],
@@ -123,7 +123,7 @@ class DkBankQrServiceCheckTest extends TestCase
         $mock = Mockery::mock(DkBankClient::class);
         $mock->shouldReceive('generateRequestId')->andReturn(str_repeat('a', 32));
         $mock->shouldReceive('postSigned')->once()
-            ->andReturn(['response_code' => '0000', 'response_data' => [[
+            ->andReturn(['response_code' => '0000', 'response_data' => ['status' => [
                 'status' => '0', 'amount' => '999.00',  // Mismatch
                 'credit_account' => '110158212197', 'txn_ts' => '2026-05-15 12:00:00',
             ]]]);
