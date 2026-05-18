@@ -26,6 +26,9 @@ const props = defineProps({
   tenant: Object,
   embedUrl: String,
   apiUrl: String,
+  website_url: { type: String, default: '' },
+  auto_recrawl: { type: Boolean, default: true },
+  last_crawl_session: { type: Object, default: null },
 })
 
 const page = usePage()
@@ -88,6 +91,19 @@ function regenerateApiKey() {
   if (confirm('Are you sure? This will invalidate your current embed code and require updating all installations.')) {
     router.post(route('client.widget.regenerate-key'))
   }
+}
+
+const indexingForm = useForm({
+  website_url: props.website_url || '',
+  auto_recrawl: props.auto_recrawl,
+})
+
+function saveIndexing() {
+  indexingForm.patch(route('widget.indexing.update'), { preserveScroll: true })
+}
+
+function recrawlNow() {
+  router.post(route('widget.indexing.recrawl'), {}, { preserveScroll: true })
 }
 </script>
 
@@ -278,6 +294,41 @@ function regenerateApiKey() {
                   {{ form.processing ? 'Saving...' : 'Save Settings' }}
                 </Button>
               </form>
+            </CardContent>
+          </Card>
+
+          <!-- Website Indexing Card -->
+          <Card>
+            <CardHeader>
+              <CardTitle>Website indexing</CardTitle>
+              <CardDescription>
+                Automatically index your website so your chatbot can answer questions about your content.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form @submit.prevent="saveIndexing" class="space-y-4">
+                <div class="space-y-2">
+                  <Label for="website_url">Website URL</Label>
+                  <Input id="website_url" v-model="indexingForm.website_url" type="url" placeholder="https://yourcompany.com" />
+                  <p v-if="indexingForm.errors.website_url" class="text-sm text-destructive">{{ indexingForm.errors.website_url }}</p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input type="checkbox" id="auto_recrawl" v-model="indexingForm.auto_recrawl" />
+                  <Label for="auto_recrawl">Re-crawl my site daily</Label>
+                </div>
+                <div class="flex gap-2">
+                  <Button type="submit" :disabled="indexingForm.processing">Save</Button>
+                  <Button type="button" variant="outline" @click="recrawlNow" :disabled="!indexingForm.website_url">
+                    Re-crawl now
+                  </Button>
+                </div>
+              </form>
+
+              <div v-if="last_crawl_session" class="mt-4 text-sm text-muted-foreground">
+                Last crawl: <span class="font-medium">{{ last_crawl_session.status }}</span>
+                ({{ last_crawl_session.pages_indexed }} pages)
+                <span v-if="last_crawl_session.completed_at">on {{ new Date(last_crawl_session.completed_at).toLocaleDateString() }}</span>
+              </div>
             </CardContent>
           </Card>
         </div>

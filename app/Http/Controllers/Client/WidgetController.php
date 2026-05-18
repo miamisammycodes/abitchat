@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
+use App\Models\CrawlSession;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -26,6 +27,11 @@ class WidgetController extends Controller
             ],
             'embedUrl' => $request->getSchemeAndHttpHost().'/widget/chatbot.js',
             'apiUrl' => $request->getSchemeAndHttpHost(),
+            'website_url' => $tenant->website_url,
+            'auto_recrawl' => (bool) $tenant->auto_recrawl,
+            'last_crawl_session' => CrawlSession::query()->forTenant($tenant)->latest('id')->first()?->only([
+                'id', 'status', 'mode', 'pages_indexed', 'pages_discovered', 'started_at', 'completed_at',
+            ]),
         ]);
     }
 
