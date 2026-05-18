@@ -172,7 +172,19 @@ class SiteCrawler
                     ],
                 );
 
-                ProcessKnowledgeItem::dispatch($item);
+                try {
+                    ProcessKnowledgeItem::dispatch($item);
+                } catch (\Throwable $e) {
+                    // Under QUEUE_CONNECTION=sync, dispatch runs the job inline
+                    // and bubbles its exceptions. The item is already persisted;
+                    // its embedding can retry via KnowledgeItemWorkflow::retry.
+                    // Don't kill the crawl loop over one bad page.
+                    Log::warning('[SiteCrawler] (NO $) Processing dispatch failed; continuing crawl', [
+                        'tenant_id' => $tenant->id,
+                        'item_id' => $item->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
                 $pagesIndexed++;
 
                 ($this->sleeper)($crawlDelay);

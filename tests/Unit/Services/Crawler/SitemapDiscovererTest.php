@@ -93,6 +93,37 @@ class SitemapDiscovererTest extends TestCase
         $this->assertContains('https://example.com/news/1', $urls);
     }
 
+    public function test_nested_sitemap_listed_under_url_tag_is_recursed_not_yielded(): void
+    {
+        // laravel-news.com and others list nested sitemaps under <url> instead
+        // of <sitemap>. Verify the discoverer recurses on .xml URLs rather than
+        // treating them as content pages.
+        Http::fake([
+            'https://example.com/robots.txt' => Http::response('', 404),
+            'https://example.com/sitemap.xml' => Http::response(
+                '<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+                .'<url><loc>https://example.com/sitemap_articles.xml</loc></url>'
+                .'<url><loc>https://example.com/about</loc></url>'
+                .'</urlset>',
+                200,
+            ),
+            'https://example.com/sitemap_articles.xml' => Http::response(
+                '<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+                .'<url><loc>https://example.com/article/1</loc></url>'
+                .'<url><loc>https://example.com/article/2</loc></url>'
+                .'</urlset>',
+                200,
+            ),
+        ]);
+
+        $urls = iterator_to_array($this->discoverer->discover('https://example.com'));
+
+        $this->assertContains('https://example.com/article/1', $urls);
+        $this->assertContains('https://example.com/article/2', $urls);
+        $this->assertContains('https://example.com/about', $urls);
+        $this->assertNotContains('https://example.com/sitemap_articles.xml', $urls, 'nested sitemap URL must NOT be yielded as content');
+    }
+
     public function test_bfs_respects_depth_cap(): void
     {
         Http::fake([

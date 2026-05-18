@@ -85,12 +85,21 @@ class SitemapDiscoverer
 
             foreach ($xml->url ?? [] as $url) {
                 $loc = (string) ($url->loc ?? '');
-                if ($loc !== '') {
-                    yield $loc;
+                if ($loc === '') {
+                    continue;
                 }
+                // Some sites (e.g. laravel-news.com) list nested sitemaps inside
+                // <url> instead of <sitemap>. Recurse on anything ending in .xml
+                // so we don't try to index the sitemap itself as a page.
+                if (self::looksLikeSitemap($loc)) {
+                    yield from $this->fetchSitemap($loc);
+
+                    continue;
+                }
+                yield $loc;
             }
 
-            // Sitemap index (nested sitemaps)
+            // Sitemap index (nested sitemaps — spec-compliant form)
             foreach ($xml->sitemap ?? [] as $sitemap) {
                 $nested = (string) ($sitemap->loc ?? '');
                 if ($nested !== '') {
@@ -192,5 +201,12 @@ class SitemapDiscoverer
         }
 
         return $origin.'/'.ltrim($href, '/');
+    }
+
+    private static function looksLikeSitemap(string $url): bool
+    {
+        $path = parse_url($url, PHP_URL_PATH);
+
+        return is_string($path) && (str_ends_with($path, '.xml') || str_ends_with($path, '.xml.gz'));
     }
 }
