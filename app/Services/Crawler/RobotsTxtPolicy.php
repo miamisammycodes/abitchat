@@ -9,31 +9,40 @@ use Illuminate\Support\Facades\Log;
 
 class RobotsTxtPolicy
 {
-    private const USER_AGENT = 'ChatbotIndexer';
+    public const USER_AGENT = 'ChatbotIndexer';
+
+    public const USER_AGENT_HEADER = self::USER_AGENT.'/1.0';
 
     private const DEFAULT_CRAWL_DELAY_SECONDS = 1;
+
+    /** @var array<string, RobotsPolicy> */
+    private array $cache = [];
 
     public function fetchFor(string $rootUrl): RobotsPolicy
     {
         $host = parse_url($rootUrl, PHP_URL_SCHEME).'://'.parse_url($rootUrl, PHP_URL_HOST);
 
+        if (isset($this->cache[$host])) {
+            return $this->cache[$host];
+        }
+
         try {
             $response = Http::timeout(5)
-                ->withHeaders(['User-Agent' => self::USER_AGENT.'/1.0'])
+                ->withHeaders(['User-Agent' => self::USER_AGENT_HEADER])
                 ->get($host.'/robots.txt');
 
             if (! $response->successful()) {
-                return $this->permissivePolicy();
+                return $this->cache[$host] = $this->permissivePolicy();
             }
 
-            return $this->parse($response->body());
+            return $this->cache[$host] = $this->parse($response->body());
         } catch (\Throwable $e) {
             Log::debug('[RobotsTxt] (IS $) Fetch failed; using permissive policy', [
                 'root' => $rootUrl,
                 'error' => $e->getMessage(),
             ]);
 
-            return $this->permissivePolicy();
+            return $this->cache[$host] = $this->permissivePolicy();
         }
     }
 

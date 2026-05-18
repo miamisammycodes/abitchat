@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
+use App\Enums\CrawlMode;
 use App\Enums\CrawlSessionStatus;
 use App\Jobs\CrawlWebsiteJob;
 use App\Models\CrawlSession;
@@ -45,7 +46,7 @@ class RefreshAllCrawlsCommandTest extends TestCase
 
         Bus::assertDispatched(CrawlWebsiteJob::class, 1);
         Bus::assertDispatched(CrawlWebsiteJob::class, function (CrawlWebsiteJob $job) use ($eligible) {
-            return $job->tenant->id === $eligible->id && $job->mode === 'refresh';
+            return $job->tenant->id === $eligible->id && $job->mode === CrawlMode::Refresh;
         });
     }
 

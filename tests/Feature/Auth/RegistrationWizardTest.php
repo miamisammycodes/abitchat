@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Auth;
 
+use App\Enums\CrawlMode;
 use App\Jobs\CrawlWebsiteJob;
 use App\Models\Tenant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -47,7 +48,7 @@ class RegistrationWizardTest extends TestCase
         $response->assertRedirect('/dashboard');
         $this->assertSame('https://example.com', Tenant::where('name', 'Co')->first()->website_url);
         Bus::assertDispatched(CrawlWebsiteJob::class, function (CrawlWebsiteJob $job) {
-            return $job->tenant->website_url === 'https://example.com' && $job->mode === 'initial';
+            return $job->tenant->website_url === 'https://example.com' && $job->mode === CrawlMode::Initial;
         });
     }
 

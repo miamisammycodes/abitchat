@@ -23,7 +23,7 @@ class CrawlWebsiteJobTest extends TestCase
     {
         $this->assertInstanceOf(
             NotTenantAware::class,
-            new CrawlWebsiteJob(Tenant::factory()->make(), 'initial'),
+            new CrawlWebsiteJob(Tenant::factory()->make(), CrawlMode::Initial),
         );
     }
 
@@ -40,7 +40,7 @@ class CrawlWebsiteJobTest extends TestCase
             );
         $this->app->instance(SiteCrawler::class, $crawler);
 
-        $job = new CrawlWebsiteJob($tenant, 'initial');
+        $job = new CrawlWebsiteJob($tenant, CrawlMode::Initial);
         $job->handle(app(SiteCrawler::class));
 
         $this->assertSame(1, CrawlSession::forTenant($tenant)->count());
@@ -55,7 +55,7 @@ class CrawlWebsiteJobTest extends TestCase
             'status' => CrawlSessionStatus::Running,
         ]);
 
-        $job = new CrawlWebsiteJob($tenant, 'initial');
+        $job = new CrawlWebsiteJob($tenant, CrawlMode::Initial);
         $job->failed(new \RuntimeException('boom'));
 
         $session->refresh();

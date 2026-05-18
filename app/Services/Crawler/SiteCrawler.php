@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Crawler;
 
 use App\Enums\CrawlSessionStatus;
+use App\Enums\KnowledgeItemStatus;
 use App\Jobs\ProcessKnowledgeItem;
 use App\Models\CrawlSession;
 use App\Models\CrawlUrlBlocklist;
@@ -110,7 +111,10 @@ class SiteCrawler
                     ->where('url_normalized', $normalized)
                     ->first();
 
-                $headResult = $this->probeHeaders($url, $existing);
+                $headResult = $existing !== null
+                    ? $this->probeHeaders($url, $existing)
+                    : ['skip' => false, 'last_modified' => null, 'etag' => null];
+
                 if ($headResult['skip']) {
                     $pagesSkippedUnchanged++;
 
@@ -158,7 +162,7 @@ class SiteCrawler
                         'title' => $title,
                         'source_url' => $url,
                         'content' => $body,
-                        'status' => 'pending',
+                        'status' => KnowledgeItemStatus::Pending,
                         'metadata' => [
                             'crawl_session_id' => $session->id,
                             'content_hash' => $contentHash,
@@ -210,7 +214,7 @@ class SiteCrawler
     {
         try {
             $response = Http::timeout(10)
-                ->withHeaders(['User-Agent' => 'ChatbotIndexer/1.0'])
+                ->withHeaders(['User-Agent' => RobotsTxtPolicy::USER_AGENT_HEADER])
                 ->head($url);
 
             $lastModified = $response->header('Last-Modified') ?: null;
@@ -235,7 +239,7 @@ class SiteCrawler
     {
         try {
             $response = Http::timeout(self::REQUEST_TIMEOUT_SECONDS)
-                ->withHeaders(['User-Agent' => 'ChatbotIndexer/1.0'])
+                ->withHeaders(['User-Agent' => RobotsTxtPolicy::USER_AGENT_HEADER])
                 ->withOptions(['allow_redirects' => true])
                 ->get($url);
 

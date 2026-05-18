@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Client;
 
+use App\Enums\CrawlMode;
 use App\Enums\CrawlSessionStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Client\UpdateWebsiteIndexingRequest;
@@ -43,8 +44,8 @@ class WebsiteIndexingController extends Controller
             ->where(function ($q): void {
                 $q->where('created_at', '>', now()->subMinutes(self::MANUAL_COOLDOWN_MINUTES))
                     ->orWhereIn('status', [
-                        CrawlSessionStatus::Queued->value,
-                        CrawlSessionStatus::Running->value,
+                        CrawlSessionStatus::Queued,
+                        CrawlSessionStatus::Running,
                     ]);
             })
             ->exists();
@@ -53,7 +54,7 @@ class WebsiteIndexingController extends Controller
             return back()->withErrors(['cooldown' => 'Please wait — your last crawl started less than an hour ago.']);
         }
 
-        CrawlWebsiteJob::dispatch($tenant, 'manual');
+        CrawlWebsiteJob::dispatch($tenant, CrawlMode::Manual);
 
         return back()->with('status', 'Re-crawl queued.');
     }

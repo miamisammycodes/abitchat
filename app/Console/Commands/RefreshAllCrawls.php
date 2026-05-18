@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Enums\CrawlMode;
 use App\Enums\CrawlSessionStatus;
 use App\Jobs\CrawlWebsiteJob;
 use App\Models\CrawlSession;
@@ -28,13 +29,30 @@ class RefreshAllCrawls extends Command
             ->whereNotNull('website_url')
             ->where('auto_recrawl', true)
             ->chunkById(100, function ($tenants) use (&$dispatched, &$skipped): void {
+                $tenantIds = $tenants->pluck('id')->all();
+
+                // Cross-tenant batch lookup: intentionally queries all tenants at once
+                // to avoid N+1. This command is a fan-out scheduler — not tenant-scoped.
+                // @phpstan-ignore-next-line tenancy.rawTenantId
+                $inFlight = CrawlSession::query()
+                    ->whereIn('tenant_id', $tenantIds)
+                    ->whereIn('status', [
+                        CrawlSessionStatus::Queued,
+                        CrawlSessionStatus::Running,
+                    ])
+                    ->where('created_at', '>', now()->subHours(self::IN_FLIGHT_WINDOW_HOURS))
+                    ->pluck('tenant_id')
+                    ->all();
+
+                $inFlightSet = array_fill_keys($inFlight, true);
+
                 foreach ($tenants as $tenant) {
-                    if ($this->hasInFlightSession($tenant)) {
+                    if (isset($inFlightSet[$tenant->id])) {
                         $skipped++;
 
                         continue;
                     }
-                    CrawlWebsiteJob::dispatch($tenant, 'refresh');
+                    CrawlWebsiteJob::dispatch($tenant, CrawlMode::Refresh);
                     $dispatched++;
                 }
             });
@@ -42,16 +60,5 @@ class RefreshAllCrawls extends Command
         $this->info("Dispatched {$dispatched} crawl jobs ({$skipped} skipped — in-flight).");
 
         return self::SUCCESS;
-    }
-
-    private function hasInFlightSession(Tenant $tenant): bool
-    {
-        return CrawlSession::forTenant($tenant)
-            ->whereIn('status', [
-                CrawlSessionStatus::Queued->value,
-                CrawlSessionStatus::Running->value,
-            ])
-            ->where('created_at', '>', now()->subHours(self::IN_FLIGHT_WINDOW_HOURS))
-            ->exists();
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Client;
 
+use App\Enums\CrawlMode;
 use App\Enums\CrawlSessionStatus;
 use App\Jobs\CrawlWebsiteJob;
 use App\Models\CrawlSession;
@@ -41,7 +42,7 @@ class WebsiteIndexingControllerTest extends TestCase
         $response = $this->actingAs($user)->post('/widget-settings/website-indexing/recrawl');
 
         $response->assertSessionHasNoErrors();
-        Bus::assertDispatched(CrawlWebsiteJob::class, fn (CrawlWebsiteJob $job) => $job->mode === 'manual');
+        Bus::assertDispatched(CrawlWebsiteJob::class, fn (CrawlWebsiteJob $job) => $job->mode === CrawlMode::Manual);
     }
 
     public function test_manual_recrawl_blocked_within_cooldown(): void

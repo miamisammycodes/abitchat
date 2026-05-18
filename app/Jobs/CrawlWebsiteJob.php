@@ -27,23 +27,21 @@ class CrawlWebsiteJob implements NotTenantAware, ShouldQueue
 
     public function __construct(
         public Tenant $tenant,
-        public string $mode = 'initial',
+        public CrawlMode $mode = CrawlMode::Initial,
     ) {
         $this->onQueue('crawls');
     }
 
     public function handle(SiteCrawler $crawler): void
     {
-        $modeEnum = CrawlMode::from($this->mode);
-
         // On retry, mark any in-flight session for this tenant as Failed
         // before starting a fresh session — see spec retry semantics.
         // Queued sessions get cleaned up too in case the previous dispatch
         // never reached the worker (worker crash, OOM kill, restart).
         CrawlSession::forTenant($this->tenant)
             ->whereIn('status', [
-                CrawlSessionStatus::Queued->value,
-                CrawlSessionStatus::Running->value,
+                CrawlSessionStatus::Queued,
+                CrawlSessionStatus::Running,
             ])
             ->update([
                 'status' => CrawlSessionStatus::Failed->value,
@@ -53,14 +51,14 @@ class CrawlWebsiteJob implements NotTenantAware, ShouldQueue
 
         $session = CrawlSession::create([
             'tenant_id' => $this->tenant->id,
-            'mode' => $modeEnum,
+            'mode' => $this->mode,
             'status' => CrawlSessionStatus::Queued,
         ]);
 
         Log::debug('[CrawlWebsiteJob] (NO $) Starting crawl', [
             'tenant_id' => $this->tenant->id,
             'session_id' => $session->id,
-            'mode' => $modeEnum->value,
+            'mode' => $this->mode->value,
         ]);
 
         $crawler->crawl($this->tenant, $session);
@@ -75,8 +73,8 @@ class CrawlWebsiteJob implements NotTenantAware, ShouldQueue
 
         $latest = CrawlSession::forTenant($this->tenant)
             ->whereIn('status', [
-                CrawlSessionStatus::Queued->value,
-                CrawlSessionStatus::Running->value,
+                CrawlSessionStatus::Queued,
+                CrawlSessionStatus::Running,
             ])
             ->latest('id')
             ->first();

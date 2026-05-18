@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
+use App\Enums\CrawlMode;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Jobs\CrawlWebsiteJob;
@@ -67,7 +68,7 @@ class RegisterController extends Controller
         });
 
         if ($tenant->website_url) {
-            CrawlWebsiteJob::dispatch($tenant, 'initial');
+            CrawlWebsiteJob::dispatch($tenant, CrawlMode::Initial);
             session()->flash('website_indexing_started', true);
         }
 

@@ -72,7 +72,7 @@ class SitemapDiscoverer
 
         try {
             $response = Http::timeout(10)
-                ->withHeaders(['User-Agent' => 'ChatbotIndexer/1.0'])
+                ->withHeaders(['User-Agent' => RobotsTxtPolicy::USER_AGENT_HEADER])
                 ->get($sitemapUrl);
             if (! $response->successful()) {
                 return;
@@ -142,7 +142,7 @@ class SitemapDiscoverer
 
         try {
             $response = Http::timeout(10)
-                ->withHeaders(['User-Agent' => 'ChatbotIndexer/1.0'])
+                ->withHeaders(['User-Agent' => RobotsTxtPolicy::USER_AGENT_HEADER])
                 ->get($url);
             if (! $response->successful()) {
                 return [];
