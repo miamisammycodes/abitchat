@@ -1,5 +1,5 @@
 <script setup>
-import { Head, Link, useForm } from '@inertiajs/vue3'
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3'
 import { useRoute } from '@/composables/useRoute'
 import ClientLayout from '@/Layouts/ClientLayout.vue'
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card'
@@ -8,9 +8,10 @@ import { Input } from '@/Components/ui/input'
 import { Label } from '@/Components/ui/label'
 import { Textarea } from '@/Components/ui/textarea'
 import { Alert, AlertDescription } from '@/Components/ui/alert'
-import { Check, Clock, Info } from 'lucide-vue-next'
+import { AlertCircle, Check, Clock, Info, Sparkles } from 'lucide-vue-next'
 
 const route = useRoute()
+const page = usePage()
 
 const props = defineProps({
   plan: Object,
@@ -45,6 +46,12 @@ const banks = [
 
   <ClientLayout>
     <div class="max-w-4xl mx-auto space-y-6">
+      <!-- Flash Error (e.g. DK QR start failure) -->
+      <Alert v-if="page.props.flash?.error" variant="destructive">
+        <AlertCircle class="h-4 w-4" />
+        <AlertDescription>{{ page.props.flash.error }}</AlertDescription>
+      </Alert>
+
       <!-- Header -->
       <div>
         <h1 class="text-2xl font-bold text-foreground">Subscribe to {{ plan.name }}</h1>
@@ -62,6 +69,34 @@ const banks = [
           </p>
         </AlertDescription>
       </Alert>
+
+      <!-- DK Bank QR (instant verification) -->
+      <Card v-if="page.props.dkBankEnabled" class="border-primary">
+        <CardHeader>
+          <CardTitle class="flex items-center gap-2">
+            <Sparkles class="h-5 w-5 text-primary" />
+            Pay with DK Bank QR — instant verification
+          </CardTitle>
+        </CardHeader>
+        <CardContent class="space-y-3">
+          <p class="text-sm text-muted-foreground">
+            Scan with any Bhutanese bank app to pay. DK Bank payments are verified instantly;
+            other banks require pasting your transaction reference after paying.
+          </p>
+          <Button as-child>
+            <Link :href="route('client.billing.dk-qr.start', plan.id)" method="post" as="button">
+              Generate QR
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
+
+      <div v-if="page.props.dkBankEnabled" class="relative my-6">
+        <div class="absolute inset-0 flex items-center"><span class="w-full border-t" /></div>
+        <div class="relative flex justify-center text-xs uppercase">
+          <span class="bg-background px-2 text-muted-foreground">or pay manually</span>
+        </div>
+      </div>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <!-- Plan Summary -->

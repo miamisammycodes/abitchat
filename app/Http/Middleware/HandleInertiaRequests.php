@@ -68,6 +68,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'usageWarnings' => fn () => $this->buildUsage($request, warningsOnly: true),
             'usageStats' => fn () => $this->buildUsage($request, warningsOnly: false),
+            'dkBankEnabled' => (bool) config('services.dk_bank.enabled'),
         ];
     }
 

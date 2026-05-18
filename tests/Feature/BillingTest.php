@@ -410,6 +410,43 @@ class BillingTest extends TestCase
         // but the authorization ensures only own transactions are shown
     }
 
+    public function test_submit_payment_merges_into_awaiting_dk_qr_row(): void
+    {
+        $this->actingAsTenantUser();
+
+        $plan = Plan::create([
+            'name' => 'Pro', 'slug' => 'pro-merge', 'description' => 'd', 'price' => 1000,
+            'billing_period' => 'yearly', 'conversations_limit' => 1, 'messages_per_conversation' => 1,
+            'knowledge_items_limit' => 1, 'tokens_limit' => 1, 'leads_limit' => 1,
+            'is_active' => true, 'sort_order' => 1,
+        ]);
+
+        $awaiting = Transaction::create([
+            'tenant_id' => $this->tenant->id, 'plan_id' => $plan->id,
+            'amount' => 1000, 'payment_method' => 'dk_qr', 'payment_date' => now(),
+            'status' => 'awaiting_payment', 'dk_reference_no' => 'DKQR-MERGE-TEST',
+        ]);
+
+        $this->post("/billing/subscribe/{$plan->id}", [
+            'transaction_number' => 'BANK-TXN-555',
+            'reference_number' => 'ABC123',
+            'amount' => 1000,
+            'payment_method' => 'bob',
+            'payment_date' => now()->format('Y-m-d'),
+        ])->assertRedirect();
+
+        // No new row created — the awaiting one was merged
+        $this->assertSame(1, Transaction::where('tenant_id', $this->tenant->id)->where('plan_id', $plan->id)->count());
+
+        $awaiting->refresh();
+        $this->assertSame('pending', $awaiting->status);
+        $this->assertSame('BANK-TXN-555', $awaiting->transaction_number);
+        $this->assertSame('ABC123', $awaiting->reference_number);
+        $this->assertSame('bob', $awaiting->payment_method);
+        // dk_reference_no preserved for audit
+        $this->assertSame('DKQR-MERGE-TEST', $awaiting->dk_reference_no);
+    }
+
     public function test_payment_supports_all_valid_methods(): void
     {
         $this->actingAsTenantUser();
