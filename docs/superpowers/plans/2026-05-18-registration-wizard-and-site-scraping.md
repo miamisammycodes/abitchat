@@ -478,7 +478,7 @@ return new class extends Migration
         Schema::create('crawl_url_blocklist', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
-            $table->string('url_normalized', 2048);
+            $table->string('url_normalized', 768);
             $table->timestamp('excluded_at');
             $table->timestamps();
 
@@ -494,7 +494,7 @@ return new class extends Migration
 };
 ```
 
-Note: MySQL caps unique-index key length on `VARCHAR(2048) utf8mb4` (4 bytes/char). To stay under the 3072-byte limit on a single-column unique with `tenant_id`, the unique index uses the URL as-is in MySQL 8.0+ (its default `innodb_large_prefix` allows 3072 bytes). If migration fails on a constrained MySQL version, switch to `$table->string('url_normalized', 768)` — 768×4 = 3072 bytes fits.
+**Why 768 not 2048**: MySQL 8.0 InnoDB caps unique/composite key length at 3072 bytes. utf8mb4 = 4 bytes/char. `(tenant_id BIGINT 8 bytes) + (url_normalized × 4 bytes)` must fit. 768 × 4 = 3072 bytes is the maximum string-column length that fits. URLs in practice are well under 768 chars; truncation is a non-issue.
 
 - [ ] **Step 4: Create the model**
 
@@ -668,7 +668,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('knowledge_items', function (Blueprint $table): void {
-            $table->string('url_normalized', 2048)->nullable()->after('source_url');
+            $table->string('url_normalized', 768)->nullable()->after('source_url');
             $table->index(['tenant_id', 'type', 'url_normalized'], 'kn_items_tenant_type_norm_idx');
         });
     }
@@ -683,11 +683,23 @@ return new class extends Migration
 };
 ```
 
-If the composite index fails on long-key constraints, shorten to `->string('url_normalized', 768)`.
+**Why 768**: same MySQL InnoDB 3072-byte index-key cap as the blocklist table. `type VARCHAR(50)` + `url_normalized VARCHAR(768)` + `tenant_id BIGINT` composite fits.
 
-- [ ] **Step 4: Add `url_normalized` to KnowledgeItem fillable**
+- [ ] **Step 4: Add `url_normalized` to KnowledgeItem fillable + PHPDoc**
 
-In `app/Models/KnowledgeItem.php`, add `'url_normalized'` to the `$fillable` array (alphabetically near `source_url`).
+In `app/Models/KnowledgeItem.php`:
+
+1. Add `'url_normalized'` to the `$fillable` array (alphabetically near `source_url`).
+2. Add to the class-level PHPDoc block (Larastan baseline-zero compliance — per `arch_phpstan_baseline_zero` memory):
+
+```php
+/**
+ * @property KnowledgeItemStatus $status
+ * @property string|null $error_message
+ * @property Carbon|null $failed_at
+ * @property string|null $url_normalized
+ */
+```
 
 - [ ] **Step 5: Create KnowledgeItemFactory**
 
@@ -1690,6 +1702,7 @@ class SiteCrawlerTest extends TestCase
     {
         parent::setUp();
         $this->crawler = app(SiteCrawler::class);
+        $this->crawler->setSleeper(static fn () => null);
         Bus::fake();
     }
 
@@ -1884,12 +1897,27 @@ class SiteCrawler
 
     private const REQUEST_TIMEOUT_SECONDS = 30;
 
+    /** @var \Closure(int): void */
+    private \Closure $sleeper;
+
     public function __construct(
         private readonly SitemapDiscoverer $discoverer,
         private readonly RobotsTxtPolicy $robotsTxt,
         private readonly UrlNormalizer $normalizer,
         private readonly UsageTracker $usage,
-    ) {}
+    ) {
+        $this->sleeper = static fn (int $seconds) => sleep($seconds);
+    }
+
+    /**
+     * Replace the sleep behaviour. Used in tests to keep crawl-delay loops fast.
+     *
+     * @param  \Closure(int): void  $sleeper
+     */
+    public function setSleeper(\Closure $sleeper): void
+    {
+        $this->sleeper = $sleeper;
+    }
 
     public function crawl(Tenant $tenant, CrawlSession $session): void
     {
@@ -1970,7 +1998,13 @@ class SiteCrawler
                     continue;
                 }
                 if (trim(strip_tags($body)) === '') {
+                    // Empty after tag-strip = JS-rendered site or no text content.
+                    // Do NOT create a KnowledgeItem — ProcessKnowledgeItem would
+                    // throw "No content could be extracted" and retry 3 times.
                     $emptyExtractCount++;
+                    $pagesFailed++;
+
+                    continue;
                 }
 
                 $contentHash = 'sha256:'.hash('sha256', $body);
@@ -2012,7 +2046,7 @@ class SiteCrawler
                 $pagesIndexed++;
 
                 if ($crawlDelay > 0) {
-                    $this->sleep($crawlDelay);
+                    ($this->sleeper)($crawlDelay);
                 }
             }
 
@@ -2114,14 +2148,10 @@ class SiteCrawler
         ]);
     }
 
-    protected function sleep(int $seconds): void
-    {
-        sleep($seconds);
-    }
 }
 ```
 
-Note: the `sleep()` method is `protected` so tests can subclass-override it to skip real sleep. (Not needed for current tests; included so future tests don't slow down.)
+Note: `setSleeper(fn () => null)` is called by the test setUp to keep the suite fast — see the test file below.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
@@ -2267,8 +2297,13 @@ class CrawlWebsiteJob implements NotTenantAware, ShouldQueue
 
         // On retry, mark any in-flight session for this tenant as Failed
         // before starting a fresh session — see spec retry semantics.
+        // Queued sessions get cleaned up too in case the previous dispatch
+        // never reached the worker (worker crash, OOM kill, restart).
         CrawlSession::forTenant($this->tenant)
-            ->where('status', CrawlSessionStatus::Running->value)
+            ->whereIn('status', [
+                CrawlSessionStatus::Queued->value,
+                CrawlSessionStatus::Running->value,
+            ])
             ->update([
                 'status' => CrawlSessionStatus::Failed->value,
                 'error_message' => 'Superseded by retry',
@@ -2709,25 +2744,21 @@ public function store(RegisterRequest $request): RedirectResponse
 
 - [ ] **Step 5: Update existing RegistrationTest**
 
-In `tests/Feature/Auth/RegistrationTest.php`, leave existing tests intact (none of the new optional `website_url` field should break them). Add one regression-safety assertion in `test_new_users_can_register` that `website_url` defaults to null and no crawl job is dispatched:
+The existing file `tests/Feature/Auth/RegistrationTest.php` imports only `App\Models\Tenant`, `App\Models\User`, and `Tests\TestCase`. Add the two new imports at the top and the `Bus::fake()` + assertion inside `test_new_users_can_register`:
 
 ```php
+<?php
+
+namespace Tests\Feature\Auth;
+
 use App\Jobs\CrawlWebsiteJob;
+use App\Models\Tenant;
+use App\Models\User;
 use Illuminate\Support\Facades\Bus;
-// ...
-public function test_new_users_can_register(): void
-{
-    Bus::fake();
-
-    $response = $this->post('/register', [
-        // ... existing payload ...
-    ]);
-
-    // ... existing assertions ...
-
-    Bus::assertNotDispatched(CrawlWebsiteJob::class);
-}
+use Tests\TestCase;
 ```
+
+In `test_new_users_can_register`, add `Bus::fake();` at the start, and `Bus::assertNotDispatched(CrawlWebsiteJob::class);` after the existing assertions. Leave everything else intact.
 
 - [ ] **Step 6: Run all registration tests**
 
@@ -3202,6 +3233,27 @@ class WebsiteIndexingControllerTest extends TestCase
         CrawlSession::factory()->forTenant($tenant)->create([
             'status' => CrawlSessionStatus::Completed,
             'started_at' => now()->subMinutes(30),
+            'created_at' => now()->subMinutes(30),
+        ]);
+
+        $response = $this->actingAs($user)->post('/widget-settings/website-indexing/recrawl');
+
+        $response->assertSessionHasErrors('cooldown');
+        Bus::assertNotDispatched(CrawlWebsiteJob::class);
+    }
+
+    public function test_manual_recrawl_blocked_by_queued_session_even_with_null_started_at(): void
+    {
+        Bus::fake();
+        $tenant = Tenant::factory()->create(['website_url' => 'https://example.com']);
+        $user = User::factory()->create(['tenant_id' => $tenant->id, 'role' => 'owner']);
+        // A previous click queued a job that the worker hasn't picked up yet.
+        // started_at is NULL — older cooldown-by-started_at logic would let
+        // a second click slip through. New logic blocks via status check.
+        CrawlSession::factory()->forTenant($tenant)->create([
+            'status' => CrawlSessionStatus::Queued,
+            'started_at' => null,
+            'created_at' => now()->subHours(8), // outside the time-based window
         ]);
 
         $response = $this->actingAs($user)->post('/widget-settings/website-indexing/recrawl');
@@ -3218,6 +3270,7 @@ class WebsiteIndexingControllerTest extends TestCase
         CrawlSession::factory()->forTenant($tenant)->create([
             'status' => CrawlSessionStatus::Completed,
             'started_at' => now()->subHours(2),
+            'created_at' => now()->subHours(2),
         ]);
 
         $response = $this->actingAs($user)->post('/widget-settings/website-indexing/recrawl');
@@ -3293,6 +3346,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
+use App\Enums\CrawlSessionStatus;
 use App\Http\Requests\Client\UpdateWebsiteIndexingRequest;
 use App\Jobs\CrawlWebsiteJob;
 use App\Models\CrawlSession;
@@ -3321,9 +3375,18 @@ class WebsiteIndexingController extends Controller
             return back()->withErrors(['website_url' => 'No website URL set.']);
         }
 
+        // Cooldown check covers both started crawls (started_at) AND queued/running
+        // sessions whose worker hasn't picked them up yet (started_at would still be NULL).
+        // Using created_at (always set on dispatch) closes the NULL-bypass loophole.
         $recent = CrawlSession::query()
             ->where('tenant_id', $tenant->id)
-            ->where('started_at', '>', now()->subMinutes(self::MANUAL_COOLDOWN_MINUTES))
+            ->where(function ($q): void {
+                $q->where('created_at', '>', now()->subMinutes(self::MANUAL_COOLDOWN_MINUTES))
+                  ->orWhereIn('status', [
+                      CrawlSessionStatus::Queued->value,
+                      CrawlSessionStatus::Running->value,
+                  ]);
+            })
             ->exists();
 
         if ($recent) {
@@ -3402,9 +3465,11 @@ class KnowledgeBaseCrawlIntegrationTest extends TestCase
         ]);
         KnowledgeItem::factory()->forTenant($tenant)->count(3)->create();
 
+        // KnowledgeBaseController::index() returns items as a flat mapped array (no pagination),
+        // so we assert on the flat count via the Inertia `count` matcher.
         $response = $this->actingAs($user)->get('/knowledge-base?crawl_session_id='.$session->id);
 
-        $response->assertInertia(fn ($p) => $p->where('items.total', 2));
+        $response->assertInertia(fn ($p) => $p->has('items', 2));
     }
 
     public function test_destroying_webpage_item_adds_to_blocklist_when_confirmed(): void
@@ -3456,38 +3521,83 @@ Expected: FAIL — filter / blocklist behavior missing.
 
 - [ ] **Step 3: Update KnowledgeBaseController**
 
-In `app/Http/Controllers/Client/KnowledgeBaseController.php`:
+Concrete diffs against the actual code at `app/Http/Controllers/Client/KnowledgeBaseController.php`:
 
-`index()`: read current code, then add to the existing query — before pagination:
-
-```php
-$query = KnowledgeItem::forTenant($request->user()->tenant);
-
-if ($crawlSessionId = $request->integer('crawl_session_id')) {
-    $query->where('metadata->crawl_session_id', $crawlSessionId);
-}
-
-$items = $query->latest()->paginate(20);
-```
-
-(Adjust to fit the controller's existing structure — keep filter idempotent and additive.)
-
-`destroy()`: after the existing delete logic, insert blocklist row when applicable:
+**3a. Add imports** near the top with the others:
 
 ```php
 use App\Models\CrawlUrlBlocklist;
-// ...
-public function destroy(Request $request, KnowledgeItem $knowledgeItem): RedirectResponse
-{
-    $this->authorize('delete', $knowledgeItem);
+use Illuminate\Http\Request;
+```
 
-    if ($knowledgeItem->type === 'webpage'
-        && $knowledgeItem->url_normalized !== null
+**3b. Replace the `index()` method** (currently no `Request` param, no filter) with:
+
+```php
+public function index(Request $request): Response
+{
+    $tenant = $this->getTenant();
+
+    $query = KnowledgeItem::forTenant($tenant)
+        ->withCount('chunks')
+        ->orderBy('created_at', 'desc');
+
+    $crawlSessionId = $request->integer('crawl_session_id') ?: null;
+    if ($crawlSessionId !== null) {
+        $query->where('metadata->crawl_session_id', $crawlSessionId);
+    }
+
+    $items = $query->get()
+        ->map(function (KnowledgeItem $item): array {
+            return [
+                'id' => $item->id,
+                'title' => $item->title,
+                'type' => $item->type,
+                'status' => $item->status,
+                'chunks_count' => $item->chunks_count,
+                'created_at' => $item->created_at->format('M d, Y'),
+                'error_message' => $item->error_message,
+                'failed_at' => $item->failed_at?->format('M d, Y H:i'),
+            ];
+        });
+
+    $statsByType = KnowledgeItem::forTenant($tenant)
+        ->selectRaw('type, COUNT(*) as count')
+        ->groupBy('type')
+        ->pluck('count', 'type');
+
+    $stats = [
+        'documents' => $statsByType->get('document', 0),
+        'faqs' => $statsByType->get('faq', 0),
+        'webpages' => $statsByType->get('webpage', 0),
+        'text' => $statsByType->get('text', 0),
+    ];
+
+    return Inertia::render('Client/KnowledgeBase/Index', [
+        'items' => $items,
+        'stats' => $stats,
+        'crawl_session_id' => $crawlSessionId,
+    ]);
+}
+```
+
+**3c. Replace the `destroy()` method** (currently `destroy(KnowledgeItem $item)` with no Request) with:
+
+```php
+public function destroy(Request $request, KnowledgeItem $item): RedirectResponse
+{
+    $this->authorize('delete', $item);
+
+    Log::debug('[Knowledge] (NO $) Deleting item', [
+        'item_id' => $item->id,
+    ]);
+
+    if ($item->type === 'webpage'
+        && $item->url_normalized !== null
         && $request->boolean('blocklist')) {
         CrawlUrlBlocklist::firstOrCreate(
             [
-                'tenant_id' => $knowledgeItem->tenant_id,
-                'url_normalized' => $knowledgeItem->url_normalized,
+                'tenant_id' => $item->tenant_id,
+                'url_normalized' => $item->url_normalized,
             ],
             [
                 'excluded_at' => now(),
@@ -3495,13 +3605,21 @@ public function destroy(Request $request, KnowledgeItem $knowledgeItem): Redirec
         );
     }
 
-    $knowledgeItem->delete();
+    if ($item->file_path && Storage::disk('local')->exists($item->file_path)) {
+        Storage::disk('local')->delete($item->file_path);
+    }
 
-    return redirect()->route('knowledge.index')->with('status', 'Knowledge item deleted.');
+    $item->chunks()->delete();
+    $item->delete();
+
+    $this->cache->invalidate($this->getTenant());
+
+    return redirect()->route('client.knowledge.index')
+        ->with('success', 'Knowledge item deleted.');
 }
 ```
 
-(Method signature may differ — keep existing authorization + redirect; add the blocklist branch above the delete call.)
+Note: route name is `client.knowledge.index` (NOT `knowledge.index`); test routes that hit `/knowledge-base/{id}` flow through this named route.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
@@ -3635,7 +3753,7 @@ const props = defineProps({
 })
 
 const clearCrawlFilter = () => {
-  router.get(route('knowledge.index'), {}, { preserveScroll: true })
+  router.get(route('client.knowledge.index'), {}, { preserveScroll: true })
 }
 </script>
 
@@ -3663,29 +3781,21 @@ Wherever the delete confirm is wired in `Index.vue` (or its delete modal), if `i
 When submitting:
 
 ```js
-router.delete(route('knowledge.destroy', itemBeingDeleted.id), {
+router.delete(route('client.knowledge.destroy', itemBeingDeleted.id), {
   data: { blocklist: blocklistOnDelete.value },
 })
 ```
 
-- [ ] **Step 3: Update KnowledgeBaseController::index to pass `crawl_session_id` back to the page**
-
-Add to the Inertia render array:
-
-```php
-'crawl_session_id' => $request->integer('crawl_session_id') ?: null,
-```
-
-- [ ] **Step 4: Manual smoke**
+- [ ] **Step 3: Manual smoke**
 
 1. Visit `/knowledge-base?crawl_session_id=1` — verify chip displays and clears.
 2. Delete a webpage item — verify the "Don't re-create" checkbox appears.
 3. Confirm with checkbox checked — verify `crawl_url_blocklist` row exists in DB.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
-git add app/Http/Controllers/Client/KnowledgeBaseController.php resources/js/Pages/Client/KnowledgeBase/Index.vue
+git add resources/js/Pages/Client/KnowledgeBase/Index.vue
 git commit -m "feat(crawler): KB filter chip + delete-with-blocklist confirmation"
 ```
 
