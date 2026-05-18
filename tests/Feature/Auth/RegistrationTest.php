@@ -2,8 +2,10 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Jobs\CrawlWebsiteJob;
 use App\Models\Tenant;
 use App\Models\User;
+use Illuminate\Support\Facades\Bus;
 use Tests\TestCase;
 
 class RegistrationTest extends TestCase
@@ -17,6 +19,8 @@ class RegistrationTest extends TestCase
 
     public function test_new_users_can_register(): void
     {
+        Bus::fake();
+
         $response = $this->post('/register', [
             'name' => 'Test User',
             'email' => 'newuser@example.com',
@@ -36,6 +40,7 @@ class RegistrationTest extends TestCase
         $this->assertNotNull($user->tenant_id);
 
         $response->assertRedirect(route('dashboard'));
+        Bus::assertNotDispatched(CrawlWebsiteJob::class);
     }
 
     public function test_registration_requires_valid_email(): void
