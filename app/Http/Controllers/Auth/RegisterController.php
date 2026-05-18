@@ -69,7 +69,6 @@ class RegisterController extends Controller
 
         if ($tenant->website_url) {
             CrawlWebsiteJob::dispatch($tenant, CrawlMode::Initial);
-            session()->flash('website_indexing_started', true);
         }
 
         return redirect()->route('dashboard');

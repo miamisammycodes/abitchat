@@ -1,10 +1,54 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { Link, usePage } from '@inertiajs/vue3'
+import { useRoute } from '@/composables/useRoute'
 import { Card } from '@/Components/ui/card'
 
+const POLL_INTERVAL_MS = 3000
+const ACTIVE_STATUSES = ['queued', 'running']
+
 const page = usePage()
-const session = computed(() => page.props.latest_crawl_session)
+const route = useRoute()
+const session = ref(page.props.latest_crawl_session)
+let pollTimer = null
+
+const isActive = computed(() => session.value && ACTIVE_STATUSES.includes(session.value.status))
+
+const fetchLatest = async () => {
+  try {
+    const res = await fetch(route('widget.indexing.status'), {
+      headers: { Accept: 'application/json' },
+      credentials: 'same-origin',
+    })
+    if (!res.ok) return
+    const data = await res.json()
+    session.value = data.session
+  } catch {
+    // network blip — next tick will retry
+  }
+}
+
+const startPolling = () => {
+  if (pollTimer) return
+  pollTimer = setInterval(fetchLatest, POLL_INTERVAL_MS)
+}
+
+const stopPolling = () => {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+}
+
+watch(isActive, active => (active ? startPolling() : stopPolling()), { immediate: true })
+
+// Inertia shared props refresh between page visits — re-sync local state when the prop changes
+watch(
+  () => page.props.latest_crawl_session,
+  next => { session.value = next },
+)
+
+onBeforeUnmount(stopPolling)
 
 const banner = computed(() => {
   if (!session.value) return null
@@ -14,6 +58,7 @@ const banner = computed(() => {
     case 'running':
       return {
         tone: 'info',
+        spinner: true,
         text: `Indexing your site… ${s.pages_indexed}${s.pages_discovered ? ` of ${s.pages_discovered}` : ''} pages indexed so far.`,
       }
     case 'completed':
@@ -57,7 +102,20 @@ const toneClasses = {
 <template>
   <Card v-if="banner" :class="['p-4 border', toneClasses[banner.tone]]">
     <div class="flex items-center justify-between gap-4">
-      <span>{{ banner.text }}</span>
+      <div class="flex items-center gap-3">
+        <svg
+          v-if="banner.spinner"
+          class="h-4 w-4 animate-spin text-current"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+        </svg>
+        <span>{{ banner.text }}</span>
+      </div>
       <Link v-if="banner.link" :href="banner.link.href" class="text-sm font-medium underline">{{ banner.link.label }}</Link>
     </div>
   </Card>
