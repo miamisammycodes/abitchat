@@ -86,7 +86,7 @@ final class DkBankQrService
             return new DkStatusResult(state: DkStatusState::Failed, errorMessage: 'Verification failed — please try again');
         }
 
-        $data = $response['response_data'][0] ?? null;
+        $data = $response['response_data']['status'] ?? null;
         if ($data === null || ($data['status'] ?? null) !== '0') {
             return new DkStatusResult(state: DkStatusState::Failed, errorMessage: 'Reference number not found');
         }
@@ -204,7 +204,7 @@ final class DkBankQrService
             return new DkStatusResult(state: DkStatusState::Pending);
         }
 
-        $data = $response['response_data'][0] ?? null;
+        $data = $response['response_data']['status'] ?? null;
         if ($data === null || ($data['status'] ?? null) !== '0') {
             return new DkStatusResult(state: DkStatusState::Pending);
         }

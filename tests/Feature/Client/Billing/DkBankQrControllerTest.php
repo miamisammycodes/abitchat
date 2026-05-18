@@ -87,7 +87,7 @@ class DkBankQrControllerTest extends TestCase
         $mock = Mockery::mock(DkBankClient::class);
         $mock->shouldReceive('generateRequestId')->andReturn(str_repeat('a', 32));
         $mock->shouldReceive('postSigned')->once()
-            ->andReturn(['response_code' => '0000', 'response_data' => [[
+            ->andReturn(['response_code' => '0000', 'response_data' => ['status' => [
                 'status' => '0', 'amount' => '1000.00',
                 'credit_account' => '110158212197',
                 'txn_ts' => now()->toDateTimeString(),
@@ -126,7 +126,7 @@ class DkBankQrControllerTest extends TestCase
         $mock = Mockery::mock(DkBankClient::class);
         $mock->shouldReceive('generateRequestId')->andReturn(str_repeat('a', 32));
         $mock->shouldReceive('postSigned')->once()
-            ->andReturn(['response_code' => '0000', 'response_data' => [[
+            ->andReturn(['response_code' => '0000', 'response_data' => ['status' => [
                 'status' => '0', 'amount' => '1000.00',
                 'credit_account' => '110158212197',
                 'txn_ts' => now()->addMinute()->toDateTimeString(),

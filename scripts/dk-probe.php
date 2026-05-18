@@ -214,7 +214,7 @@ function probe1(Guzzle $http, array $config, array $args): void
         'request_id' => requestId(),
         'currency' => 'BTN',
         'bene_account_number' => $config['beneficiary'],
-        'amount' => 1.0,
+        'amount' => 6.0,
         'mcc_code' => $config['mcc_code'],
         'remarks' => 'Probe 1',
         'reference_no' => $reference,
@@ -273,7 +273,7 @@ function probe2or6(Guzzle $http, array $config, array $args, int $probeNum): voi
     echo json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n\n";
 
     $code = $response['response_code'] ?? null;
-    $status = $response['response_data'][0]['status'] ?? null;
+    $status = $response['response_data']['status']['status'] ?? null;
 
     if ($code === '0000' && $status === '0') {
         echo "[Probe {$probeNum}] ✓ PASSED — credit confirmed.\n";
