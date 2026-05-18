@@ -15,6 +15,7 @@ use Illuminate\Support\Carbon;
 
 /**
  * @property KnowledgeItemStatus $status
+ * @property array<string, mixed>|null $metadata
  * @property string|null $error_message
  * @property Carbon|null $failed_at
  * @property string|null $url_normalized
