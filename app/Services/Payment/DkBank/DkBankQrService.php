@@ -86,13 +86,13 @@ final class DkBankQrService
             return new DkStatusResult(state: DkStatusState::Failed, errorMessage: 'Verification failed — please try again');
         }
 
-        $data = $response['response_data']['status'] ?? null;
-        if ($data === null || ($data['status'] ?? null) !== '0') {
+        $status = $this->extractPaidStatusData($response);
+        if ($status === null) {
             return new DkStatusResult(state: DkStatusState::Failed, errorMessage: 'Reference number not found');
         }
 
         // Recency guard — RRN's txn_ts must be after we generated the QR
-        $txnTs = isset($data['txn_ts']) ? Carbon::parse($data['txn_ts']) : null;
+        $txnTs = isset($status['txn_ts']) ? Carbon::parse($status['txn_ts']) : null;
         if ($txnTs === null || $txnTs->lt($transaction->created_at)) {
             Log::warning('[security] (NO $) dk_rrn replay attempt: txn_ts predates QR generation', [
                 'transaction_id' => $transaction->id,
@@ -104,10 +104,10 @@ final class DkBankQrService
             return new DkStatusResult(state: DkStatusState::Failed, errorMessage: 'Reference number is older than this QR session — likely a typo. Please re-check.');
         }
 
-        if (abs((float) $data['amount'] - (float) $transaction->amount) > 0.01) {
+        if (abs((float) $status['amount'] - (float) $transaction->amount) > 0.01) {
             return new DkStatusResult(state: DkStatusState::Failed, errorMessage: 'Payment amount did not match this plan. Contact support.');
         }
-        if ((string) $data['credit_account'] !== (string) config('services.dk_bank.beneficiary_account')) {
+        if ((string) $status['credit_account'] !== (string) config('services.dk_bank.beneficiary_account')) {
             return new DkStatusResult(state: DkStatusState::Failed, errorMessage: 'Payment was not credited to our account. Contact support.');
         }
 
@@ -204,12 +204,12 @@ final class DkBankQrService
             return new DkStatusResult(state: DkStatusState::Pending);
         }
 
-        $data = $response['response_data']['status'] ?? null;
-        if ($data === null || ($data['status'] ?? null) !== '0') {
+        $status = $this->extractPaidStatusData($response);
+        if ($status === null) {
             return new DkStatusResult(state: DkStatusState::Pending);
         }
 
-        $reportedAmount = (float) ($data['amount'] ?? 0);
+        $reportedAmount = (float) ($status['amount'] ?? 0);
         $expectedAmount = (float) $transaction->amount;
         if (abs($reportedAmount - $expectedAmount) > 0.01) {
             Log::warning('[DK QR] (NO $) Status amount mismatch', [
@@ -221,7 +221,7 @@ final class DkBankQrService
             return new DkStatusResult(state: DkStatusState::Failed, errorMessage: 'Amount mismatch');
         }
 
-        $reportedCredit = (string) ($data['credit_account'] ?? '');
+        $reportedCredit = (string) ($status['credit_account'] ?? '');
         $expectedCredit = (string) config('services.dk_bank.beneficiary_account');
         if ($reportedCredit !== $expectedCredit) {
             Log::warning('[DK QR] (NO $) Status credit_account mismatch', [
@@ -238,7 +238,22 @@ final class DkBankQrService
         return new DkStatusResult(
             state: DkStatusState::Paid,
             matchedReferenceNo: $transaction->dk_reference_no,
-            paidAt: isset($data['txn_ts']) ? Carbon::parse($data['txn_ts']) : null,
+            paidAt: isset($status['txn_ts']) ? Carbon::parse($status['txn_ts']) : null,
         );
+    }
+
+    /**
+     * Extracts the inner status block from DK's `/v1/intra-transaction/status`
+     * envelope when DK reports a successful credit (`status === '0'`).
+     * Returns null in every "not paid" case so callers branch on a single check.
+     *
+     * @param  array<string, mixed>  $response
+     * @return array<string, mixed>|null
+     */
+    private function extractPaidStatusData(array $response): ?array
+    {
+        $status = $response['response_data']['status'] ?? null;
+
+        return is_array($status) && ($status['status'] ?? null) === '0' ? $status : null;
     }
 }
