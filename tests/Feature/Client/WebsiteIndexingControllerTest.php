@@ -113,4 +113,50 @@ class WebsiteIndexingControllerTest extends TestCase
         $this->assertNull($tenant->fresh()->website_url);
         Bus::assertNotDispatched(CrawlWebsiteJob::class);
     }
+
+    public function test_latest_status_returns_null_when_no_session(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $user = User::factory()->create(['tenant_id' => $tenant->id, 'role' => 'owner']);
+
+        $response = $this->actingAs($user)->getJson('/widget-settings/website-indexing/status');
+
+        $response->assertOk()->assertExactJson(['session' => null]);
+    }
+
+    public function test_latest_status_returns_latest_session_for_tenant(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $user = User::factory()->create(['tenant_id' => $tenant->id, 'role' => 'owner']);
+        CrawlSession::factory()->forTenant($tenant)->create([
+            'status' => CrawlSessionStatus::Completed,
+            'pages_indexed' => 5,
+        ]);
+        $latest = CrawlSession::factory()->forTenant($tenant)->create([
+            'status' => CrawlSessionStatus::Running,
+            'pages_indexed' => 3,
+            'pages_discovered' => 10,
+        ]);
+
+        $response = $this->actingAs($user)->getJson('/widget-settings/website-indexing/status');
+
+        $response->assertOk()->assertJsonPath('session.id', $latest->id)
+            ->assertJsonPath('session.status', 'running')
+            ->assertJsonPath('session.pages_indexed', 3)
+            ->assertJsonPath('session.pages_discovered', 10);
+    }
+
+    public function test_latest_status_is_tenant_scoped(): void
+    {
+        $tenantA = Tenant::factory()->create();
+        $tenantB = Tenant::factory()->create();
+        $userA = User::factory()->create(['tenant_id' => $tenantA->id, 'role' => 'owner']);
+        CrawlSession::factory()->forTenant($tenantB)->create([
+            'status' => CrawlSessionStatus::Running,
+        ]);
+
+        $response = $this->actingAs($userA)->getJson('/widget-settings/website-indexing/status');
+
+        $response->assertOk()->assertExactJson(['session' => null]);
+    }
 }

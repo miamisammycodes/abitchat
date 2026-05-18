@@ -83,6 +83,7 @@ Route::middleware('auth')->group(function () {
     // Website Indexing
     Route::patch('/widget-settings/website-indexing', [WebsiteIndexingController::class, 'update'])->name('widget.indexing.update');
     Route::post('/widget-settings/website-indexing/recrawl', [WebsiteIndexingController::class, 'recrawl'])->name('widget.indexing.recrawl');
+    Route::get('/widget-settings/website-indexing/status', [WebsiteIndexingController::class, 'latestStatus'])->name('widget.indexing.status');
 
     // Leads
     Route::prefix('leads')->name('client.leads.')->group(function () {

@@ -10,6 +10,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Client\UpdateWebsiteIndexingRequest;
 use App\Jobs\CrawlWebsiteJob;
 use App\Models\CrawlSession;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -57,5 +58,31 @@ class WebsiteIndexingController extends Controller
         CrawlWebsiteJob::dispatch($tenant, CrawlMode::Manual);
 
         return back()->with('status', 'Re-crawl queued.');
+    }
+
+    public function latestStatus(Request $request): JsonResponse
+    {
+        $session = CrawlSession::query()
+            ->forTenant($this->getTenant($request))
+            ->latest('id')
+            ->first();
+
+        if ($session === null) {
+            return response()->json(['session' => null]);
+        }
+
+        return response()->json([
+            'session' => [
+                'id' => $session->id,
+                'status' => $session->status->value,
+                'mode' => $session->mode->value,
+                'pages_indexed' => $session->pages_indexed,
+                'pages_discovered' => $session->pages_discovered,
+                'pages_skipped_budget' => $session->pages_skipped_budget,
+                'error_message' => $session->error_message,
+                'started_at' => $session->started_at?->toIso8601String(),
+                'completed_at' => $session->completed_at?->toIso8601String(),
+            ],
+        ]);
     }
 }
