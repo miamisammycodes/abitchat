@@ -23,6 +23,7 @@ class TenantFactory extends Factory
             'name' => $name,
             'slug' => Str::slug($name).'-'.$this->faker->unique()->numberBetween(1000, 99999),
             'status' => 'active',
+            'auto_recrawl' => true,
         ];
     }
 }
