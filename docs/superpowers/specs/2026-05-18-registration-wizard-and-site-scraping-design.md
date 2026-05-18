@@ -69,7 +69,7 @@ The existing `DocumentProcessor::extractFromUrl()` fetches one URL at a time. We
 │      │    ├─ Budget gate: canRecordUsage(KNOWLEDGE_ITEMS), canRec(TOKENS) │
 │      │    │   → if exhausted: stop early, status=partial                  │
 │      │    ├─ Normalize URL (strip fragment, tracking params, lowercase)   │
-│      │    ├─ Skip if in session.excluded_urls (tenant-deleted)            │
+│      │    ├─ Skip if in tenant's crawl_url_blocklist (tenant-deleted)     │
 │      │    ├─ HEAD → compare Last-Modified/ETag vs prior session           │
 │      │    │   → unchanged: pages_skipped_unchanged++, continue            │
 │      │    ├─ GET HTML (SafeExternalUrl SSRF re-check, 5MB cap)            │
@@ -112,7 +112,8 @@ The existing `DocumentProcessor::extractFromUrl()` fetches one URL at a time. We
 ### `App\Services\Crawler\SitemapDiscoverer`
 - **Purpose**: produce the prioritized list of URLs to fetch
 - **Surface**: `discover(string $rootUrl): iterable<string>`
-- **Strategy**: try `/sitemap.xml` → try sitemaps referenced from `/robots.txt` → fall back to BFS from `$rootUrl` (same-origin only, depth 3)
+- **Strategy**: try `/sitemap.xml` → try sitemaps referenced from `/robots.txt` → fall back to BFS from `$rootUrl` (same-host only, depth 3)
+- **Same-host definition**: exact case-insensitive host match after normalization. `www.example.com` and `example.com` are treated as the same host (the `www.` prefix is stripped during host comparison). `blog.example.com` is NOT same-host and is excluded from v1 crawls. Different schemes (`http` vs `https`) are treated as the same host; the crawler normalizes to `https` if both are reachable.
 - **Output**: deduplicated, normalized URLs ordered by sitemap priority (or BFS order)
 
 ### `App\Services\Crawler\RobotsTxtPolicy`
@@ -204,13 +205,35 @@ Schema::create('crawl_sessions', function (Blueprint $table) {
     $table->unsignedInteger('pages_skipped_budget')->default(0);
     $table->unsignedInteger('pages_skipped_unchanged')->default(0);
     $table->text('error_message')->nullable();
-    $table->json('excluded_urls')->nullable(); // tenant-deleted URLs not to re-create
     $table->timestamps();
 
     $table->index(['tenant_id', 'created_at']);
     $table->index(['tenant_id', 'status']);
 });
 ```
+
+### Migration: `create_crawl_url_blocklist_table`
+
+Tenant-scoped blocklist for URLs the tenant has explicitly removed. Persists across crawl sessions so the daily refresh doesn't re-create pages the tenant deleted.
+
+```php
+Schema::create('crawl_url_blocklist', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
+    $table->string('url_normalized', 2048);
+    $table->timestamp('excluded_at');
+    $table->timestamps();
+
+    $table->unique(['tenant_id', 'url_normalized']);
+    $table->index('tenant_id');
+});
+```
+
+**How entries are created**: when a tenant deletes a `KnowledgeItem` with `type = 'webpage'` and `metadata.crawl_session_id IS NOT NULL` from the KB UI, the destroy action (a) deletes the item AND (b) inserts a `crawl_url_blocklist` row keyed on `metadata.url_normalized`. The KB UI displays a confirmation dialog with the option "Allow re-indexing on next crawl?" (default unchecked = stays blocklisted). If the user opts to allow re-indexing, the blocklist row is NOT inserted.
+
+**How entries are consumed**: `SiteCrawler::crawl` loads the blocklist as a `Set<string>` at session start; the per-URL loop skips any URL in the set without a count (silent skip — already accounted for at deletion time).
+
+**How entries are cleared**: settings page exposes a "Removed pages" list per tenant with a per-row "Restore on next crawl" button that deletes the blocklist row. v1 has no bulk-clear UI.
 
 ### Schema reuse: `knowledge_items.metadata` (no migration)
 New standardized keys when `type = 'webpage'` and the item was crawler-created:
@@ -313,7 +336,7 @@ For each URL in the prioritized list:
 5. **If hash unchanged**: update `metadata.last_modified` and `metadata.etag` only, don't re-chunk/re-embed. (pages_skipped_unchanged++).
 6. **Else**: update `content`, recompute chunks, dispatch `ProcessKnowledgeItem` → re-embed. Update all metadata fields. (pages_indexed++).
 
-URLs in `crawl_session.excluded_urls`: skipped silently (no count).
+URLs in `crawl_url_blocklist` for this tenant: skipped silently (no count — already accounted for at deletion time).
 
 ---
 
@@ -348,7 +371,7 @@ URLs in `crawl_session.excluded_urls`: skipped silently (no count).
   - Budget hit at page 7 of 10 → status=partial, pages_skipped_budget=3
   - robots.txt blocks 3 of 10 → 7 indexed, 3 pages_failed (robots-block reason)
   - Empty extraction (all pages return < 50 chars after strip) → status=partial-empty
-  - excluded_urls honored: prior crawl excluded `/admin`, current run skips it
+  - blocklist honored: tenant previously deleted `/admin` (blocklist row present), current run skips it silently
   - Crawl-delay respected: between-request sleep observed
   - SafeExternalUrl SSRF rejected mid-crawl (sitemap pointed to `/internal`)
 
@@ -383,10 +406,13 @@ URLs in `crawl_session.excluded_urls`: skipped silently (no count).
 ### Migrations (database/migrations/)
 - `2026_05_18_000001_add_website_url_and_auto_recrawl_to_tenants_table.php`
 - `2026_05_18_000002_create_crawl_sessions_table.php`
+- `2026_05_18_000003_create_crawl_url_blocklist_table.php`
 
 ### Models
 - `app/Models/CrawlSession.php` (new)
+- `app/Models/CrawlUrlBlocklist.php` (new)
 - `app/Models/Tenant.php` (add `website_url`, `auto_recrawl` to `$fillable`)
+- `app/Models/KnowledgeItem.php` (modify `delete` flow — KB controller adds blocklist row on `type=webpage` deletes)
 
 ### Enums
 - `app/Enums/CrawlSessionStatus.php` (new)
