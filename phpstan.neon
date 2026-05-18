@@ -17,8 +17,6 @@ parameters:
         - '#Using nullsafe property access .* on left side of \?\? is unnecessary#'
         # Dynamic properties from raw SQL selects
         - '#Access to an undefined property App\\Models\\\w+::\$\w+#'
-        # Metadata array casts work correctly at runtime
-        - '#Property App\\Models\\KnowledgeItem::\$metadata .* does not accept array#'
     reportUnmatchedIgnoredErrors: true
 
 rules:

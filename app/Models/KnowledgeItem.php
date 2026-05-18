@@ -7,18 +7,23 @@ namespace App\Models;
 use App\Enums\KnowledgeItemStatus;
 use App\Models\Concerns\BelongsToTenant;
 use App\Models\Concerns\BustsTenantUsageCache;
+use Database\Factories\KnowledgeItemFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
  * @property KnowledgeItemStatus $status
+ * @property array<string, mixed>|null $metadata
  * @property string|null $error_message
  * @property Carbon|null $failed_at
+ * @property string|null $url_normalized
  */
 class KnowledgeItem extends Model
 {
-    use BelongsToTenant, BustsTenantUsageCache;
+    /** @use HasFactory<KnowledgeItemFactory> */
+    use BelongsToTenant, BustsTenantUsageCache, HasFactory;
 
     protected $fillable = [
         'tenant_id',
@@ -26,6 +31,7 @@ class KnowledgeItem extends Model
         'type',
         'content',
         'source_url',
+        'url_normalized',
         'file_path',
         'status',
         'metadata',

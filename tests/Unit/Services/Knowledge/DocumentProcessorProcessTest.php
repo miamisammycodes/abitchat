@@ -7,6 +7,7 @@ namespace Tests\Unit\Services\Knowledge;
 use App\Models\KnowledgeItem;
 use App\Models\Tenant;
 use App\Services\Knowledge\DocumentProcessor;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class DocumentProcessorProcessTest extends TestCase
@@ -109,5 +110,26 @@ class DocumentProcessorProcessTest extends TestCase
 
         $combined = implode(' ', $chunks);
         $this->assertStringContainsString($marker, $combined);
+    }
+
+    public function test_process_webpage_with_stored_content_does_not_fetch_url(): void
+    {
+        // Crawler stores HTML in $item->content; DocumentProcessor must reuse it
+        // instead of re-fetching $item->source_url.
+        Http::fake(['*' => Http::response('SHOULD_NOT_BE_CALLED', 200)]);
+        Http::preventStrayRequests();
+
+        $processor = new DocumentProcessor;
+        $html = '<html><body><p>Stored page body that is long enough to exceed the minimum chunk threshold for the test.</p></body></html>';
+        $item = $this->makeItem([
+            'type' => 'webpage',
+            'source_url' => 'https://example.com/about',
+            'content' => $html,
+        ]);
+
+        $chunks = $processor->process($item);
+
+        $this->assertNotEmpty($chunks);
+        Http::assertNothingSent();
     }
 }

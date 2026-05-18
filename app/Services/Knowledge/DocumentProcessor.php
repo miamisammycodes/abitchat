@@ -32,7 +32,9 @@ class DocumentProcessor
     {
         $content = match ($item->type) {
             'document' => $this->extractFromFile($item->file_path ?? ''),
-            'webpage' => $this->extractFromUrl($item->source_url ?? ''),
+            'webpage' => $item->content !== null && $item->content !== ''
+                ? $this->extractTextFromHtml($item->content)
+                : $this->extractFromUrl($item->source_url ?? ''),
             'faq', 'text' => $item->content ?? '',
             default => '',
         };

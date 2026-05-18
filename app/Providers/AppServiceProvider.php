@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Services\Crawler\RobotsTxtPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -16,7 +17,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Scoped binding ensures SiteCrawler and SitemapDiscoverer share the same
+        // RobotsTxtPolicy instance (and its per-instance cache) within a single
+        // request / queue job, without persisting state across jobs in long-running workers.
+        $this->app->scoped(RobotsTxtPolicy::class);
     }
 
     /**

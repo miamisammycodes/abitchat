@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Models\CrawlSession;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Middleware;
@@ -69,7 +70,54 @@ class HandleInertiaRequests extends Middleware
             'usageWarnings' => fn () => $this->buildUsage($request, warningsOnly: true),
             'usageStats' => fn () => $this->buildUsage($request, warningsOnly: false),
             'dkBankEnabled' => (bool) config('services.dk_bank.enabled'),
+            'latest_crawl_session' => fn () => $this->latestCrawlSession($request),
         ];
+    }
+
+    /**
+     * Return the latest CrawlSession for the authenticated tenant's routes,
+     * or null for non-eligible routes (public, admin, etc.).
+     *
+     * @return array<string, mixed>|null
+     */
+    private function latestCrawlSession(Request $request): ?array
+    {
+        $name = $request->route()?->getName() ?? '';
+        $eligible = str_starts_with($name, 'dashboard')
+            || str_starts_with($name, 'knowledge.')
+            || str_starts_with($name, 'widget.');
+
+        if (! $eligible) {
+            return null;
+        }
+
+        $user = $request->user();
+        if ($user === null || $user->tenant_id === null) {
+            return null;
+        }
+
+        return once(function () use ($user) {
+            $session = CrawlSession::query()
+                ->forTenant($user->tenant)
+                ->latest('id')
+                ->first();
+
+            if ($session === null) {
+                return null;
+            }
+
+            return [
+                'id' => $session->id,
+                'status' => $session->status->value,
+                'mode' => $session->mode->value,
+                'pages_indexed' => $session->pages_indexed,
+                'pages_discovered' => $session->pages_discovered,
+                'pages_skipped_budget' => $session->pages_skipped_budget,
+                'error_message' => $session->error_message,
+                'started_at' => $session->started_at?->toIso8601String(),
+                'completed_at' => $session->completed_at?->toIso8601String(),
+            ];
+        });
     }
 
     /**

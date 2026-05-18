@@ -19,6 +19,7 @@ use App\Http\Controllers\Client\DkBankQrController;
 use App\Http\Controllers\Client\EnterpriseInquiryController;
 use App\Http\Controllers\Client\KnowledgeBaseController;
 use App\Http\Controllers\Client\LeadController;
+use App\Http\Controllers\Client\WebsiteIndexingController;
 use App\Http\Controllers\Client\WidgetController;
 use App\Http\Middleware\AdminAuthenticate;
 use App\Models\Tenant;
@@ -78,6 +79,10 @@ Route::middleware('auth')->group(function () {
         Route::put('/', [WidgetController::class, 'update'])->name('update');
         Route::post('/regenerate-key', [WidgetController::class, 'regenerateApiKey'])->name('regenerate-key');
     });
+
+    // Website Indexing
+    Route::patch('/widget-settings/website-indexing', [WebsiteIndexingController::class, 'update'])->name('widget.indexing.update');
+    Route::post('/widget-settings/website-indexing/recrawl', [WebsiteIndexingController::class, 'recrawl'])->name('widget.indexing.recrawl');
 
     // Leads
     Route::prefix('leads')->name('client.leads.')->group(function () {

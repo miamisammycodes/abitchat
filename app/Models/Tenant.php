@@ -32,6 +32,8 @@ class Tenant extends BaseTenant
         'name',
         'slug',
         'domain',
+        'website_url',
+        'auto_recrawl',
         'api_key',
         'plan',
         'plan_id',
@@ -50,6 +52,7 @@ class Tenant extends BaseTenant
         'trial_ends_at' => 'datetime',
         'plan_expires_at' => 'datetime',
         'trial_activated_at' => 'datetime',
+        'auto_recrawl' => 'boolean',
     ];
 
     protected $hidden = [

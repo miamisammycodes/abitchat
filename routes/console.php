@@ -9,3 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('dk:cleanup-abandoned-qr')->daily();
+Schedule::command('crawls:refresh-all')->daily();

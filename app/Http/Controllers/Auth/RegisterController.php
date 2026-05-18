@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
+use App\Enums\CrawlMode;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\RegisterRequest;
+use App\Jobs\CrawlWebsiteJob;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
@@ -20,18 +22,23 @@ class RegisterController extends Controller
 {
     public function create(): Response
     {
-        return Inertia::render('Auth/Register');
+        return Inertia::render('Auth/Register', [
+            'trialKnowledgeItemsLimit' => (int) config('billing.trial_limits.knowledge_items', 10),
+        ]);
     }
 
     public function store(RegisterRequest $request): RedirectResponse
     {
         Log::debug('[Register] (NO $) Creating tenant', [
             'company' => $request->company_name,
+            'has_website_url' => $request->filled('website_url'),
         ]);
 
-        $user = DB::transaction(function () use ($request) {
+        $tenant = DB::transaction(function () use ($request) {
             $tenant = Tenant::create([
                 'name' => $request->company_name,
+                'website_url' => $request->website_url,
+                'auto_recrawl' => true,
                 'trial_ends_at' => now()->addDays(14),
             ]);
 
@@ -54,12 +61,16 @@ class RegisterController extends Controller
                 'email' => $user->email,
             ]);
 
-            return $user;
+            event(new Registered($user));
+            Auth::login($user);
+
+            return $tenant;
         });
 
-        event(new Registered($user));
-
-        Auth::login($user);
+        if ($tenant->website_url) {
+            CrawlWebsiteJob::dispatch($tenant, CrawlMode::Initial);
+            session()->flash('website_indexing_started', true);
+        }
 
         return redirect()->route('dashboard');
     }

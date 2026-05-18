@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Client;
 use App\Enums\KnowledgeItemStatus;
 use App\Http\Controllers\Controller;
 use App\Jobs\ProcessKnowledgeItem;
+use App\Models\CrawlUrlBlocklist;
 use App\Models\KnowledgeItem;
 use App\Rules\SafeExternalUrl;
 use App\Services\Knowledge\KnowledgeCache;
@@ -25,12 +26,15 @@ class KnowledgeBaseController extends Controller
         private KnowledgeItemWorkflow $workflow,
     ) {}
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $tenant = $this->getTenant();
 
+        $crawlSessionId = $request->integer('crawl_session_id') ?: null;
+
         $items = KnowledgeItem::forTenant($tenant)
             ->withCount('chunks')
+            ->when($crawlSessionId !== null, fn ($q) => $q->where('metadata->crawl_session_id', $crawlSessionId))
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function (KnowledgeItem $item): array {
@@ -61,6 +65,7 @@ class KnowledgeBaseController extends Controller
         return Inertia::render('Client/KnowledgeBase/Index', [
             'items' => $items,
             'stats' => $stats,
+            'crawl_session_id' => $crawlSessionId,
         ]);
     }
 
@@ -187,13 +192,27 @@ class KnowledgeBaseController extends Controller
             ->with('success', 'Knowledge item updated.');
     }
 
-    public function destroy(KnowledgeItem $item): RedirectResponse
+    public function destroy(Request $request, KnowledgeItem $item): RedirectResponse
     {
         $this->authorize('delete', $item);
 
         Log::debug('[Knowledge] (NO $) Deleting item', [
             'item_id' => $item->id,
         ]);
+
+        if ($item->type === 'webpage'
+            && $item->url_normalized !== null
+            && $request->boolean('blocklist')) {
+            CrawlUrlBlocklist::firstOrCreate(
+                [
+                    'tenant_id' => $item->tenant_id,
+                    'url_normalized' => $item->url_normalized,
+                ],
+                [
+                    'excluded_at' => now(),
+                ],
+            );
+        }
 
         if ($item->file_path && Storage::disk('local')->exists($item->file_path)) {
             Storage::disk('local')->delete($item->file_path);

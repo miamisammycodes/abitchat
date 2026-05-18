@@ -40,3 +40,9 @@ The single Module that owns Lead Score computation. Lives at `app/Services/Leads
 
 ## BelongsToTenant
 The trait at `app/Models/Concerns/BelongsToTenant.php` that all tenant-scoped models use. Provides the `forTenant(Tenant|int)` query scope and a `creating` boot hook that auto-stamps `tenant_id` from `Auth::user()->tenant_id` when omitted. A Larastan rule blocks raw `where('tenant_id', ...)` calls outside the trait — all tenant scoping flows through `forTenant`.
+
+## CrawlSession
+A single execution of the website crawler for a Tenant. Lifecycle: `Queued` → `Running` → `Completed` | `Partial` | `Failed`. Modes: `Initial` (created at registration when the tenant supplied a website URL), `Refresh` (daily scheduled via `crawls:refresh-all`), `Manual` (user-triggered with a 1-hour cooldown). Stores per-session counts (`pages_discovered`, `pages_indexed`, `pages_failed`, `pages_skipped_budget`, `pages_skipped_unchanged`) for surfacing in the dashboard banner. Owned by `SiteCrawler::crawl(Tenant, CrawlSession)`; dispatched by `CrawlWebsiteJob` on the `crawls` queue.
+
+## CrawlUrlBlocklist
+A per-Tenant set of URLs the tenant has explicitly removed from their indexed knowledge. Persists across crawl sessions so the daily refresh does not re-create deleted pages. Populated when a tenant deletes a `type=webpage` Knowledge Item via the KB UI and confirms the "don't re-create" prompt. Lives at table `crawl_url_blocklist` (singular) with `(tenant_id, url_normalized)` unique index.

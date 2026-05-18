@@ -22,12 +22,25 @@ const route = useRoute()
 defineProps({
   items: Array,
   stats: Object,
+  crawl_session_id: { type: Number, default: null },
 })
 
-const deleteItem = (id) => {
-  if (confirm('Are you sure you want to delete this item?')) {
-    router.delete(route('client.knowledge.destroy', id))
+const clearCrawlFilter = () => {
+  router.get(route('client.knowledge.index'), {}, { preserveScroll: true })
+}
+
+const deleteItem = (item) => {
+  if (!confirm('Are you sure you want to delete this item?')) return
+
+  let blocklist = false
+  if (item.type === 'webpage') {
+    blocklist = confirm('Also block this URL from being re-created on the next crawl?')
   }
+
+  router.delete(route('client.knowledge.destroy', item.id), {
+    data: { blocklist },
+    preserveScroll: true,
+  })
 }
 
 const retryItem = (id) => {
@@ -130,6 +143,12 @@ const getTypeIcon = (type) => {
         </Card>
       </div>
 
+      <!-- Crawl session filter chip -->
+      <div v-if="crawl_session_id" class="mb-4 flex items-center gap-2">
+        <span class="px-2 py-1 rounded bg-muted text-xs">Filtered: Website crawl session #{{ crawl_session_id }}</span>
+        <button class="text-xs underline" @click="clearCrawlFilter">Clear filter</button>
+      </div>
+
       <!-- Items List -->
       <Card>
         <CardContent class="p-0">
@@ -189,7 +208,7 @@ const getTypeIcon = (type) => {
                         <Pencil class="h-4 w-4" />
                       </Link>
                     </Button>
-                    <Button variant="ghost" size="icon" @click="deleteItem(item.id)">
+                    <Button variant="ghost" size="icon" @click="deleteItem(item)">
                       <Trash2 class="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
