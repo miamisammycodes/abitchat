@@ -20,7 +20,7 @@ const banner = computed(() => {
       return {
         tone: 'success',
         text: `Indexed ${s.pages_indexed} pages from your site.`,
-        link: { href: `/knowledge-base?crawl_session_id=${s.id}`, label: 'View' },
+        link: { href: `/knowledge?crawl_session_id=${s.id}`, label: 'View' },
       }
     case 'partial':
       if (s.pages_skipped_budget > 0) {
@@ -33,7 +33,7 @@ const banner = computed(() => {
       return {
         tone: 'warning',
         text: `Indexed ${s.pages_indexed} pages — some pages could not be processed.`,
-        link: { href: `/knowledge-base?crawl_session_id=${s.id}`, label: 'View' },
+        link: { href: `/knowledge?crawl_session_id=${s.id}`, label: 'View' },
       }
     case 'failed':
       return {
