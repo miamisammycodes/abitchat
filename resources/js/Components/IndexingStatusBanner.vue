@@ -1,18 +1,20 @@
 <script setup>
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Link, usePage } from '@inertiajs/vue3'
 import { useRoute } from '@/composables/useRoute'
 import { Card } from '@/Components/ui/card'
 
 const POLL_INTERVAL_MS = 3000
+// Grace window for "no session yet" — covers the race between registration
+// redirect and the worker actually creating the CrawlSession row.
+const NULL_GRACE_MS = 20000
 const ACTIVE_STATUSES = ['queued', 'running']
 
 const page = usePage()
 const route = useRoute()
 const session = ref(page.props.latest_crawl_session)
+const mountedAt = ref(0)
 let pollTimer = null
-
-const isActive = computed(() => session.value && ACTIVE_STATUSES.includes(session.value.status))
 
 const fetchLatest = async () => {
   try {
@@ -28,9 +30,19 @@ const fetchLatest = async () => {
   }
 }
 
+const tick = () => {
+  const inActive = session.value && ACTIVE_STATUSES.includes(session.value.status)
+  const inGrace = !session.value && Date.now() - mountedAt.value < NULL_GRACE_MS
+  if (!inActive && !inGrace) {
+    stopPolling()
+    return
+  }
+  fetchLatest()
+}
+
 const startPolling = () => {
   if (pollTimer) return
-  pollTimer = setInterval(fetchLatest, POLL_INTERVAL_MS)
+  pollTimer = setInterval(tick, POLL_INTERVAL_MS)
 }
 
 const stopPolling = () => {
@@ -40,12 +52,25 @@ const stopPolling = () => {
   }
 }
 
-watch(isActive, active => (active ? startPolling() : stopPolling()), { immediate: true })
+onMounted(() => {
+  mountedAt.value = Date.now()
+  if (session.value === null || ACTIVE_STATUSES.includes(session.value?.status)) {
+    startPolling()
+  }
+})
 
-// Inertia shared props refresh between page visits — re-sync local state when the prop changes
+// Re-sync local state when Inertia shared props refresh between page visits
 watch(
   () => page.props.latest_crawl_session,
   next => { session.value = next },
+)
+
+// Restart polling if a new active session appears (e.g. user clicks Recrawl)
+watch(
+  () => session.value?.status,
+  status => {
+    if (status && ACTIVE_STATUSES.includes(status)) startPolling()
+  },
 )
 
 onBeforeUnmount(stopPolling)
