@@ -25,7 +25,7 @@ The existing `DocumentProcessor::extractFromUrl()` fetches one URL at a time. We
 | Crawl strategy | `sitemap.xml` first, BFS fallback | Best coverage; degrades gracefully on sites without sitemaps |
 | Crawl caps | 100 pages, depth 3, 5 MB/page | SMB-appropriate; ~$0.20-1 embedding cost worst case |
 | Politeness | 1 req/sec per host, strict robots.txt + Crawl-delay | Avoid being flagged abusive |
-| Registration submit | Validate format + 3s sync HEAD reachability check; crawl async | Fast registration, fail-fast on typos |
+| Registration submit | URL format validation only; crawl async; reachability surfaces in KB | Always-succeed registration trumps fail-fast typo detection. Transient 5xx during submit cannot lose a signup. |
 | Daily refresh | Diff-only via `Last-Modified` / `ETag` / content hash | Cheap (~$0.01-0.05/tenant/day); only re-embeds changed pages |
 | KB integration | One `KnowledgeItem` per page, tagged with `crawl_session_id` in metadata | Reuses existing UI/model; per-page traceability |
 | Wizard shape | 3 steps: Account → Company → Website (Skip button on step 3) | Cleanest progression; plan selection NOT in wizard (all → trial) |
@@ -52,10 +52,9 @@ The existing `DocumentProcessor::extractFromUrl()` fetches one URL at a time. We
 ┌───────────────────────────────────────────────────────────────────────────┐
 │  RegisterController::store (RegisterRequest)                              │
 │    1. Validate fields (+ SafeExternalUrl rule on website_url)             │
-│    2. If website_url present: 3s HEAD reachability check                  │
-│    3. DB::transaction: Tenant + User created                              │
-│    4. If website_url present + reachable: dispatch CrawlWebsiteJob        │
-│    5. Auth::login + redirect /dashboard                                   │
+│    2. DB::transaction: Tenant + User created                              │
+│    3. If website_url present: dispatch CrawlWebsiteJob (no HEAD check)    │
+│    4. Auth::login + redirect /dashboard                                   │
 └───────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
@@ -132,8 +131,10 @@ The existing `DocumentProcessor::extractFromUrl()` fetches one URL at a time. We
 - **Tries**: 2 (low — most failures are not transient)
 - **Backoff**: 300s
 - **Constructor**: `(Tenant $tenant, string $mode = 'initial')`
-- **Handle**: creates `CrawlSession`, delegates to `SiteCrawler::crawl()`, finalizes session
-- **Failed**: marks session `failed` with exception message
+- **Tenant-awareness**: `implements NotTenantAware` (matches existing `ProcessKnowledgeItem` pattern). All tenant scoping inside the job is explicit via `->forTenant($tenant)`.
+- **Handle**: creates `CrawlSession` (status=`Running`), delegates to `SiteCrawler::crawl()`, finalizes session status
+- **Retry semantics**: on `handle()` throw, the existing in-flight session is marked `Failed` and `handle()` re-runs on retry, creating a NEW session. Items created by the first attempt are diff-skipped (`content_hash` match) by the second attempt — safe and idempotent.
+- **Failed (final, after all retries exhausted)**: marks the most recent session `Failed` with exception message; banner surfaces it
 
 ### `App\Models\CrawlSession`
 - Tenant-scoped via `BelongsToTenant`
@@ -143,18 +144,18 @@ The existing `DocumentProcessor::extractFromUrl()` fetches one URL at a time. We
 
 ### `App\Console\Commands\RefreshAllCrawls`
 - Signature: `crawls:refresh-all`
-- Iterates eligible tenants, chunked (100 at a time) to avoid memory blow-up
-- Dispatches one `CrawlWebsiteJob` per tenant onto the `crawls` queue
-- Skips tenants with an in-flight crawl (status `Queued` or `Running`) from the past 6 hours — prevents pile-up if a refresh stalls
+- Eligible tenant query: `Tenant::where('status', 'active')->whereNotNull('website_url')->where('auto_recrawl', true)->chunkById(100, ...)` — uses `where('status','active')` directly (no `scopeActive` exists yet; spec deliberately avoids adding one for v1)
+- Dispatches one `CrawlWebsiteJob` per tenant onto the `crawls` queue (mode=`refresh`)
+- Skips tenants with an in-flight crawl: `CrawlSession::forTenant($t)->whereIn('status',['queued','running'])->where('created_at','>', now()->subHours(6))->exists()` — the 6-hour window auto-expires stuck jobs from blocking forever (a stuck job from yesterday becomes stale; tomorrow's refresh proceeds)
 
 ### `App\Http\Controllers\Auth\RegisterController` (modified)
 - `create()` now passes step config to Inertia (no behavior change today; data prepared for wizard)
 - `store(RegisterRequest)`:
-  1. Validate (RegisterRequest now includes optional `website_url`)
-  2. If `website_url` provided: HEAD with 3s timeout via `Http::timeout(3)->head($url)` inside `try`; on failure throw `ValidationException` keyed to step 3
-  3. Create Tenant (including `website_url`, `auto_recrawl=true`) + Owner User in transaction
-  4. If website provided + reachable: `CrawlWebsiteJob::dispatch($tenant, 'initial')`
-  5. `Auth::login` + redirect to dashboard with flash `'website_indexing_started' => true`
+  1. Validate (RegisterRequest now includes optional `website_url`, format-only — no network call)
+  2. Create Tenant (including `website_url`, `auto_recrawl=true`) + Owner User in transaction
+  3. If `website_url` provided: `CrawlWebsiteJob::dispatch($tenant, 'initial')` on the `crawls` queue
+  4. `Auth::login` + redirect to dashboard with flash `'website_indexing_started' => true` when a crawl was queued
+  - Note: reachability is intentionally NOT checked at submit. Unreachable / 5xx / DNS-resolved-private hosts are surfaced as KB banner states once the crawl job runs. The trade-off: a typo'd URL surfaces ~10-30 seconds later in the dashboard, not at submit. This is preferred to losing signups on transient network blips.
 
 ### `App\Http\Controllers\Client\WebsiteIndexingController` (new)
 - `update(UpdateWebsiteIndexingRequest)`: set/change/clear `website_url`, toggle `auto_recrawl`
@@ -167,10 +168,12 @@ The existing `DocumentProcessor::extractFromUrl()` fetches one URL at a time. We
 - Step indicator (`Step 2 of 3`)
 - Skip button on step 3 clears `website_url` and submits
 - All errors from server snap form to offending step
+- Trial-cap hint inline on step 3: *"Free trial indexes up to 10 pages of your site. Upgrade to crawl your full site."* (the `10` value is rendered from a shared Inertia prop reading `config('billing.trial_limits.knowledge_items')` so we don't hardcode it in the template)
 
 ### Frontend: `resources/js/Pages/Client/Dashboard.vue` (additive)
-- Indexing-status banner reads from new shared prop `tenant.latest_crawl_session` (HandleInertiaRequests middleware addition)
+- Indexing-status banner reads from new shared prop `latest_crawl_session`
 - States: indexing / completed / partial / failed; CTAs link to Knowledge Base filtered by `?crawl_session_id=…`
+- **Sharing strategy**: `HandleInertiaRequests::share()` returns `latest_crawl_session` only when the authenticated user is on routes whose name starts with `dashboard` OR `knowledge.*` OR `widget.*`. Avoids one extra query on every authenticated page load. Implementation: pass the route name (`$request->route()?->getName()`) into a tiny helper that decides whether to query. Per-request memoization in the helper prevents double-query if multiple components read the prop on the same render.
 
 ### Frontend: `resources/js/Pages/Client/WidgetSettings.vue` (additive section)
 - "Website indexing" card: URL input, auto-recrawl toggle, "Re-crawl now" button (disabled during cooldown), last session summary
@@ -235,21 +238,31 @@ Schema::create('crawl_url_blocklist', function (Blueprint $table) {
 
 **How entries are cleared**: settings page exposes a "Removed pages" list per tenant with a per-row "Restore on next crawl" button that deletes the blocklist row. v1 has no bulk-clear UI.
 
-### Schema reuse: `knowledge_items.metadata` (no migration)
-New standardized keys when `type = 'webpage'` and the item was crawler-created:
+### Migration: `add_crawl_columns_to_knowledge_items_table`
+
+`url_normalized` is promoted to a top-level indexed column so the per-page upsert lookup runs ~100 times per crawl per tenant daily without table-scanning JSON. The remaining diff fields stay in `metadata` (read once per page, no index needed).
+
+```php
+$table->string('url_normalized', 2048)->nullable()->after('source_url');
+$table->index(['tenant_id', 'type', 'url_normalized'], 'kn_items_tenant_type_norm_idx');
+```
+
+Crawler upsert key: `KnowledgeItem::forTenant($tenant)->where('type','webpage')->where('url_normalized',$normalized)->first()` — uses the new composite index.
+
+### Schema reuse: `knowledge_items.metadata` (no schema change)
+
+Standardized keys on crawler-created `type = 'webpage'` items (read on diff, not indexed):
 ```json
 {
   "crawl_session_id": 42,
-  "url_normalized": "https://example.com/about",
   "content_hash": "sha256:…",
   "last_modified": "Wed, 12 Mar 2025 10:00:00 GMT",
   "etag": "W/\"abc123\""
 }
 ```
-Crawler upserts by `(tenant_id, type=webpage, metadata->>'url_normalized')`.
 
 ### Schema reuse: `knowledge_items.source_url` (existing column)
-The crawler stores the original (pre-normalize) URL in `source_url` for display; `metadata.url_normalized` is the dedup key.
+The crawler stores the original (pre-normalize) URL in `source_url` for display; `url_normalized` is the dedup key.
 
 ---
 
@@ -272,24 +285,7 @@ The crawler stores the original (pre-normalize) URL in `source_url` for display;
 ```
 
 ### Submit-time reachability
-Inside `RegisterController::store` after validation, if `website_url` present:
-```php
-try {
-    $response = Http::timeout(3)->withHeaders([
-        'User-Agent' => 'ChatbotIndexer/1.0',
-    ])->head($request->website_url);
-    if ($response->status() >= 400 && $response->status() !== 405) {
-        throw ValidationException::withMessages([
-            'website_url' => ['We couldn\'t reach this site. Check the URL or skip this step.'],
-        ]);
-    }
-} catch (ConnectionException $e) {
-    throw ValidationException::withMessages([
-        'website_url' => ['We couldn\'t reach this site. Check the URL or skip this step.'],
-    ]);
-}
-```
-Note: 405 (Method Not Allowed) is accepted as a valid "site exists" signal — many origins block HEAD but accept GET.
+**Not performed at submit.** URL is accepted as long as the format is valid (`url:http,https`) and `SafeExternalUrl::isSafe` passes. The crawl job (running on the `crawls` queue) handles all reachability outcomes and surfaces them in the KB banner. This keeps registration latency low and prevents transient network failures from losing signups.
 
 ---
 
@@ -328,7 +324,7 @@ The 1-hour cooldown applies only to manual triggers. Scheduled `refresh` mode ru
 For each URL in the prioritized list:
 
 1. **HEAD pre-check**: fetch `Last-Modified` and `ETag` headers.
-2. **Find prior item**: `KnowledgeItem::forTenant($tenant)->where('type','webpage')->where('metadata->url_normalized', $normalized)->first()`.
+2. **Find prior item**: `KnowledgeItem::forTenant($tenant)->where('type','webpage')->where('url_normalized', $normalized)->first()` (uses composite index).
 3. **If prior exists**:
    - If `If-Modified-Since: prior.metadata.last_modified` returns 304: **skip** (pages_skipped_unchanged++).
    - If header `Last-Modified == prior.metadata.last_modified` AND `ETag == prior.metadata.etag`: **skip**.
@@ -379,9 +375,10 @@ URLs in `crawl_url_blocklist` for this tenant: skipped silently (no count — al
 - `RegistrationWizardTest`:
   - Wizard with all 3 steps submits successfully (smoke)
   - Step 3 skip: no `website_url` saved, no crawl dispatched
-  - Step 3 with unreachable URL → validation error, no Tenant created (rollback)
-  - Step 3 with valid URL → Tenant created, `website_url` set, `CrawlWebsiteJob` queued
-  - SafeExternalUrl rejection (e.g. `http://localhost`) blocked at validation
+  - Step 3 with valid URL → Tenant created, `website_url` set, `CrawlWebsiteJob` queued on `crawls`
+  - Step 3 with malformed URL → validation error, no Tenant created (rollback)
+  - Step 3 with `http://localhost` or other SafeExternalUrl rejection → validation error
+  - Step 3 with a syntactically valid but unreachable URL → Tenant IS created, crawl IS queued (failure surfaces later in KB banner — verified by asserting `CrawlWebsiteJob` was dispatched even though the URL would fail to resolve)
 - `WebsiteIndexingControllerTest`:
   - Update URL → new manual session dispatched
   - Manual re-crawl within cooldown → 429
@@ -407,6 +404,7 @@ URLs in `crawl_url_blocklist` for this tenant: skipped silently (no count — al
 - `2026_05_18_000001_add_website_url_and_auto_recrawl_to_tenants_table.php`
 - `2026_05_18_000002_create_crawl_sessions_table.php`
 - `2026_05_18_000003_create_crawl_url_blocklist_table.php`
+- `2026_05_18_000004_add_crawl_columns_to_knowledge_items_table.php` (adds `url_normalized` column + composite index)
 
 ### Models
 - `app/Models/CrawlSession.php` (new)
@@ -430,8 +428,9 @@ URLs in `crawl_url_blocklist` for this tenant: skipped silently (no count — al
 - `app/Console/Commands/RefreshAllCrawls.php` (new)
 
 ### Controllers
-- `app/Http/Controllers/Auth/RegisterController.php` (modified)
+- `app/Http/Controllers/Auth/RegisterController.php` (modified — no HEAD; format-only validation)
 - `app/Http/Controllers/Client/WebsiteIndexingController.php` (new)
+- `app/Http/Controllers/Client/KnowledgeBaseController.php` (modified — `index()` accepts `?crawl_session_id=` filter; `destroy()` of `type=webpage` items inserts blocklist row when user confirms)
 
 ### Requests
 - `app/Http/Requests/Auth/RegisterRequest.php` (add `website_url`)
@@ -457,7 +456,8 @@ URLs in `crawl_url_blocklist` for this tenant: skipped silently (no count — al
 - `tests/Unit/Services/Crawler/SitemapDiscovererTest.php`
 - `tests/Unit/Services/Crawler/SiteCrawlerTest.php`
 - `tests/Unit/Models/CrawlSessionTest.php`
-- `tests/Feature/Auth/RegistrationWizardTest.php`
+- `tests/Feature/Auth/RegistrationTest.php` (UPDATE existing — wizard payload is now 3-step combined; add coverage for skip path, website_url, no-HEAD-check behavior)
+- `tests/Feature/Auth/RegistrationWizardTest.php` (new — wizard-specific UI/UX flows distinct from the existing RegistrationTest's auth-correctness coverage)
 - `tests/Feature/Client/WebsiteIndexingControllerTest.php`
 - `tests/Feature/Console/RefreshAllCrawlsCommandTest.php`
 
@@ -481,6 +481,7 @@ These are intentionally NOT in v1. Defer to follow-up specs:
 8. **Per-tenant or per-plan caps that differ from the global 100-page limit**. v1 has one global cap.
 9. **Resume-from-failure for partial crawls**. v1 retries are full-restart.
 10. **Webhook / email notification on crawl completion**. v1 surfaces via dashboard banner only.
+11. **`crawl_sessions` row retention / pruning**. With daily refresh × 365 days × N tenants, this table grows linearly. v1 ships with no retention policy; defer pruning to an ops follow-up once we have real volume data.
 
 ---
 
