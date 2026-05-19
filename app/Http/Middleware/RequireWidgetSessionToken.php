@@ -7,9 +7,9 @@ namespace App\Http\Middleware;
 use App\Exceptions\Widget\InvalidSessionTokenException;
 use App\Services\Widget\SessionTokenService;
 use App\Support\Http\CanonicalOrigin;
+use App\Support\Widget\WidgetAudit;
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
 class RequireWidgetSessionToken
@@ -42,13 +42,7 @@ class RequireWidgetSessionToken
             return response()->json(['error' => 'session_expired'], 401);
         }
 
-        Log::channel('widget_audit')->info('widget_request', [
-            'tenant_id' => $tenant->id,
-            'origin' => $origin,
-            'ip_hash' => hash('sha256', ($request->ip() ?? '').config('app.key')),
-            'endpoint' => $request->path(),
-            'method' => $request->method(),
-        ]);
+        WidgetAudit::log('widget_request', $tenant, $origin, $request);
 
         $request->attributes->set('widget_tenant', $tenant);
 
