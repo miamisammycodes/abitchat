@@ -1,0 +1,38 @@
+{
+  "source_path": "/Users/sam/Dev/laravel/chatbot/docs/superpowers/plans/2026-05-12-billing-races.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Billing Races & Integrity — Implementation Plan",
+  "summary": "TDD-structured implementation plan for four medium-severity billing race conditions and integrity findings from May 2026 audits, with 5 tasks covering unique indexing, locking disciplines, and concurrent safety.",
+  "scope": [
+    "duplicate transaction submission (M2)",
+    "concurrent plan extensions (M-NEW-1)",
+    "trial activation on deactivated plans (M-NEW-3)",
+    "concurrent lead capture (M-NEW-7)",
+    "BillingController",
+    "TransactionController",
+    "Tenant model",
+    "LeadService",
+    "Transaction model",
+    "Conversation model",
+    "Lead model",
+    "DB::transaction locking",
+    "unique index enforcement"
+  ],
+  "cross_refs": [
+    "docs/superpowers/specs/2026-05-12-medium-backlog-design.md",
+    "app/Http/Controllers/Client/BillingController.php",
+    "app/Http/Controllers/Admin/TransactionController.php",
+    "app/Models/Tenant.php",
+    "app/Services/Leads/LeadService.php",
+    "database/migrations/2025_11_28_095707_create_transactions_table.php",
+    "tests/Feature/Client/ActivateTrialErrorsTest.php",
+    "tests/Feature/Client/BillingSubmitPaymentTest.php",
+    "tests/Feature/Admin/TransactionApprovalTest.php",
+    "tests/Feature/WidgetLeadCaptureTest.php"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "Manifest explicitly types as DOC. Document is a comprehensive TDD-shaped implementation plan with 5 sequenced tasks (verification, then 4 fixes, then browser smoke+simplify+PR). Purpose is supporting context and execution guidance for shipped work (PR #12 per memory); produces context only, not requirements or locked decisions."
+}

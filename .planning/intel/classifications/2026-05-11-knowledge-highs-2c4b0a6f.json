@@ -1,0 +1,33 @@
+{
+  "source_path": "/Users/sam/Dev/laravel/chatbot/docs/superpowers/plans/2026-05-11-knowledge-highs.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Knowledge-Cluster High-Severity Fixes — 2026-05-11",
+  "summary": "TDD implementation plan for fixing silent RAG degradation via config-driven embeddings and correcting premature ready status in knowledge processing workflow.",
+  "scope": [
+    "EmbeddingService",
+    "RetrievalService",
+    "ProcessKnowledgeItem",
+    "GenerateEmbeddings",
+    "KnowledgeItem",
+    "configuration (services.embeddings)",
+    "exception handling"
+  ],
+  "cross_refs": [
+    "config/services.php",
+    "app/Exceptions/EmbeddingGenerationException.php",
+    "app/Services/Knowledge/EmbeddingService.php",
+    "app/Services/Knowledge/RetrievalService.php",
+    "app/Jobs/ProcessKnowledgeItem.php",
+    "app/Jobs/GenerateEmbeddings.php",
+    "tests/Unit/Services/Knowledge/EmbeddingServiceConfigTest.php",
+    "tests/Unit/Services/Knowledge/RetrievalServiceFallbackTest.php",
+    "tests/Unit/Services/Knowledge/RetrievalServiceTest.php",
+    "tests/Unit/Jobs/KnowledgeStatusFlowTest.php",
+    ".env.example"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "Manifest declares type DOC; this is a shipped implementation plan (post-execution documentation of TDD tasks for two interlocking high-severity bugs). Structure is task-checklist with explicit code snippets for TDD test-first execution."
+}

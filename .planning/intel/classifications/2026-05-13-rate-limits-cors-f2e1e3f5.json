@@ -1,0 +1,35 @@
+{
+  "source_path": "/Users/sam/Dev/laravel/chatbot/docs/superpowers/plans/2026-05-13-rate-limits-cors.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Abuse / Rate Limiting + CORS — Implementation Plan",
+  "summary": "TDD implementation plan closing four medium-security findings: wildcard CORS (M10), widget rate limit (M11), missing IP throttles on register/forgot-password (M-NEW-2), and unbounded analytics days parameter (M4).",
+  "scope": [
+    "CORS configuration",
+    "widget rate limiting",
+    "widget domain validation middleware",
+    "register endpoint",
+    "forgot-password endpoint",
+    "analytics endpoint",
+    "rate limiter configuration"
+  ],
+  "cross_refs": [
+    "docs/superpowers/specs/2026-05-12-medium-backlog-design.md",
+    "config/cors.php",
+    "app/Http/Middleware/ValidateWidgetDomain.php",
+    "app/Providers/AppServiceProvider.php",
+    "app/Http/Controllers/Client/AnalyticsController.php",
+    "routes/web.php",
+    "routes/api.php",
+    "tests/Feature/CorsConfigTest.php",
+    "tests/Feature/Widget/WidgetCorsTest.php",
+    "tests/Feature/Widget/WidgetRateLimitTest.php",
+    "tests/Feature/Auth/RegisterRateLimitTest.php",
+    "tests/Feature/Auth/ForgotPasswordRateLimitTest.php",
+    "tests/Feature/Client/AnalyticsDaysCapTest.php"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

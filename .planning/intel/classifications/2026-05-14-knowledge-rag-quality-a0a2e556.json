@@ -1,0 +1,35 @@
+{
+  "source_path": "/Users/sam/Dev/laravel/chatbot/docs/superpowers/plans/2026-05-14-knowledge-rag-quality.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Knowledge / RAG Quality — Implementation Plan",
+  "summary": "TDD implementation plan closing four medium-severity knowledge/RAG-quality findings: DOCX word-merging, vector dimension mismatch, chunk materialization OOM, and sync-queue blocking.",
+  "scope": [
+    "DocumentProcessor",
+    "EmbeddingService",
+    "GenerateEmbeddings",
+    "ProcessKnowledgeItem",
+    "KnowledgeBaseController",
+    "KnowledgeItem",
+    "KnowledgeChunk",
+    "OOXML extraction",
+    "pgvector",
+    "queue dispatch",
+    "Ollama"
+  ],
+  "cross_refs": [
+    "docs/superpowers/specs/2026-05-12-medium-backlog-design.md",
+    "app/Services/Knowledge/DocumentProcessor.php",
+    "app/Services/Knowledge/EmbeddingService.php",
+    "app/Jobs/GenerateEmbeddings.php",
+    "app/Http/Controllers/Client/KnowledgeBaseController.php",
+    "tests/Unit/Services/Knowledge/DocumentProcessorDocxTest.php",
+    "tests/Unit/Services/Knowledge/EmbeddingServiceConfigTest.php",
+    "tests/Unit/Jobs/GenerateEmbeddingsLazyTest.php",
+    "tests/Feature/Client/KnowledgeQueueDispatchTest.php"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "Manifest declares type=DOC. Confirmed: implementation plan with task-by-task TDD structure (failing test → run RED → implement → run GREEN → commit pattern). Produces guidance and test scaffolding for execution, not requirements or decisions. Cross-refs spec (2026-05-12-medium-backlog-design.md)."
+}

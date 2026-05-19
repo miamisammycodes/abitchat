@@ -1,0 +1,23 @@
+{
+  "source_path": "/Users/sam/Dev/laravel/chatbot/docs/superpowers/plans/2026-05-11-billing-highs.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Billing-Cluster High-Severity Fixes — 2026-05-11",
+  "summary": "TDD implementation plan for closing three high-severity audit findings in billing system: limit semantics, plan expiry preservation, and plan validation on transaction approval.",
+  "scope": [
+    "UsageTracker",
+    "Admin/ClientController",
+    "Admin/TransactionController",
+    "Plan",
+    "Transaction",
+    "Tenant"
+  ],
+  "cross_refs": [
+    "PR #5",
+    "PR #6"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "Manifest declared this as DOC. Content confirms: TDD-shaped implementation plan with concrete test specs, file patches, and shell commands—a procedural guide, not a decision record or requirement document."
+}

@@ -1,0 +1,34 @@
+{
+  "source_path": "/Users/sam/Dev/laravel/chatbot/docs/superpowers/plans/2026-05-15-lead-scoring.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Plan C — Lead Scoring Merge Implementation Plan",
+  "summary": "TDD-driven plan to merge parallel lead scoring services (LeadService and LeadScoringService) into one canonical LeadScoring module with unified signal set and keyword dictionaries.",
+  "scope": [
+    "LeadScoring service",
+    "LeadService orchestration",
+    "Widget lead capture",
+    "Signal weighting",
+    "Keyword matching",
+    "Lead temperature calculation",
+    "PHPStan baseline management"
+  ],
+  "cross_refs": [
+    "docs/superpowers/specs/2026-05-14-architecture-deepening-design.md",
+    "app/Services/Leads/LeadScoring.php",
+    "tests/Unit/Services/Leads/LeadScoringTest.php",
+    "app/Services/Leads/LeadService.php",
+    "app/Http/Controllers/Api/V1/Widget/LeadController.php",
+    "app/Services/Leads/LeadScoringService.php",
+    "tests/Unit/Services/Leads/LeadScoringServiceTest.php",
+    "app/Http/Controllers/Api/V1/Widget/ChatController.php",
+    "app/Http/Controllers/Client/LeadController.php",
+    "tests/Feature/WidgetLeadCaptureTest.php",
+    "app/Services/Analytics/AnalyticsService.php",
+    "phpstan-baseline.neon"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

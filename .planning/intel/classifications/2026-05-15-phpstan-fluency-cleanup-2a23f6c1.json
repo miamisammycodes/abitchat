@@ -1,0 +1,36 @@
+{
+  "source_path": "/Users/sam/Dev/laravel/chatbot/docs/superpowers/plans/2026-05-15-phpstan-fluency-cleanup.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Plan F — PHPStan Fluency Cleanup Implementation Plan",
+  "summary": "TDD-shaped plan to drain 18 PHPStan baseline entries to zero via 4 task categories (covariance docblocks, HasFactory generics, countByPeriod templates, misc dead code) across 8 files.",
+  "scope": [
+    "PHPStan baseline",
+    "Larastan rules",
+    "docblock annotations",
+    "generic type templates",
+    "Laravel Eloquent models",
+    "dead code removal"
+  ],
+  "cross_refs": [
+    "docs/superpowers/plans/",
+    "app/Models/Concerns/BelongsToTenant.php",
+    "app/Models/Conversation.php",
+    "app/Models/Message.php",
+    "app/Models/Tenant.php",
+    "app/Services/Usage/UsageTracker.php",
+    "app/Http/Controllers/Admin/ClientController.php",
+    "app/Http/Controllers/Client/WidgetController.php",
+    "app/Http/Middleware/HandleInertiaRequests.php",
+    "app/Services/LLM/ChatService.php",
+    "phpstan-baseline.neon",
+    "phpstan.neon",
+    "~/.claude/projects/-Users-sam-Dev-laravel-chatbot/memory/arch_phpstan_baseline_zero.md",
+    "PR #22",
+    "PR #18–#21"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "Manifest type DOC is authoritative. Document is a shipped implementation plan with step-by-step TDD-shaped tasks, not a specification or decision record. No behavior changes; pure type-system fluency + dead-code cleanup."
+}

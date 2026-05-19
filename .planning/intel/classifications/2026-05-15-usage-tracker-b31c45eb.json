@@ -1,0 +1,26 @@
+{
+  "source_path": "/Users/sam/Dev/laravel/chatbot/docs/superpowers/plans/2026-05-15-usage-tracker.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Plan D — UsageTracker::canRecordUsage Implementation Plan",
+  "summary": "TDD implementation plan for moving usage-limit decision logic from CheckUsageLimits middleware into canonical UsageTracker service.",
+  "scope": [
+    "UsageTracker",
+    "CheckUsageLimits",
+    "canRecordUsage",
+    "UsageRecord",
+    "Tenant",
+    "architecture-deepening"
+  ],
+  "cross_refs": [
+    "docs/superpowers/specs/2026-05-14-architecture-deepening-design.md",
+    "app/Services/Usage/UsageTracker.php",
+    "app/Http/Middleware/CheckUsageLimits.php",
+    "tests/Unit/Services/Usage/UsageTrackerCanRecordUsageTest.php",
+    "phpstan-baseline.neon"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "Manifest declared as DOC (authoritative). TDD plan for completed work (shipped in PR #21 per memory). Contains exact task descriptions, test code, commit messages, and verification steps. Manifest takes precedence over heuristic signals (filename pattern + feature-dev process structure could suggest SPEC-like treatment)."
+}

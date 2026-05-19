@@ -1,0 +1,38 @@
+{
+  "source_path": "/Users/sam/Dev/laravel/chatbot/docs/superpowers/specs/2026-05-15-dk-bank-qr-design.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "DK Bank QR Payment — Design",
+  "summary": "Technical specification for QR-based DK Bank payment integration with auto-verification via status API and cross-bank RRN support.",
+  "scope": [
+    "DkBankClient",
+    "DkBankQrService",
+    "DkBankQrController",
+    "Transaction model",
+    "Subscribe.vue",
+    "DkQrSession.vue",
+    "Migration: dk_reference_no, dk_rrn, dk_status_last_checked_at",
+    "Routes: /billing/dk-qr/{plan}, /billing/dk-qr/{transaction}/status, /billing/dk-qr/{transaction}/verify-rrn",
+    "Config: services.dk_bank",
+    "Rate limiter: dk-rrn-verify",
+    "Scheduled command: dk:cleanup-abandoned-qr",
+    "API endpoints: /v1/generate_qr, /v1/intra-transaction/status, /v1/auth/token, /v1/sign/key"
+  ],
+  "cross_refs": [
+    "/Users/sam/Dev/laravel/abitpay/docs/zala.bt Payment Gateway-doc.docx",
+    "/Users/sam/Dev/laravel/abitpay/docs/dk-bank-qr-api-guide.md",
+    "resources/js/Pages/Client/Billing/Subscribe.vue",
+    "resources/js/Pages/Client/Billing/DkQrSession.vue",
+    "app/Http/Controllers/Client/DkBankQrController.php",
+    "app/Services/Payment/DkBank/DkBankClient.php",
+    "app/Services/Payment/DkBank/DkBankQrService.php",
+    "app/Models/Transaction.php",
+    "config/services.php",
+    "routes/web.php",
+    "database/migrations/2026_05_15_000001_add_dk_qr_fields_to_transactions_table.php"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

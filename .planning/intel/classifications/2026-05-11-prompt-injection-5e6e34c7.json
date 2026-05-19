@@ -1,0 +1,31 @@
+{
+  "source_path": "/Users/sam/Dev/laravel/chatbot/docs/superpowers/plans/2026-05-11-prompt-injection.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Prompt Injection Defense — Implementation Plan",
+  "summary": "TDD implementation plan for closing H-NEW-6 by wrapping untrusted tenant content in delimiters, truncating to predictable caps, and positioning strict rules last.",
+  "scope": [
+    "ChatService",
+    "system prompt",
+    "prompt injection defense",
+    "bot_custom_instructions",
+    "knowledge chunks",
+    "tenant name escaping",
+    "truncation",
+    "delimiter wrapping",
+    "strict rules block"
+  ],
+  "cross_refs": [
+    "docs/superpowers/specs/2026-05-11-prompt-injection-design.md",
+    "app/Services/LLM/ChatService.php",
+    "tests/Unit/Services/LLM/ChatServiceTest.php",
+    "app/Http/Controllers/Admin/ClientController.php",
+    "tests/Feature/Admin/UpdateBotPersonalityValidationTest.php",
+    "routes/web.php",
+    "app/Models/Tenant.php"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "Manifest type DOC honored. Plan document with Task 0–4 TDD-shaped tasks including exact code, exact test assertions, exact file paths, exact bash commands. No unverified assumptions marked for Task 0 (implementation straightforward from spec). Companion spec at same ref already on branch."
+}

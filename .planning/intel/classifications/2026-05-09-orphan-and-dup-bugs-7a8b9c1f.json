@@ -1,0 +1,42 @@
+{
+  "source_path": "/Users/sam/Dev/laravel/chatbot/docs/superpowers/plans/2026-05-09-orphan-and-dup-bugs.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Orphan-Message + Chunk-Dup Fixes — 2026-05-09 Audit (Round 2)",
+  "summary": "TDD-shaped implementation plan for closing two CRITICAL data-corruption bugs: orphaned user messages on chat-pipeline failure and chunk duplication on ProcessKnowledgeItem retry.",
+  "scope": [
+    "ChatController",
+    "sendMessage",
+    "streamMessage",
+    "ProcessKnowledgeItem",
+    "RetrievalService",
+    "ChatService",
+    "LeadScoringService",
+    "KnowledgeChunk",
+    "Message",
+    "Conversation",
+    "GenerateEmbeddings",
+    "DocumentProcessor",
+    "TextChunker"
+  ],
+  "cross_refs": [
+    "app/Http/Controllers/Api/V1/Widget/ChatController.php",
+    "tests/Feature/Widget/ChatSendMessageOrphanTest.php",
+    "tests/Feature/Widget/ChatStreamMessageOrphanTest.php",
+    "app/Jobs/ProcessKnowledgeItem.php",
+    "tests/Unit/Jobs/ProcessKnowledgeItemIdempotencyTest.php",
+    "app/Models/Message.php",
+    "app/Models/Conversation.php",
+    "app/Models/KnowledgeChunk.php",
+    "app/Models/KnowledgeItem.php",
+    "app/Services/Knowledge/RetrievalService.php",
+    "app/Services/LLM/ChatService.php",
+    "app/Services/Knowledge/DocumentProcessor.php",
+    "app/Services/Knowledge/TextChunker.php",
+    "app/Jobs/GenerateEmbeddings.php"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

@@ -1,0 +1,73 @@
+# GSD ingest-docs manifest — authoritative doc set for net-new .planning/ bootstrap
+# Precedence default: ADR > SPEC > PRD > DOC (lower = higher precedence)
+docs:
+  - path: prd.md
+    type: PRD
+  - path: ROADMAP.md
+    type: DOC
+  - path: CLAUDE.md
+    type: DOC
+
+  # --- Design specs (last 6; foundation-first + conversations-ui dropped) ---
+  - path: docs/superpowers/specs/2026-05-11-prompt-injection-design.md
+    type: SPEC
+  - path: docs/superpowers/specs/2026-05-12-medium-backlog-design.md
+    type: SPEC
+  - path: docs/superpowers/specs/2026-05-14-architecture-deepening-design.md
+    type: SPEC
+  - path: docs/superpowers/specs/2026-05-15-dk-bank-qr-design.md
+    type: SPEC
+  - path: docs/superpowers/specs/2026-05-18-registration-wizard-and-site-scraping-design.md
+    type: SPEC
+  - path: docs/superpowers/specs/2026-05-19-widget-session-tokens-design.md
+    type: SPEC
+
+  # --- Implementation plans (24) ---
+  - path: docs/superpowers/plans/2026-03-25-foundation-first.md
+    type: DOC
+  - path: docs/superpowers/plans/2026-05-03-conversations-ui.md
+    type: DOC
+  - path: docs/superpowers/plans/2026-05-09-critical-bugs.md
+    type: DOC
+  - path: docs/superpowers/plans/2026-05-09-orphan-and-dup-bugs.md
+    type: DOC
+  - path: docs/superpowers/plans/2026-05-11-billing-highs.md
+    type: DOC
+  - path: docs/superpowers/plans/2026-05-11-knowledge-highs.md
+    type: DOC
+  - path: docs/superpowers/plans/2026-05-11-llm-budget-and-billing.md
+    type: DOC
+  - path: docs/superpowers/plans/2026-05-11-prompt-injection.md
+    type: DOC
+  - path: docs/superpowers/plans/2026-05-11-ui-highs.md
+    type: DOC
+  - path: docs/superpowers/plans/2026-05-12-billing-races.md
+    type: DOC
+  - path: docs/superpowers/plans/2026-05-13-rate-limits-cors.md
+    type: DOC
+  - path: docs/superpowers/plans/2026-05-13-usage-cache.md
+    type: DOC
+  - path: docs/superpowers/plans/2026-05-14-frontend-polish.md
+    type: DOC
+  - path: docs/superpowers/plans/2026-05-14-knowledge-pipeline.md
+    type: DOC
+  - path: docs/superpowers/plans/2026-05-14-knowledge-rag-quality.md
+    type: DOC
+  - path: docs/superpowers/plans/2026-05-14-misc-operational.md
+    type: DOC
+  - path: docs/superpowers/plans/2026-05-14-tenant-scoping.md
+    type: DOC
+  - path: docs/superpowers/plans/2026-05-15-baseline-cleanup-sweep.md
+    type: DOC
+  - path: docs/superpowers/plans/2026-05-15-dk-bank-qr.md
+    type: DOC
+  - path: docs/superpowers/plans/2026-05-15-lead-scoring.md
+    type: DOC
+  - path: docs/superpowers/plans/2026-05-15-phpstan-fluency-cleanup.md
+    type: DOC
+  - path: docs/superpowers/plans/2026-05-15-usage-tracker.md
+    type: DOC
+  - path: docs/superpowers/plans/2026-05-18-registration-wizard-and-site-scraping.md
+    type: DOC
+  - path: docs/superpowers/plans/2026-05-19-widget-session-tokens.md
+    type: DOC

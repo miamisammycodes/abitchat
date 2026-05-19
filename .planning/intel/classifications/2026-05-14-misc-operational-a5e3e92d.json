@@ -1,0 +1,32 @@
+{
+  "source_path": "/Users/sam/Dev/laravel/chatbot/docs/superpowers/plans/2026-05-14-misc-operational.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Misc Operational — Implementation Plan",
+  "summary": "TDD implementation plan for closing three medium-severity operational findings (M6, M-NEW-10, M8) via task-driven execution.",
+  "scope": [
+    "widget-loader",
+    "analytics-service",
+    "message-content-hash",
+    "admin-client-index",
+    "soft-delete-restoration"
+  ],
+  "cross_refs": [
+    "docs/superpowers/specs/2026-05-12-medium-backlog-design.md",
+    "app/Http/Controllers/Api/V1/Widget/ChatController.php",
+    "public/widget/chatbot.js",
+    "public/widget/widget.js",
+    "app/Models/Message.php",
+    "app/Services/Analytics/AnalyticsService.php",
+    "app/Http/Controllers/Admin/ClientController.php",
+    "routes/web.php",
+    "database/migrations/2026_05_14_000001_add_content_hash_to_messages.php",
+    "tests/Unit/Models/MessageContentHashTest.php",
+    "tests/Unit/Services/Analytics/GetTopQuestionsTest.php",
+    "tests/Feature/Admin/AdminClientTrashedTest.php"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

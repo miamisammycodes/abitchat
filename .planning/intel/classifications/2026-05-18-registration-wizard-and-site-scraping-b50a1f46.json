@@ -1,0 +1,27 @@
+{
+  "source_path": "/Users/sam/Dev/laravel/chatbot/docs/superpowers/plans/2026-05-18-registration-wizard-and-site-scraping.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Registration Wizard + Website Auto-Indexing — Implementation Plan",
+  "summary": "TDD-shaped implementation plan with 18 tasks for a 3-step registration wizard that auto-indexes websites via a polite crawler with daily refresh and usage-tracking gating.",
+  "scope": [
+    "registration",
+    "website_url capture",
+    "sitemap discovery",
+    "robots.txt compliance",
+    "knowledge_items",
+    "crawl_sessions",
+    "crawl_url_blocklist",
+    "daily refresh scheduling",
+    "CrawlWebsiteJob",
+    "SiteCrawler",
+    "UrlNormalizer"
+  ],
+  "cross_refs": [
+    "docs/superpowers/specs/2026-05-18-registration-wizard-and-site-scraping-design.md"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "Manifest authoritatively types as DOC. Supporting implementation context for shipped feature (PR #25). Contains detailed TDD task instructions with failing tests, migrations, services, controllers, Vue components, and deployment steps."
+}

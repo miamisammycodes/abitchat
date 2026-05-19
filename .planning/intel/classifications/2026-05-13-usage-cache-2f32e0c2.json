@@ -1,0 +1,33 @@
+{
+  "source_path": "/Users/sam/Dev/laravel/chatbot/docs/superpowers/plans/2026-05-13-usage-cache.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Usage Tracking Cache — Implementation Plan",
+  "summary": "Four-task TDD implementation plan closing three medium-severity cache invalidation and query-performance findings in usage tracking.",
+  "scope": [
+    "UsageTracker service",
+    "Conversation model",
+    "Lead model",
+    "KnowledgeItem model",
+    "ChatController widget API",
+    "cache invalidation",
+    "usage_records table",
+    "month-boundary cache bleed",
+    "sargable countByPeriod query"
+  ],
+  "cross_refs": [
+    "docs/superpowers/specs/2026-05-12-medium-backlog-design.md",
+    "app/Services/Usage/UsageTracker.php",
+    "app/Models/Conversation.php",
+    "app/Models/Lead.php",
+    "app/Models/KnowledgeItem.php",
+    "app/Http/Controllers/Api/V1/Widget/ChatController.php",
+    "tests/Unit/Services/Usage/UsageTrackerTest.php",
+    "prd.md",
+    "ROADMAP.md"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

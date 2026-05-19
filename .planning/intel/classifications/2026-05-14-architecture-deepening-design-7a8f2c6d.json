@@ -1,0 +1,36 @@
+{
+  "source_path": "/Users/sam/Dev/laravel/chatbot/docs/superpowers/specs/2026-05-14-architecture-deepening-design.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Architecture Deepening — Master Design",
+  "summary": "Master design spec for four architecture-deepening clusters (tenant-scoping enforcement, knowledge pipeline consolidation, lead scoring merge, usage tracking) with locked decisions, file maps, and behavior changes.",
+  "scope": [
+    "tenant-scoping-enforcement",
+    "knowledge-pipeline",
+    "lead-scoring",
+    "usage-tracking",
+    "phpstan-rules",
+    "state-machines"
+  ],
+  "cross_refs": [
+    "DEEPENING.md",
+    "CLAUDE.md",
+    "CONTEXT.md",
+    "docs/superpowers/plans/2026-05-14-tenant-scoping.md",
+    "app/Models/Concerns/BelongsToTenant.php",
+    "app/Rules/PHPStan/NoRawTenantIdWhere.php",
+    "app/Services/Knowledge/KnowledgeItemWorkflow.php",
+    "app/Services/Knowledge/KnowledgeCache.php",
+    "app/Services/Knowledge/DocumentProcessor.php",
+    "app/Services/Leads/LeadScoring.php",
+    "app/Services/Usage/UsageTracker.php",
+    "app/Http/Middleware/CheckUsageLimits.php",
+    "app/Models/KnowledgeItem.php",
+    "app/Models/Lead.php",
+    "app/Models/Conversation.php"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

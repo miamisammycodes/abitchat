@@ -1,0 +1,37 @@
+{
+  "source_path": "/Users/sam/Dev/laravel/chatbot/docs/superpowers/plans/2026-05-15-baseline-cleanup-sweep.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Plan E — Baseline Tenancy Cleanup Sweep Implementation Plan",
+  "summary": "Four-task mechanical refactor converting 25 remaining raw tenant_id queries to forTenant scope, retiring all tenancy baseline violations.",
+  "scope": [
+    "AnalyticsService",
+    "AdminClientController",
+    "WidgetChatController",
+    "ClientLeadController",
+    "BelongsToTenant trait",
+    "PHPStan baseline",
+    "Larastan rule enforcement",
+    "Eloquent query scoping"
+  ],
+  "cross_refs": [
+    "docs/superpowers/specs/2026-05-14-architecture-deepening-design.md",
+    "app/Services/Analytics/AnalyticsService.php",
+    "app/Http/Controllers/Admin/ClientController.php",
+    "app/Http/Controllers/Api/V1/Widget/ChatController.php",
+    "app/Http/Controllers/Client/LeadController.php",
+    "phpstan-baseline.neon",
+    "tests/Feature/Admin/AdminClientShowTest.php",
+    "tests/Unit/Services/Analytics/GetTopQuestionsTest.php",
+    "tests/Feature/Client/AnalyticsDaysCapTest.php",
+    "tests/Feature/Admin/AdminClientTrashedTest.php",
+    "tests/Feature/Widget/ChatSendMessageOrphanTest.php",
+    "tests/Feature/Widget/ChatStreamMessageOrphanTest.php",
+    "tests/Feature/WidgetApiTest.php",
+    "tests/Feature/LeadManagementTest.php"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "TDD implementation plan for shipped work (PR #22). Manifest-declared as DOC; no behavior change required, purely procedural guidance for mechanical refactoring. Contains exact code diffs, test strategies, and verification checkpoints."
+}

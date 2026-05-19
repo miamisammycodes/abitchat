@@ -1,0 +1,35 @@
+{
+  "source_path": "/Users/sam/Dev/laravel/chatbot/docs/superpowers/plans/2026-05-09-critical-bugs.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Critical Bug Fixes — 2026-05-09 Audit Slice",
+  "summary": "TDD implementation plan for closing 3 critical bugs (billing, cache, payments) and SSRF trio with frontend null-guard fixes.",
+  "scope": [
+    "Tenant.extendPlan",
+    "WidgetController.regenerateApiKey",
+    "BillingController.submitPayment",
+    "SafeExternalUrl",
+    "DocumentProcessor.extractFromUrl",
+    "Analytics/Index.vue",
+    "Admin/Dashboard.vue",
+    "Admin/Clients/Show.vue",
+    "Conversations/Index.vue"
+  ],
+  "cross_refs": [
+    "docs/superpowers/specs/2026-05-09-critical-bugs-design.md",
+    "app/Models/Tenant.php",
+    "app/Http/Controllers/Admin/TransactionController.php",
+    "app/Http/Controllers/Client/WidgetController.php",
+    "app/Http/Controllers/Client/BillingController.php",
+    "app/Rules/SafeExternalUrl.php",
+    "app/Services/Knowledge/DocumentProcessor.php",
+    "resources/js/Pages/Client/Analytics/Index.vue",
+    "resources/js/Pages/Admin/Dashboard.vue",
+    "resources/js/Pages/Admin/Clients/Show.vue",
+    "resources/js/Pages/Client/Conversations/Index.vue"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

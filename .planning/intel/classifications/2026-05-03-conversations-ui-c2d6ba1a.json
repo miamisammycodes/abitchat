@@ -1,0 +1,38 @@
+{
+  "source_path": "/Users/sam/Dev/laravel/chatbot/docs/superpowers/plans/2026-05-03-conversations-ui.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Conversations UI Implementation Plan",
+  "summary": "TDD-shaped implementation plan for 10 tasks building the Conversations dashboard with list, detail, archive, and export functionality.",
+  "scope": [
+    "ConversationController",
+    "Conversation model",
+    "Message model",
+    "ConversationFactory",
+    "MessageFactory",
+    "Conversations/Index.vue",
+    "Conversations/Show.vue",
+    "Widget API",
+    "ClientLayout sidebar"
+  ],
+  "cross_refs": [
+    "docs/superpowers/specs/2026-05-03-conversations-ui-design.md",
+    "ROADMAP.md",
+    "routes/web.php",
+    "app/Models/Conversation.php",
+    "app/Models/Message.php",
+    "app/Http/Controllers/Client/ConversationController.php",
+    "resources/js/Pages/Client/Conversations/Index.vue",
+    "resources/js/Pages/Client/Conversations/Show.vue",
+    "resources/js/Layouts/ClientLayout.vue",
+    "database/factories/ConversationFactory.php",
+    "database/factories/MessageFactory.php",
+    "tests/Unit/Models/ConversationTest.php",
+    "tests/Feature/Client/ConversationsIndexTest.php",
+    "tests/Feature/Client/ConversationsShowTest.php"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "Manifest declared type DOC; honors without requiring heuristic analysis. Implementation plan explicitly TDD-structured with failing tests first (RED), then implementation (GREEN), then commit per task. References spec at line 13; cross-tenant access consistently uses 404 (not 403) per spec at line 39."
+}

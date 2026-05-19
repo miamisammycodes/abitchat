@@ -1,0 +1,43 @@
+{
+  "source_path": "/Users/sam/Dev/laravel/chatbot/docs/superpowers/plans/2026-03-25-foundation-first.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Foundation First Implementation Plan",
+  "summary": "TDD-shaped implementation plan with 12 tasks: package updates, query optimization, caching, code quality (PHPStan, policies), error handling, and widget resilience improvements.",
+  "scope": [
+    "Laravel package upgrades (v13, PHP 8.4)",
+    "npm/Vite updates",
+    "Query optimization (N+1, indexes)",
+    "Redis caching (tenant, knowledge, usage)",
+    "PHPStan level 6",
+    "Authorization policies",
+    "ChatService retry logic",
+    "Widget API error responses",
+    "Widget resilience (retry, timeout, offline, double-send prevention)"
+  ],
+  "cross_refs": [
+    "docs/superpowers/specs/2026-03-25-foundation-first-design.md",
+    "app/Http/Controllers/Client/KnowledgeBaseController.php",
+    "app/Http/Controllers/Admin/DashboardController.php",
+    "app/Http/Controllers/Api/V1/Widget/ChatController.php",
+    "app/Http/Controllers/Client/BillingController.php",
+    "app/Http/Middleware/CheckUsageLimits.php",
+    "app/Services/Knowledge/RetrievalService.php",
+    "app/Services/LLM/ChatService.php",
+    "app/Models/Tenant.php",
+    "app/Policies/ConversationPolicy.php",
+    "app/Policies/LeadPolicy.php",
+    "app/Policies/KnowledgeItemPolicy.php",
+    "app/Policies/TransactionPolicy.php",
+    "public/widget/chatbot.js",
+    "phpunit.xml",
+    "phpstan.neon",
+    "routes/api.php",
+    "composer.json",
+    "package.json"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

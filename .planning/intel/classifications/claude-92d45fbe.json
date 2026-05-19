@@ -1,0 +1,31 @@
+{
+  "source_path": "/Users/sam/Dev/laravel/chatbot/CLAUDE.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Chatbot SaaS - AI Coding Rules",
+  "summary": "Project-wide coding standards, development workflow, architecture patterns, and conventions for Laravel/Vue3 chatbot SaaS.",
+  "scope": [
+    "PHP coding standards",
+    "Vue 3 Composition API conventions",
+    "Database schema patterns",
+    "Multi-tenancy architecture",
+    "Feature development process",
+    "Testing strategy",
+    "Debugging practices",
+    "Security requirements",
+    "Git workflow",
+    "LLM integration (Prism)",
+    "Legacy code cleanup",
+    "PR process"
+  ],
+  "cross_refs": [
+    "prd.md",
+    "ROADMAP.md",
+    "docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md",
+    "docs/superpowers/plans/YYYY-MM-DD-<topic>.md"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "Manifest declared as DOC; honors directive. Document serves as living standards guide for development team covering coding practices, workflow, and architectural patterns."
+}

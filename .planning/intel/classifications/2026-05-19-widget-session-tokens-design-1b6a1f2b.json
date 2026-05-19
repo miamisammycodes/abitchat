@@ -1,0 +1,28 @@
+{
+  "source_path": "/Users/sam/Dev/laravel/chatbot/docs/superpowers/specs/2026-05-19-widget-session-tokens-design.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Widget Session Tokens + Per-IP Rate Limits",
+  "summary": "Technical specification for JWT-based session tokens bound to api_key, Origin, and IP with per-IP rate limiting for the widget API.",
+  "scope": [
+    "widget API",
+    "session tokens",
+    "JWT authentication",
+    "per-IP rate limiting",
+    "api_key rotation",
+    "Bearer token middleware",
+    "chatbot.js client"
+  ],
+  "cross_refs": [
+    "app/Http/Middleware/ValidateWidgetDomain.php",
+    "app/Http/Controllers/Api/V1/Widget/ChatController.php",
+    "public/widget/chatbot.js",
+    "routes/api.php",
+    "bootstrap/app.php",
+    "config/widget.php"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

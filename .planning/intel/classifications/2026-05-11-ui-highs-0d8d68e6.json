@@ -1,0 +1,30 @@
+{
+  "source_path": "/Users/sam/Dev/laravel/chatbot/docs/superpowers/plans/2026-05-11-ui-highs.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "UI-Cluster High-Severity Fixes — 2026-05-11",
+  "summary": "TDD implementation plan for closing four UI HIGH audit findings (keyboard nav, slug auto-fill, trial error visibility, modal error clearing).",
+  "scope": [
+    "Client/Conversations/Index.vue",
+    "Admin/Plans/Create.vue",
+    "Client/Billing/Plans.vue",
+    "ClientLayout.vue",
+    "ActivateTrialErrorsTest",
+    "Vue 3 Composition API",
+    "Inertia 2",
+    "accessibility",
+    "form error handling"
+  ],
+  "cross_refs": [
+    "resources/js/Pages/Client/Conversations/Index.vue",
+    "resources/js/Pages/Admin/Plans/Create.vue",
+    "resources/js/Pages/Client/Billing/Plans.vue",
+    "resources/js/Layouts/ClientLayout.vue",
+    "tests/Feature/Client/ActivateTrialErrorsTest.php",
+    "docs/superpowers/specs/2026-05-09-audit-findings.md"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "MANIFEST_TYPE provided as DOC — honored. Plan structure with 5 tasks (Task 0: pre-flight, Tasks 1–4: bug fixes, Task 5: smoke/simplify/PR). Each task is TDD-shaped with exact implementation steps, code snippets, and commit messages. Consumed by subagent-driven-development orchestrator."
+}

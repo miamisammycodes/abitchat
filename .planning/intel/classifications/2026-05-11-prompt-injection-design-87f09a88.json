@@ -1,0 +1,27 @@
+{
+  "source_path": "/Users/sam/Dev/laravel/chatbot/docs/superpowers/specs/2026-05-11-prompt-injection-design.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Prompt Injection Defense — H-NEW-6 Design Spec",
+  "summary": "Technical specification for defending against prompt injection attacks in LLM system prompts by reordering sections, wrapping untrusted content, escaping delimiters, and enforcing size caps.",
+  "scope": [
+    "ChatService::buildSystemPrompt",
+    "Prompt injection defense",
+    "Tenant custom instructions",
+    "Knowledge chunk sanitization",
+    "XML-style delimiter escaping",
+    "admin/ClientController::updateBotPersonality",
+    "ChatServiceTest"
+  ],
+  "cross_refs": [
+    "docs/superpowers/audits/2026-05-09-bug-audit.md",
+    "app/Services/LLM/ChatService.php",
+    "app/Http/Controllers/Admin/ClientController.php",
+    "tests/Unit/Services/LLM/ChatServiceTest.php",
+    "database/migrations/2025_12_01_103158_add_bot_personality_to_tenants_table.php"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

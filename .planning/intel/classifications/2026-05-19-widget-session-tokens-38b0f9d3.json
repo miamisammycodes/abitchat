@@ -1,0 +1,42 @@
+{
+  "source_path": "/Users/sam/Dev/laravel/chatbot/docs/superpowers/plans/2026-05-19-widget-session-tokens.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Widget Session Tokens + Per-IP Rate Limits — Implementation Plan",
+  "summary": "TDD-driven implementation plan for JWT-based widget session tokens with per-IP rate limiting and 401 refresh flow.",
+  "scope": [
+    "SessionTokenService",
+    "RequireWidgetSessionToken middleware",
+    "ThrottleWidgetPerIp middleware",
+    "ChatController",
+    "widget.js client",
+    "config/widget.php",
+    "widget audit logging",
+    "firebase/php-jwt integration"
+  ],
+  "cross_refs": [
+    "docs/superpowers/specs/2026-05-19-widget-session-tokens-design.md",
+    "app/Services/Widget/SessionTokenService.php",
+    "app/Exceptions/Widget/InvalidSessionTokenException.php",
+    "app/Http/Middleware/RequireWidgetSessionToken.php",
+    "app/Http/Middleware/ThrottleWidgetPerIp.php",
+    "app/Http/Controllers/Api/V1/Widget/ChatController.php",
+    "app/Support/Http/CanonicalOrigin.php",
+    "tests/Unit/Services/Widget/SessionTokenServiceTest.php",
+    "tests/Unit/Http/Middleware/RequireWidgetSessionTokenTest.php",
+    "tests/Feature/Api/V1/Widget/InitTokenTest.php",
+    "tests/Feature/Api/V1/Widget/SessionTokenTest.php",
+    "tests/Feature/Api/V1/Widget/PerIpThrottleTest.php",
+    "tests/Feature/Api/V1/Widget/AuditLogTest.php",
+    "public/widget/chatbot.js",
+    "config/logging.php",
+    "config/widget.php",
+    "routes/api.php",
+    "bootstrap/app.php",
+    ".env.example"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}
