@@ -23,44 +23,44 @@ final class DkBankQrService
 
     public function startQrSession(Tenant $tenant, Plan $plan): DkQrSession
     {
-        return DB::transaction(function () use ($tenant, $plan) {
-            // ULID up-front so two concurrent "Generate QR" clicks don't race
-            // on the unique dk_reference_no index (a TEMP-then-update pattern
-            // would collide).
-            $referenceNo = 'DKQR-'.strtoupper((string) Str::ulid());
+        // ULID up-front so two concurrent "Generate QR" clicks don't race
+        // on the unique dk_reference_no index.
+        $referenceNo = 'DKQR-'.strtoupper((string) Str::ulid());
 
-            $transaction = Transaction::create([
-                'tenant_id' => $tenant->id,
-                'plan_id' => $plan->id,
-                'amount' => $plan->price,
-                'payment_method' => 'dk_qr',
-                'payment_date' => now(),
-                'status' => 'awaiting_payment',
-                'dk_reference_no' => $referenceNo,
-            ]);
+        $response = $this->client->postSigned('/v1/generate_qr', [
+            'request_id' => $this->client->generateRequestId(),
+            'currency' => 'BTN',
+            'bene_account_number' => config('services.dk_bank.beneficiary_account'),
+            'amount' => (float) $plan->price,
+            'mcc_code' => config('services.dk_bank.mcc_code'),
+            'remarks' => "Plan: {$plan->name}",
+            'reference_no' => $referenceNo,
+        ]);
 
-            $response = $this->client->postSigned('/v1/generate_qr', [
-                'request_id' => $this->client->generateRequestId(),
-                'currency' => 'BTN',
-                'bene_account_number' => config('services.dk_bank.beneficiary_account'),
-                'amount' => (float) $plan->price,
-                'mcc_code' => config('services.dk_bank.mcc_code'),
-                'remarks' => "Plan: {$plan->name}",
-                'reference_no' => $transaction->dk_reference_no,
-            ]);
-
-            if (($response['response_code'] ?? null) !== '0000') {
-                throw new DkQrGenerationException(
-                    dkResponseCode: $response['response_code'] ?? 'unknown',
-                    message: $response['response_description'] ?? 'QR generation failed',
-                );
-            }
-
-            return new DkQrSession(
-                transaction: $transaction,
-                qrImageBase64: $response['response_data']['image'],
+        if (($response['response_code'] ?? null) !== '0000') {
+            throw new DkQrGenerationException(
+                dkResponseCode: $response['response_code'] ?? 'unknown',
+                message: $response['response_description'] ?? 'QR generation failed',
             );
-        });
+        }
+
+        $qrImageBase64 = $response['response_data']['image'];
+
+        $transaction = Transaction::create([
+            'tenant_id' => $tenant->id,
+            'plan_id' => $plan->id,
+            'amount' => $plan->price,
+            'payment_method' => 'dk_qr',
+            'payment_date' => now(),
+            'status' => 'awaiting_payment',
+            'dk_reference_no' => $referenceNo,
+            'dk_qr_image_base64' => $qrImageBase64,
+        ]);
+
+        return new DkQrSession(
+            transaction: $transaction,
+            qrImageBase64: $qrImageBase64,
+        );
     }
 
     public function verifyByRrn(Transaction $transaction, string $rrn): DkStatusResult

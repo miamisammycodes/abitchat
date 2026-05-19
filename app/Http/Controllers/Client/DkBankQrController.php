@@ -19,7 +19,7 @@ final class DkBankQrController extends Controller
 {
     public function __construct(private readonly DkBankQrService $service) {}
 
-    public function start(Request $request, Plan $plan): Response|RedirectResponse
+    public function start(Request $request, Plan $plan): RedirectResponse
     {
         abort_if(! $plan->is_active, 404);
 
@@ -33,10 +33,31 @@ final class DkBankQrController extends Controller
                 ->with('error', 'Could not generate the DK QR right now. Please use the manual form below.');
         }
 
+        return redirect()->route('client.billing.dk-qr.show', $session->transaction);
+    }
+
+    public function show(Request $request, Transaction $transaction): Response|RedirectResponse
+    {
+        $this->authorize('view', $transaction);
+
+        if ($transaction->payment_method !== 'dk_qr' || $transaction->dk_qr_image_base64 === null) {
+            return redirect()
+                ->route('client.billing.index')
+                ->with('error', 'That QR session is no longer available. Start a new one from the plans page.');
+        }
+
+        if ($transaction->isApproved()) {
+            return redirect()
+                ->route('client.billing.index')
+                ->with('success', 'Payment confirmed — your plan is active.');
+        }
+
+        $transaction->load('plan');
+
         return Inertia::render('Client/Billing/DkQrSession', [
-            'plan' => $plan,
-            'transaction' => $session->transaction,
-            'qrImageBase64' => $session->qrImageBase64,
+            'plan' => $transaction->plan,
+            'transaction' => $transaction,
+            'qrImageBase64' => $transaction->dk_qr_image_base64,
         ]);
     }
 

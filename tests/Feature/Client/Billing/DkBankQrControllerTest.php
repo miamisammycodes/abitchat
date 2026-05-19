@@ -30,13 +30,8 @@ class DkBankQrControllerTest extends TestCase
         ]);
     }
 
-    public function test_start_creates_transaction_and_renders_qr_page(): void
+    public function test_start_creates_transaction_and_redirects_to_show(): void
     {
-        // The Vue page Client/Billing/DkQrSession.vue is built in a later task;
-        // disable Inertia's file-existence assertion so we can verify the
-        // controller wiring (component name + props) here.
-        config()->set('inertia.testing.ensure_pages_exist', false);
-
         $this->actingAsTenantUser();
 
         $mock = Mockery::mock(DkBankClient::class);
@@ -47,14 +42,79 @@ class DkBankQrControllerTest extends TestCase
 
         $response = $this->post(route('client.billing.dk-qr.start', $this->plan));
 
-        $response->assertInertia(fn ($page) => $page
+        $tx = Transaction::where('tenant_id', $this->tenant->id)->latest('id')->firstOrFail();
+        $response->assertRedirect(route('client.billing.dk-qr.show', $tx));
+        $this->assertSame('awaiting_payment', $tx->status);
+        $this->assertSame('dk_qr', $tx->payment_method);
+        $this->assertSame('B64PNG', $tx->dk_qr_image_base64);
+    }
+
+    public function test_show_renders_qr_page_from_stored_image(): void
+    {
+        config()->set('inertia.testing.ensure_pages_exist', false);
+
+        $this->actingAsTenantUser();
+        $tx = $this->makeTx(['dk_reference_no' => 'DKQR-SHOW-001', 'dk_qr_image_base64' => 'STORED_B64']);
+
+        $response = $this->get(route('client.billing.dk-qr.show', $tx));
+
+        $response->assertOk()->assertInertia(fn ($page) => $page
             ->component('Client/Billing/DkQrSession')
-            ->where('qrImageBase64', 'B64PNG')
+            ->where('qrImageBase64', 'STORED_B64')
+            ->where('transaction.id', $tx->id)
         );
-        $this->assertDatabaseHas('transactions', [
-            'tenant_id' => $this->tenant->id, 'plan_id' => $this->plan->id,
-            'status' => 'awaiting_payment', 'payment_method' => 'dk_qr',
+    }
+
+    public function test_show_redirects_to_billing_when_already_approved(): void
+    {
+        $this->actingAsTenantUser();
+        $tx = $this->makeTx([
+            'status' => 'approved',
+            'dk_reference_no' => 'DKQR-SHOW-002',
+            'dk_qr_image_base64' => 'STORED_B64',
         ]);
+
+        $response = $this->get(route('client.billing.dk-qr.show', $tx));
+
+        $response->assertRedirect(route('client.billing.index'))->assertSessionHas('success');
+    }
+
+    public function test_show_redirects_when_qr_image_missing(): void
+    {
+        $this->actingAsTenantUser();
+        $tx = $this->makeTx(['dk_reference_no' => 'DKQR-SHOW-003']);
+
+        $response = $this->get(route('client.billing.dk-qr.show', $tx));
+
+        $response->assertRedirect(route('client.billing.index'))->assertSessionHas('error');
+    }
+
+    public function test_show_forbidden_for_other_tenants_transaction(): void
+    {
+        $this->actingAsTenantUser();
+        $other = Tenant::create(['name' => 'Other', 'slug' => 'other', 'status' => 'active', 'trial_ends_at' => now()]);
+        $tx = $this->makeTx([
+            'tenant_id' => $other->id,
+            'dk_reference_no' => 'DKQR-SHOW-004',
+            'dk_qr_image_base64' => 'STORED_B64',
+        ]);
+
+        $this->get(route('client.billing.dk-qr.show', $tx))->assertForbidden();
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     */
+    private function makeTx(array $overrides = []): Transaction
+    {
+        return Transaction::create(array_merge([
+            'tenant_id' => $this->tenant->id,
+            'plan_id' => $this->plan->id,
+            'amount' => 1000,
+            'payment_method' => 'dk_qr',
+            'payment_date' => now(),
+            'status' => 'awaiting_payment',
+        ], $overrides));
     }
 
     public function test_start_redirects_back_to_subscribe_on_dk_failure(): void

@@ -121,6 +121,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/dk-qr/{plan}', [DkBankQrController::class, 'start'])
             ->name('dk-qr.start');
 
+        Route::get('/dk-qr/transaction/{transaction}', [DkBankQrController::class, 'show'])
+            ->name('dk-qr.show');
+
         Route::get('/dk-qr/{transaction}/status', [DkBankQrController::class, 'status'])
             ->name('dk-qr.status')
             ->middleware('throttle:60,1');

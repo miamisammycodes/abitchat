@@ -50,6 +50,7 @@ class DkBankQrServiceStartTest extends TestCase
         $session = $service->startQrSession($tenant, $plan);
 
         $this->assertSame('BASE64IMG', $session->qrImageBase64);
+        $this->assertSame('BASE64IMG', $session->transaction->dk_qr_image_base64);
         $this->assertSame('awaiting_payment', $session->transaction->status);
         $this->assertSame('dk_qr', $session->transaction->payment_method);
         $this->assertSame($tenant->id, $session->transaction->tenant_id);
@@ -59,7 +60,7 @@ class DkBankQrServiceStartTest extends TestCase
         $this->assertEquals(1000, $session->transaction->amount);
     }
 
-    public function test_rolls_back_transaction_on_dk_failure(): void
+    public function test_does_not_create_transaction_on_dk_failure(): void
     {
         [$tenant, $plan] = $this->makeTenantAndPlan();
 

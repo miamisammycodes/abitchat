@@ -34,6 +34,7 @@ class Transaction extends Model
         'approved_by',
         'approved_at',
         'dk_status_last_checked_at',
+        'dk_qr_image_base64',
     ];
 
     protected $casts = [
@@ -42,6 +43,11 @@ class Transaction extends Model
         'approved_at' => 'datetime',
         'dk_status_last_checked_at' => 'datetime',
     ];
+
+    // QR image is ~16KB base64; keep it out of default serialization so list
+    // payloads don't carry it. Callers that need it (DkBankQrController::show)
+    // read the attribute directly and pass it as an explicit prop.
+    protected $hidden = ['dk_qr_image_base64'];
 
     /** @return BelongsTo<Plan, $this> */
     public function plan(): BelongsTo
