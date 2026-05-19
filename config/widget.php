@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 return [
-    'session_dual_accept' => env('WIDGET_SESSION_DUAL_ACCEPT', true),
+    'session_dual_accept' => env('WIDGET_SESSION_DUAL_ACCEPT', false),
     'session_ttl' => env('WIDGET_SESSION_TTL', 1800),
 
     'ip_init_per_min' => env('WIDGET_IP_INIT_PER_MIN', 10),
