@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Services\Crawler\RobotsTxtPolicy;
+use App\Services\Widget\SessionTokenService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -21,6 +22,11 @@ class AppServiceProvider extends ServiceProvider
         // RobotsTxtPolicy instance (and its per-instance cache) within a single
         // request / queue job, without persisting state across jobs in long-running workers.
         $this->app->scoped(RobotsTxtPolicy::class);
+
+        $this->app->singleton(
+            SessionTokenService::class,
+            fn ($app) => new SessionTokenService(config('app.key'))
+        );
     }
 
     /**
