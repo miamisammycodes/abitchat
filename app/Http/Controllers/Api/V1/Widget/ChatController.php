@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Widget;
 
+use App\Enums\Widget\WidgetAuditEvent;
 use App\Http\Controllers\Controller;
 use App\Models\Conversation;
 use App\Models\Message;
@@ -60,7 +61,7 @@ class ChatController extends Controller
 
         $minted = $this->sessionTokens->mint($tenant, $origin, $ip);
 
-        WidgetAudit::log(WidgetAudit::EVENT_INIT, $tenant, $origin, $request);
+        WidgetAudit::log(WidgetAuditEvent::Init, $tenant, $origin, $request);
 
         Log::debug('[Widget] (NO $) Initialized', [
             'tenant_id' => $tenant->id,

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Enums\Widget\WidgetAuditEvent;
 use App\Exceptions\Widget\InvalidSessionTokenException;
 use App\Services\Widget\SessionTokenService;
 use App\Support\Http\CanonicalOrigin;
@@ -49,7 +50,7 @@ class RequireWidgetSessionToken
             // Rejected path audit — wrapped so an APP_KEY-empty RuntimeException
             // from WidgetAudit::ipHash() never crashes the widget response (CONS-22-b).
             try {
-                Log::channel(WidgetAudit::CHANNEL)->warning(WidgetAudit::EVENT_REJECTED, [
+                Log::channel(WidgetAudit::CHANNEL)->warning(WidgetAuditEvent::Rejected->value, [
                     'reason' => $e->getMessage(),
                     'origin' => $origin,
                     'ip_hash' => WidgetAudit::ipHash($request->ip()),
@@ -71,7 +72,7 @@ class RequireWidgetSessionToken
         // Approved path audit — wrapped so an APP_KEY-empty RuntimeException
         // from WidgetAudit::ipHash() never crashes an approved widget request (CONS-22-b).
         try {
-            WidgetAudit::log(WidgetAudit::EVENT_REQUEST, $tenant, $origin, $request);
+            WidgetAudit::log(WidgetAuditEvent::Request, $tenant, $origin, $request);
         } catch (\Throwable $e) {
             Cache::increment('widget_audit_failures');
             Log::warning('[Widget] Audit log failure (approved path)', ['error' => $e->getMessage()]);
