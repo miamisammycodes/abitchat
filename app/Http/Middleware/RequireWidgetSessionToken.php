@@ -6,6 +6,7 @@ namespace App\Http\Middleware;
 
 use App\Exceptions\Widget\InvalidSessionTokenException;
 use App\Services\Widget\SessionTokenService;
+use App\Support\Http\CanonicalOrigin;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -32,7 +33,7 @@ class RequireWidgetSessionToken
         }
 
         // Bearer present — must verify, regardless of dual-accept
-        $origin = $this->canonicalOrigin($request->header('Origin') ?? $request->header('Referer'));
+        $origin = CanonicalOrigin::from($request->header('Origin') ?? $request->header('Referer'));
 
         try {
             $tenant = $this->tokens->verify($bearer, $origin ?? '', $request->ip() ?? '');
@@ -59,23 +60,5 @@ class RequireWidgetSessionToken
         $token = trim(substr($header, 7));
 
         return $token !== '' ? $token : null;
-    }
-
-    // TODO(Task 3): extract to App\Support\Http\CanonicalOrigin — duplicates logic in ValidateWidgetDomain::canonicalOrigin
-    private function canonicalOrigin(?string $raw): ?string
-    {
-        if ($raw === null) {
-            return null;
-        }
-        $parts = parse_url($raw);
-        if (! isset($parts['scheme'], $parts['host'])) {
-            return null;
-        }
-        $origin = $parts['scheme'].'://'.$parts['host'];
-        if (isset($parts['port'])) {
-            $origin .= ':'.$parts['port'];
-        }
-
-        return $origin;
     }
 }
