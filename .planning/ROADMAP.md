@@ -221,7 +221,7 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 1–13. v1.0 Phases | v1.0 | - | Complete | 2026-05-20 |
 | 14. Data Encryption | v1.1 | 0/TBD | Not started | - |
-| 15. Widget Hardening | v1.1 | 1/1 | Complete | 2026-05-20 |
+| 15. Widget Hardening | v1.1 | 1/1 | Gaps open (3/5 SC) | - |
 | 16. Admin Dashboard Extensions | v1.1 | 0/TBD | Not started | - |
 | 17. Team Management | v1.1 | 0/TBD | Not started | - |
 | 18. WP.org Submission | v1.1 | 0/TBD | Not started | - |
