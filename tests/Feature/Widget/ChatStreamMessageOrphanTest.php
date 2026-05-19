@@ -12,10 +12,13 @@ use App\Services\Knowledge\RetrievalService;
 use App\Services\LLM\ChatService;
 use Illuminate\Testing\TestResponse;
 use Mockery;
+use Tests\Concerns\AuthenticatesWidget;
 use Tests\TestCase;
 
 class ChatStreamMessageOrphanTest extends TestCase
 {
+    use AuthenticatesWidget;
+
     protected Tenant $tenant;
 
     private Conversation $conversation;
@@ -29,7 +32,7 @@ class ChatStreamMessageOrphanTest extends TestCase
             'slug' => 'stream-co',
             'status' => 'active',
             'trial_ends_at' => now()->addDays(14),
-            'settings' => ['allowed_domains' => []],
+            'settings' => ['allowed_domains' => ['example.com']],
         ]);
 
         User::create([
@@ -44,15 +47,18 @@ class ChatStreamMessageOrphanTest extends TestCase
             'session_id' => 'session-stream-orphan',
             'status' => 'active',
         ]);
+
+        $this->setUpAuthenticatesWidget();
     }
 
     private function postStream(): TestResponse
     {
-        return $this->postJson('/api/v1/widget/message/stream', [
-            'api_key' => $this->tenant->api_key,
-            'conversation_id' => $this->conversation->id,
-            'message' => 'hello',
-        ]);
+        return $this->withHeaders($this->widgetHeaders($this->tenant))
+            ->postJson('/api/v1/widget/message/stream', [
+                'api_key' => $this->tenant->api_key,
+                'conversation_id' => $this->conversation->id,
+                'message' => 'hello',
+            ]);
     }
 
     public function test_no_user_message_persisted_when_retrieval_fails(): void
