@@ -80,16 +80,13 @@ final class SessionTokenService
         }
 
         $expectedSub = $payload->sub ?? '';
-        // Pre-filter to active tenants only. This is still O(active_tenants) per
-        // verify — acceptable for small/medium scale but should become a
-        // SHA2(CONCAT(api_key, ?), 256)-based indexed lookup or a dedicated
-        // api_key_hash column before the tenant table exceeds ~1k rows.
-        // TODO(perf): replace with indexed lookup when scale demands it.
-        // In-PHP comparison — works for SQLite (tests) and MySQL; avoids
-        // raw SHA2(CONCAT(...), 256) which is MySQL-only.
-        $tenant = Tenant::where('status', 'active')->get()->first(
-            fn ($t) => hash('sha256', $t->api_key.$this->secret) === $expectedSub
-        );
+        // O(1) indexed lookup: api_key_hash column has a unique index on `tenants`.
+        // `where('api_key_hash', ...)` is not a raw tenant_id query — DEC-05/NoRawTenantIdWhere
+        // bans `where('tenant_id', ...)` only. We are resolving a tenant FROM the hash,
+        // not filtering a tenant-scoped query, so forTenant() is not applicable here.
+        $tenant = Tenant::where('api_key_hash', $expectedSub)
+            ->where('status', 'active')
+            ->first();
 
         if ($tenant === null) {
             throw new InvalidSessionTokenException('Tenant not found or api_key rotated');

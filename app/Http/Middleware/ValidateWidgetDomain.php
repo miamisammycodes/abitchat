@@ -39,7 +39,7 @@ class ValidateWidgetDomain
         $tenant = Cache::remember(
             "tenant:api_key:{$apiKey}",
             300,
-            fn () => Tenant::where('api_key', $apiKey)->first(),
+            fn () => Tenant::where('api_key_hash', hash('sha256', $apiKey.config('app.key')))->first(),
         );
 
         if (! $tenant) {

@@ -14,6 +14,9 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Spatie\Multitenancy\Models\Tenant as BaseTenant;
 
+/**
+ * @property string|null $api_key_hash SHA-256 HMAC of api_key using APP_KEY as pepper; maintained by model hooks.
+ */
 class Tenant extends BaseTenant
 {
     /** @use HasFactory<TenantFactory> */
@@ -35,6 +38,7 @@ class Tenant extends BaseTenant
         'website_url',
         'auto_recrawl',
         'api_key',
+        'api_key_hash',
         'plan',
         'plan_id',
         'plan_expires_at',
@@ -67,6 +71,16 @@ class Tenant extends BaseTenant
             }
             if (empty($tenant->slug)) {
                 $tenant->slug = Str::slug($tenant->name);
+            }
+            // Always compute hash from the final api_key (generated or provided).
+            // Must run AFTER the api_key assignment above so the hash is correct.
+            $tenant->api_key_hash = hash('sha256', $tenant->api_key.config('app.key'));
+        });
+
+        // Covers api_key rotation at any point after creation.
+        static::saving(function (Tenant $tenant) {
+            if ($tenant->isDirty('api_key') && $tenant->api_key) {
+                $tenant->api_key_hash = hash('sha256', $tenant->api_key.config('app.key'));
             }
         });
 
