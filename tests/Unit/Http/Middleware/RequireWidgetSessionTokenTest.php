@@ -74,6 +74,17 @@ class RequireWidgetSessionTokenTest extends TestCase
         $this->assertSame('session_token_required', json_decode($response->getContent(), true)['error']);
     }
 
+    public function test_treats_bearer_with_empty_token_as_missing(): void
+    {
+        config()->set('widget.session_dual_accept', false);
+        $request = $this->makeRequest('Bearer ', 'https://example.com');
+
+        $response = $this->middleware->handle($request, fn () => response()->json(['ok' => true]));
+
+        $this->assertSame(401, $response->getStatusCode());
+        $this->assertSame('session_token_required', json_decode($response->getContent(), true)['error']);
+    }
+
     public function test_ip_mismatch_returns_401(): void
     {
         // Mint with a non-127.0.0.1 IP; verify will see request's IP (127.0.0.1 in tests).

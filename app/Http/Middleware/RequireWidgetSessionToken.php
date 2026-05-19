@@ -56,9 +56,12 @@ class RequireWidgetSessionToken
             return null;
         }
 
-        return trim(substr($header, 7));
+        $token = trim(substr($header, 7));
+
+        return $token !== '' ? $token : null;
     }
 
+    // TODO(Task 3): extract to App\Support\Http\CanonicalOrigin — duplicates logic in ValidateWidgetDomain::canonicalOrigin
     private function canonicalOrigin(?string $raw): ?string
     {
         if ($raw === null) {
