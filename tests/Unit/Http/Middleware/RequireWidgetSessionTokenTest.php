@@ -97,6 +97,33 @@ class RequireWidgetSessionTokenTest extends TestCase
         $this->assertSame(401, $response->getStatusCode());
     }
 
+    public function test_rejects_when_token_tenant_differs_from_body_api_key(): void
+    {
+        $otherTenant = Tenant::create([
+            'name' => 'Other', 'slug' => 'other', 'status' => 'active',
+            'trial_ends_at' => now()->addDays(14),
+        ]);
+        $minted = $this->tokens->mint($this->tenant, 'https://example.com', '127.0.0.1');
+        $request = $this->makeRequest("Bearer {$minted['token']}", 'https://example.com');
+        $request->merge(['api_key' => $otherTenant->api_key]);  // cross-tenant body
+
+        $response = $this->middleware->handle($request, fn () => response()->json(['ok' => true]));
+
+        $this->assertSame(401, $response->getStatusCode());
+    }
+
+    public function test_rejects_when_origin_and_referer_both_missing(): void
+    {
+        $minted = $this->tokens->mint($this->tenant, 'https://example.com', '127.0.0.1');
+        $request = Request::create('/api/v1/widget/conversation', 'POST');
+        $request->headers->set('Authorization', "Bearer {$minted['token']}");
+        // No Origin, no Referer
+
+        $response = $this->middleware->handle($request, fn () => response()->json(['ok' => true]));
+
+        $this->assertSame(401, $response->getStatusCode());
+    }
+
     private function makeRequest(?string $authorization, string $origin): Request
     {
         $request = Request::create('/api/v1/widget/conversation', 'POST');

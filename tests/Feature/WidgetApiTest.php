@@ -109,9 +109,12 @@ class WidgetApiTest extends TestCase
 
     public function test_widget_init_returns_config_with_valid_api_key(): void
     {
-        $response = $this->postJson('/api/v1/widget/init', [
-            'api_key' => $this->apiKey,
-        ]);
+        $this->widgetTenant->update(['settings' => ['allowed_domains' => ['example.com']]]);
+
+        $response = $this->withHeaders(['Origin' => 'https://example.com'])
+            ->postJson('/api/v1/widget/init', [
+                'api_key' => $this->apiKey,
+            ]);
 
         $response->assertStatus(200);
         $response->assertJsonStructure([

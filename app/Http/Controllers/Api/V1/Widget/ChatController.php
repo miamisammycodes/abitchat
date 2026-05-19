@@ -48,7 +48,17 @@ class ChatController extends Controller
         }
 
         $origin = CanonicalOrigin::from($request->header('Origin') ?? $request->header('Referer'));
-        $minted = $this->sessionTokens->mint($tenant, $origin ?? '', $request->ip() ?? '');
+        $ip = $request->ip();
+
+        if ($origin === null || $origin === '' || $ip === null || $ip === '') {
+            return response()->json([
+                'success' => false,
+                'error' => 'Cannot identify request origin or IP',
+                'code' => 'ORIGIN_OR_IP_MISSING',
+            ], 400);
+        }
+
+        $minted = $this->sessionTokens->mint($tenant, $origin, $ip);
 
         WidgetAudit::log(WidgetAudit::EVENT_INIT, $tenant, $origin, $request);
 

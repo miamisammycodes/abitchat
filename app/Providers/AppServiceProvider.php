@@ -23,10 +23,14 @@ class AppServiceProvider extends ServiceProvider
         // request / queue job, without persisting state across jobs in long-running workers.
         $this->app->scoped(RobotsTxtPolicy::class);
 
-        $this->app->singleton(
-            SessionTokenService::class,
-            fn ($app) => new SessionTokenService(config('app.key'))
-        );
+        $this->app->singleton(SessionTokenService::class, function ($app) {
+            $key = (string) config('app.key');
+            if ($key === '') {
+                throw new \RuntimeException('APP_KEY must be set to use widget session tokens');
+            }
+
+            return new SessionTokenService($key);
+        });
     }
 
     /**

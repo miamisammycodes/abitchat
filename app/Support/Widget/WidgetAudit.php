@@ -29,6 +29,11 @@ final class WidgetAudit
 
     public static function ipHash(?string $ip): string
     {
-        return hash('sha256', ($ip ?? '').config('app.key'));
+        $key = (string) config('app.key');
+        if ($key === '') {
+            throw new \RuntimeException('APP_KEY must be set for widget audit IP hashing');
+        }
+
+        return hash('sha256', ($ip ?? '').$key);
     }
 }

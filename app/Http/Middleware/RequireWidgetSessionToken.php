@@ -37,9 +37,18 @@ class RequireWidgetSessionToken
         // Bearer present — must verify, regardless of dual-accept
         $origin = CanonicalOrigin::from($request->header('Origin') ?? $request->header('Referer'));
 
+        if ($origin === null || $origin === '' || $request->ip() === null || $request->ip() === '') {
+            return response()->json(['error' => WidgetErrors::SESSION_EXPIRED], 401);
+        }
+
         try {
-            $tenant = $this->tokens->verify($bearer, $origin ?? '', $request->ip() ?? '');
+            $tenant = $this->tokens->verify($bearer, $origin, $request->ip());
         } catch (InvalidSessionTokenException) {
+            return response()->json(['error' => WidgetErrors::SESSION_EXPIRED], 401);
+        }
+
+        $bodyApiKey = $request->input('api_key');
+        if ($bodyApiKey !== null && $bodyApiKey !== $tenant->api_key) {
             return response()->json(['error' => WidgetErrors::SESSION_EXPIRED], 401);
         }
 
