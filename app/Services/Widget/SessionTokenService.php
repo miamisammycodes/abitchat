@@ -6,6 +6,7 @@ namespace App\Services\Widget;
 
 use App\Exceptions\Widget\InvalidSessionTokenException;
 use App\Models\Tenant;
+use Firebase\JWT\BeforeValidException;
 use Firebase\JWT\ExpiredException;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
@@ -53,7 +54,7 @@ final class SessionTokenService
 
         try {
             $payload = JWT::decode($token, new Key($this->secret, self::ALGORITHM));
-        } catch (ExpiredException|SignatureInvalidException $e) {
+        } catch (ExpiredException|BeforeValidException|SignatureInvalidException $e) {
             throw new InvalidSessionTokenException($e->getMessage(), 0, $e);
         } catch (Throwable $e) {
             throw new InvalidSessionTokenException('Malformed token', 0, $e);
@@ -70,9 +71,14 @@ final class SessionTokenService
         }
 
         $expectedSub = $payload->sub ?? '';
+        // Pre-filter to active tenants only. This is still O(active_tenants) per
+        // verify — acceptable for small/medium scale but should become a
+        // SHA2(CONCAT(api_key, ?), 256)-based indexed lookup or a dedicated
+        // api_key_hash column before the tenant table exceeds ~1k rows.
+        // TODO(perf): replace with indexed lookup when scale demands it.
         // In-PHP comparison — works for SQLite (tests) and MySQL; avoids
         // raw SHA2(CONCAT(...), 256) which is MySQL-only.
-        $tenant = Tenant::all()->first(
+        $tenant = Tenant::where('status', 'active')->get()->first(
             fn ($t) => hash('sha256', $t->api_key.$this->secret) === $expectedSub
         );
 

@@ -99,4 +99,20 @@ class SessionTokenServiceTest extends TestCase
         $this->expectException(InvalidSessionTokenException::class);
         $this->service->verify('not.a.jwt', 'https://example.com', '203.0.113.10');
     }
+
+    public function test_verify_rejects_not_yet_valid_token(): void
+    {
+        // Travel 60 seconds into the future so the minted token's iat is
+        // 60 seconds ahead of "now".
+        $this->travel(60)->seconds();
+        $result = $this->service->mint($this->tenant, 'https://example.com', '203.0.113.10');
+
+        // Travel back to the original time so verify() sees Carbon::now() as
+        // 60 seconds BEFORE the token's iat — triggering BeforeValidException.
+        $this->travelBack();
+
+        $this->expectException(InvalidSessionTokenException::class);
+        $this->expectExceptionMessageMatches('/Cannot handle token/');
+        $this->service->verify($result['token'], 'https://example.com', '203.0.113.10');
+    }
 }
