@@ -48,7 +48,6 @@ class ChatSendMessageOrphanTest extends TestCase
             'status' => 'active',
         ]);
 
-        $this->setUpAuthenticatesWidget();
     }
 
     private function postMessage(): TestResponse

@@ -48,7 +48,6 @@ class ChatStreamMessageOrphanTest extends TestCase
             'status' => 'active',
         ]);
 
-        $this->setUpAuthenticatesWidget();
     }
 
     private function postStream(): TestResponse

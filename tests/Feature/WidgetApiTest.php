@@ -34,7 +34,6 @@ class WidgetApiTest extends TestCase
         // Tenant creates api_key automatically via boot method
         $this->apiKey = $this->widgetTenant->api_key;
 
-        $this->setUpAuthenticatesWidget();
     }
 
     public function test_old_api_key_invalidated_immediately_after_regenerate(): void

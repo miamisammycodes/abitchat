@@ -15,8 +15,6 @@ class WidgetLeadCaptureTest extends TestCase
 {
     use AuthenticatesWidget;
 
-    protected Tenant $widgetTenant;
-
     protected Conversation $conversation;
 
     protected function setUp(): void
@@ -37,7 +35,6 @@ class WidgetLeadCaptureTest extends TestCase
             'status' => 'active',
         ]);
 
-        $this->setUpAuthenticatesWidget();
     }
 
     public function test_response_does_not_disclose_whether_email_already_exists(): void
