@@ -1,3 +1,19 @@
+---
+gsd_state_version: 1.0
+milestone: v1.1
+milestone_name: Backlog Completion
+status: executing
+stopped_at: "Phase 15 & Phase 14 context gathered; dispatching 2 parallel plan-phase runs. Cross-phase contract: Phase 14 depends on Phase 15's `api_key_hash` blind-index; execute 15→14."
+last_updated: "2026-05-19T20:35:06.499Z"
+last_activity: 2026-05-19 -- Phase 15 execution started
+progress:
+  total_phases: 9
+  completed_phases: 0
+  total_plans: 4
+  completed_plans: 0
+  percent: 0
+---
+
 # Project State
 
 ## Project Reference
@@ -5,20 +21,21 @@
 See: .planning/PROJECT.md (updated 2026-05-20)
 
 **Core value:** Enable any WordPress site owner to deploy an AI-powered chatbot — trained on their own content — that captures leads, answers visitor questions, and delivers measurable ROI, without technical expertise.
-**Current focus:** v1.1 Backlog Completion — phase selection is user-driven (run `/gsd:plan-phase N` for any phase 14–22)
+**Current focus:** Phase 15 — widget-session-token-hardening
 
 ## Current Position
 
-Phase: Phases 15 + 14 — context gathered, planning next (parallel)
-Plan: None active (2 parallel plan-phase runs about to dispatch)
-Status: 15-CONTEXT.md + 14-CONTEXT.md locked; ready for parallel planning
-Last activity: 2026-05-20 — discuss-phase complete for Phase 15 (widget hardening) and Phase 14 (data encryption); shared api_key_hash contract established between them
+Phase: 15 (widget-session-token-hardening) — EXECUTING
+Plan: 1 of 1
+Status: Executing Phase 15
+Last activity: 2026-05-19 -- Phase 15 execution started
 
 Progress: [██░░░░░░░░] ~18% (Phases 1–13 complete; Phases 14–22 pending)
 
 ## Performance Metrics
 
 **Velocity:**
+
 - Total plans completed: 0 (v1.1 milestone not yet started)
 - v1.0 baseline: PRs #3–#29 merged; 482 tests; 15 Playwright E2E cases
 
