@@ -99,7 +99,11 @@
   2. Widget session-related tokens and any designated PII fields are encrypted before persist
   3. Application reads and writes the fields transparently — existing functionality unchanged
   4. A migration exists that encrypts all existing rows on deploy; rollback path documented
-**Plans**: TBD
+**Plans**: 3 plans in 2 waves
+Plans:
+- [ ] 14-01-PLAN.md — Lead PII encryption (leads.email, phone, name → encrypted cast + migration + backfill)
+- [ ] 14-02-PLAN.md — Message content encryption (messages.content → encrypted cast + content_hash nulled + D-06 acceptance)
+- [ ] 14-03-PLAN.md — tenants.api_key encryption (Phase 15 precondition gate + unique index drop + widen column + backfill)
 
 ### Phase 15: Widget Session Token Hardening
 **Goal**: The widget session token system is hardened to production-grade reliability and ready for strict-mode cutover, with TrustProxies correctly configured so IP-binding and rate limits work through all proxy layers.
