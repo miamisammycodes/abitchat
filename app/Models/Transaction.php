@@ -34,6 +34,7 @@ class Transaction extends Model
         'approved_by',
         'approved_at',
         'dk_status_last_checked_at',
+        'dk_qr_image_base64',
     ];
 
     protected $casts = [

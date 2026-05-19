@@ -56,9 +56,15 @@ final class DkBankQrService
                 );
             }
 
+            $qrImageBase64 = $response['response_data']['image'];
+
+            // Persist so the wait-page can re-render on refresh / after re-auth
+            // without burning another signed call to /v1/generate_qr.
+            $transaction->update(['dk_qr_image_base64' => $qrImageBase64]);
+
             return new DkQrSession(
                 transaction: $transaction,
-                qrImageBase64: $response['response_data']['image'],
+                qrImageBase64: $qrImageBase64,
             );
         });
     }

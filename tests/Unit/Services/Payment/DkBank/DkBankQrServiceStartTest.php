@@ -50,6 +50,7 @@ class DkBankQrServiceStartTest extends TestCase
         $session = $service->startQrSession($tenant, $plan);
 
         $this->assertSame('BASE64IMG', $session->qrImageBase64);
+        $this->assertSame('BASE64IMG', $session->transaction->dk_qr_image_base64);
         $this->assertSame('awaiting_payment', $session->transaction->status);
         $this->assertSame('dk_qr', $session->transaction->payment_method);
         $this->assertSame($tenant->id, $session->transaction->tenant_id);

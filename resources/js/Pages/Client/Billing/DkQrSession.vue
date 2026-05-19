@@ -38,6 +38,13 @@ async function pollStatus() {
       setTimeout(() => router.visit(route('client.billing.index')), 1500)
     }
   } catch (e) {
+    // Session expired — full reload sends the user through /login; Laravel
+    // remembers the intended URL and bounces them back to this GET show route.
+    if (e.response?.status === 401) {
+      stopPolling()
+      window.location.reload()
+      return
+    }
     // transient — keep polling
   }
 }
