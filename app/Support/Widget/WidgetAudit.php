@@ -16,6 +16,8 @@ final class WidgetAudit
 
     public const EVENT_REQUEST = 'widget_request';
 
+    public const EVENT_REJECTED = 'widget_token_rejected';
+
     public static function log(string $event, Tenant $tenant, ?string $origin, Request $request): void
     {
         Log::channel(self::CHANNEL)->info($event, [

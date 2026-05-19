@@ -11,6 +11,7 @@ use App\Support\Widget\WidgetAudit;
 use App\Support\Widget\WidgetErrors;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
 class RequireWidgetSessionToken
@@ -43,7 +44,14 @@ class RequireWidgetSessionToken
 
         try {
             $tenant = $this->tokens->verify($bearer, $origin, $request->ip());
-        } catch (InvalidSessionTokenException) {
+        } catch (InvalidSessionTokenException $e) {
+            Log::channel(WidgetAudit::CHANNEL)->warning(WidgetAudit::EVENT_REJECTED, [
+                'reason' => $e->getMessage(),
+                'origin' => $origin,
+                'ip_hash' => WidgetAudit::ipHash($request->ip()),
+                'endpoint' => $request->path(),
+            ]);
+
             return response()->json(['error' => WidgetErrors::SESSION_EXPIRED], 401);
         }
 

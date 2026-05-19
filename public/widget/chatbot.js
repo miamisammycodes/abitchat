@@ -740,8 +740,8 @@
                             // Retry the loop with the fresh token; don't count as a normal retry
                             attempt--;
                             continue;
-                        } catch (_refreshErr) {
-                            // Refresh failed — fall through to surface the original 401
+                        } catch (refreshErr) {
+                            console.error('[Chatbot] Session refresh failed, surfacing original 401:', refreshErr);
                         }
                     }
 

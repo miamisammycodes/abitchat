@@ -12,6 +12,7 @@ use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Firebase\JWT\SignatureInvalidException;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 final class SessionTokenService
@@ -57,6 +58,10 @@ final class SessionTokenService
         } catch (ExpiredException|BeforeValidException|SignatureInvalidException $e) {
             throw new InvalidSessionTokenException($e->getMessage(), 0, $e);
         } catch (Throwable $e) {
+            Log::warning('[Widget] Unexpected JWT decode failure', [
+                'class' => $e::class,
+                'message' => $e->getMessage(),
+            ]);
             throw new InvalidSessionTokenException('Malformed token', 0, $e);
         } finally {
             JWT::$timestamp = null;
@@ -64,6 +69,10 @@ final class SessionTokenService
 
         if (($payload->aud ?? null) !== $origin) {
             throw new InvalidSessionTokenException('Origin mismatch');
+        }
+
+        if (($payload->iss ?? null) !== config('app.url')) {
+            throw new InvalidSessionTokenException('Issuer mismatch');
         }
 
         if (($payload->ip ?? null) !== $ip) {

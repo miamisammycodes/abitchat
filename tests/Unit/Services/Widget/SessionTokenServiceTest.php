@@ -100,6 +100,44 @@ class SessionTokenServiceTest extends TestCase
         $this->service->verify('not.a.jwt', 'https://example.com', '203.0.113.10');
     }
 
+    public function test_verify_rejects_token_with_wrong_issuer(): void
+    {
+        config()->set('app.url', 'https://prod.example.com');
+        $minted = $this->service->mint($this->tenant, 'https://example.com', '127.0.0.1');
+
+        config()->set('app.url', 'https://different.example.com');
+
+        $this->expectException(InvalidSessionTokenException::class);
+        $this->service->verify($minted['token'], 'https://example.com', '127.0.0.1');
+    }
+
+    public function test_verify_picks_correct_tenant_among_multiple_active_tenants(): void
+    {
+        $tenantA = Tenant::create([
+            'name' => 'A', 'slug' => 'a', 'status' => 'active',
+            'trial_ends_at' => now()->addDays(14),
+        ]);
+        $tenantB = Tenant::create([
+            'name' => 'B', 'slug' => 'b', 'status' => 'active',
+            'trial_ends_at' => now()->addDays(14),
+        ]);
+
+        $minted = $this->service->mint($tenantB, 'https://example.com', '127.0.0.1');
+        $verified = $this->service->verify($minted['token'], 'https://example.com', '127.0.0.1');
+
+        $this->assertTrue($verified->is($tenantB),
+            'verify must return tenant B specifically, not whichever active tenant ->first() yields');
+    }
+
+    public function test_verify_skips_inactive_tenants(): void
+    {
+        $minted = $this->service->mint($this->tenant, 'https://example.com', '127.0.0.1');
+        $this->tenant->update(['status' => 'inactive']);
+
+        $this->expectException(InvalidSessionTokenException::class);
+        $this->service->verify($minted['token'], 'https://example.com', '127.0.0.1');
+    }
+
     public function test_verify_rejects_not_yet_valid_token(): void
     {
         // Travel 60 seconds into the future so the minted token's iat is

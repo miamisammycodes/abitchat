@@ -8,6 +8,7 @@ use App\Models\Tenant;
 use App\Services\Widget\SessionTokenService;
 use App\Support\Widget\WidgetErrors;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class SessionTokenFlowTest extends TestCase
@@ -80,5 +81,28 @@ class SessionTokenFlowTest extends TestCase
             ->postJson('/api/v1/widget/init', ['api_key' => $this->tenant->api_key]);
 
         $response->assertOk()->assertJsonStructure(['session_token']);
+    }
+
+    #[DataProvider('strictModeEndpointsProvider')]
+    public function test_endpoint_returns_401_without_bearer_in_strict_mode(string $uri): void
+    {
+        config()->set('widget.session_dual_accept', false);
+
+        $response = $this->withHeaders(['Origin' => 'https://example.com'])
+            ->postJson($uri, ['api_key' => $this->tenant->api_key]);
+
+        $response->assertStatus(401)
+            ->assertJson(['error' => WidgetErrors::SESSION_TOKEN_REQUIRED]);
+    }
+
+    public static function strictModeEndpointsProvider(): array
+    {
+        return [
+            'conversation' => ['/api/v1/widget/conversation'],
+            'message' => ['/api/v1/widget/message'],
+            'stream' => ['/api/v1/widget/message/stream'],
+            'end' => ['/api/v1/widget/conversation/end'],
+            'lead' => ['/api/v1/widget/lead'],
+        ];
     }
 }

@@ -7,6 +7,7 @@ namespace App\Http\Middleware;
 use App\Support\Widget\WidgetErrors;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\Response;
@@ -16,7 +17,14 @@ class ThrottleWidgetPerIp
     public function handle(Request $request, Closure $next, string $bucket): Response
     {
         [$limit, $window] = $this->config($bucket);
-        $key = "widget:{$bucket}:".sha1(($request->ip() ?? 'unknown').'|'.$bucket);
+        $ip = $request->ip();
+        if ($ip === null) {
+            Log::warning('[Widget] request->ip() null — TrustProxies likely misconfigured', [
+                'bucket' => $bucket,
+                'forwarded_for' => $request->header('X-Forwarded-For'),
+            ]);
+        }
+        $key = "widget:{$bucket}:".sha1(($ip ?? 'unknown').'|'.$bucket);
 
         if (RateLimiter::tooManyAttempts($key, $limit)) {
             $retryAfter = RateLimiter::availableIn($key);
