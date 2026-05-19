@@ -49,6 +49,14 @@ class ChatController extends Controller
         $origin = CanonicalOrigin::from($request->header('Origin') ?? $request->header('Referer'));
         $minted = $this->sessionTokens->mint($tenant, $origin ?? '', $request->ip() ?? '');
 
+        Log::channel('widget_audit')->info('widget_init', [
+            'tenant_id' => $tenant->id,
+            'origin' => $origin,
+            'ip_hash' => hash('sha256', ($request->ip() ?? '').config('app.key')),
+            'endpoint' => $request->path(),
+            'method' => $request->method(),
+        ]);
+
         Log::debug('[Widget] (NO $) Initialized', [
             'tenant_id' => $tenant->id,
         ]);
