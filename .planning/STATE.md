@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-05-20)
 
 ## Current Position
 
-Phase: v1.1 milestone ready (Phases 14–22 planned, none started)
-Plan: None active
-Status: Ready to plan — awaiting user phase selection
-Last activity: 2026-05-20 — ROADMAP.md, PROJECT.md, REQUIREMENTS.md, STATE.md initialized from ingest
+Phase: Phases 15 + 14 — context gathered, planning next (parallel)
+Plan: None active (2 parallel plan-phase runs about to dispatch)
+Status: 15-CONTEXT.md + 14-CONTEXT.md locked; ready for parallel planning
+Last activity: 2026-05-20 — discuss-phase complete for Phase 15 (widget hardening) and Phase 14 (data encryption); shared api_key_hash contract established between them
 
 Progress: [██░░░░░░░░] ~18% (Phases 1–13 complete; Phases 14–22 pending)
 
@@ -66,5 +66,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-05-20
-Stopped at: Planning initialization complete — all four .planning/ files written; awaiting `/gsd:plan-phase` selection
-Resume file: None
+Stopped at: Phase 15 & Phase 14 context gathered; dispatching 2 parallel plan-phase runs. Cross-phase contract: Phase 14 depends on Phase 15's `api_key_hash` blind-index; execute 15→14.
+Resume file: .planning/phases/15-widget-session-token-hardening/15-CONTEXT.md, .planning/phases/14-data-encryption-at-rest/14-CONTEXT.md
