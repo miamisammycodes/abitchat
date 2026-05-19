@@ -111,7 +111,9 @@
   3. The `api_key` null guard is in place in the middleware chain; a missing api_key returns a structured 401 rather than an unhandled exception
   4. `WIDGET_SESSION_DUAL_ACCEPT` is flipped to `false` (strict mode cutover complete); legacy api_key-only requests return 401 with a clear error code
   5. `api_key_hash` column has a database index; lookup performance does not degrade under load
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 15-PLAN.md — Task 0 (verify) + Task 1 (api_key_hash + lookup migration) + Task 2 (TrustProxies + audit guard + null guard) + Task 3 (Octane race fix + enum cleanup) + Task 4 (strict-mode cutover)
 
 ### Phase 16: Admin Dashboard Extensions
 **Goal**: Platform administrators have full operational visibility — system health, failed job management, tenant impersonation, broadcast messaging, complete audit logs, and advanced analytics — so they can operate the platform without SSH access.
@@ -215,7 +217,7 @@
 |-------|-----------|----------------|--------|-----------|
 | 1–13. v1.0 Phases | v1.0 | - | Complete | 2026-05-20 |
 | 14. Data Encryption | v1.1 | 0/TBD | Not started | - |
-| 15. Widget Hardening | v1.1 | 0/TBD | Not started | - |
+| 15. Widget Hardening | v1.1 | 0/1 | Planned | - |
 | 16. Admin Dashboard Extensions | v1.1 | 0/TBD | Not started | - |
 | 17. Team Management | v1.1 | 0/TBD | Not started | - |
 | 18. WP.org Submission | v1.1 | 0/TBD | Not started | - |
