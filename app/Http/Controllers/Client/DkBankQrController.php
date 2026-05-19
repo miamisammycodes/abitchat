@@ -33,8 +33,6 @@ final class DkBankQrController extends Controller
                 ->with('error', 'Could not generate the DK QR right now. Please use the manual form below.');
         }
 
-        // 303 See Other: redirect to a GET URL so refresh / re-auth land somewhere
-        // safe instead of hitting the POST-only start route (which throws 405).
         return redirect()->route('client.billing.dk-qr.show', $session->transaction);
     }
 
@@ -48,11 +46,13 @@ final class DkBankQrController extends Controller
                 ->with('error', 'That QR session is no longer available. Start a new one from the plans page.');
         }
 
-        if ($transaction->status === 'approved') {
+        if ($transaction->isApproved()) {
             return redirect()
                 ->route('client.billing.index')
                 ->with('success', 'Payment confirmed — your plan is active.');
         }
+
+        $transaction->load('plan');
 
         return Inertia::render('Client/Billing/DkQrSession', [
             'plan' => $transaction->plan,

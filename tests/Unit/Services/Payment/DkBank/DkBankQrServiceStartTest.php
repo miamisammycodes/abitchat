@@ -60,7 +60,7 @@ class DkBankQrServiceStartTest extends TestCase
         $this->assertEquals(1000, $session->transaction->amount);
     }
 
-    public function test_rolls_back_transaction_on_dk_failure(): void
+    public function test_does_not_create_transaction_on_dk_failure(): void
     {
         [$tenant, $plan] = $this->makeTenantAndPlan();
 
