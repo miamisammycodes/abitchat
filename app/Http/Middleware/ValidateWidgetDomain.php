@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Middleware;
 
 use App\Models\Tenant;
+use App\Support\Http\CanonicalOrigin;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -24,7 +25,7 @@ class ValidateWidgetDomain
                 return response('', 204);
             }
             $parts = parse_url($origin);
-            $canonical = $parts ? $this->canonicalOrigin($parts) : null;
+            $canonical = $parts ? CanonicalOrigin::fromParts($parts) : null;
 
             return $this->preflightResponse($canonical ?? $origin, $request);
         }
@@ -95,7 +96,7 @@ class ValidateWidgetDomain
 
             // Exact match or subdomain match (e.g., "example.com" allows "www.example.com")
             if ($originHost === $domain || str_ends_with($originHost, '.'.$domain)) {
-                $canonicalOrigin = $this->canonicalOrigin($parts);
+                $canonicalOrigin = CanonicalOrigin::fromParts($parts);
 
                 return $this->withCors($next($request), $canonicalOrigin);
             }
@@ -105,22 +106,6 @@ class ValidateWidgetDomain
             'error' => 'This domain is not authorized to use this widget',
             'code' => 'DOMAIN_NOT_ALLOWED',
         ], 403);
-    }
-
-    /**
-     * @param  array<string, mixed>  $parts  Result of parse_url() — already parsed, no re-parsing.
-     */
-    private function canonicalOrigin(array $parts): ?string
-    {
-        if (! isset($parts['scheme'], $parts['host'])) {
-            return null;
-        }
-        $canonical = "{$parts['scheme']}://{$parts['host']}";
-        if (isset($parts['port'])) {
-            $canonical .= ":{$parts['port']}";
-        }
-
-        return $canonical;
     }
 
     private function withCors(Response $response, ?string $origin): Response

@@ -2,6 +2,8 @@
 
 use App\Http\Middleware\CheckUsageLimits;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\RequireWidgetSessionToken;
+use App\Http\Middleware\ThrottleWidgetPerIp;
 use App\Http\Middleware\ValidateWidgetDomain;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -23,6 +25,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'check.limits' => CheckUsageLimits::class,
             'validate.widget.domain' => ValidateWidgetDomain::class,
+            'widget.session_token' => RequireWidgetSessionToken::class,
+            'widget.throttle_ip' => ThrottleWidgetPerIp::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

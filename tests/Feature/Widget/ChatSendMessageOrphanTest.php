@@ -12,10 +12,13 @@ use App\Services\Knowledge\RetrievalService;
 use App\Services\LLM\ChatService;
 use Illuminate\Testing\TestResponse;
 use Mockery;
+use Tests\Concerns\AuthenticatesWidget;
 use Tests\TestCase;
 
 class ChatSendMessageOrphanTest extends TestCase
 {
+    use AuthenticatesWidget;
+
     protected Tenant $tenant;
 
     private Conversation $conversation;
@@ -24,12 +27,9 @@ class ChatSendMessageOrphanTest extends TestCase
     {
         parent::setUp();
 
-        $this->tenant = Tenant::create([
+        $this->tenant = $this->createWidgetTenant([
             'name' => 'Chat Co',
             'slug' => 'chat-co',
-            'status' => 'active',
-            'trial_ends_at' => now()->addDays(14),
-            'settings' => ['allowed_domains' => []],
         ]);
 
         User::create([
@@ -44,15 +44,17 @@ class ChatSendMessageOrphanTest extends TestCase
             'session_id' => 'session-orphan-test',
             'status' => 'active',
         ]);
+
     }
 
     private function postMessage(): TestResponse
     {
-        return $this->postJson('/api/v1/widget/message', [
-            'api_key' => $this->tenant->api_key,
-            'conversation_id' => $this->conversation->id,
-            'message' => 'hello',
-        ]);
+        return $this->withHeaders($this->widgetHeaders($this->tenant))
+            ->postJson('/api/v1/widget/message', [
+                'api_key' => $this->tenant->api_key,
+                'conversation_id' => $this->conversation->id,
+                'message' => 'hello',
+            ]);
     }
 
     public function test_no_user_message_persisted_when_retrieval_fails(): void

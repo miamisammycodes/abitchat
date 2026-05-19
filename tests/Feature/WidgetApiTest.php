@@ -1,15 +1,20 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Feature;
 
 use App\Models\Conversation;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
+use Tests\Concerns\AuthenticatesWidget;
 use Tests\TestCase;
 
 class WidgetApiTest extends TestCase
 {
+    use AuthenticatesWidget;
+
     protected Tenant $widgetTenant;
 
     protected string $apiKey;
@@ -18,15 +23,14 @@ class WidgetApiTest extends TestCase
     {
         parent::setUp();
 
-        $this->widgetTenant = Tenant::create([
+        $this->widgetTenant = $this->createWidgetTenant([
             'name' => 'Widget Test Company',
             'slug' => 'widget-test',
-            'status' => 'active',
-            'trial_ends_at' => now()->addDays(14),
         ]);
 
         // Tenant creates api_key automatically via boot method
         $this->apiKey = $this->widgetTenant->api_key;
+
     }
 
     public function test_old_api_key_invalidated_immediately_after_regenerate(): void
@@ -105,9 +109,12 @@ class WidgetApiTest extends TestCase
 
     public function test_widget_init_returns_config_with_valid_api_key(): void
     {
-        $response = $this->postJson('/api/v1/widget/init', [
-            'api_key' => $this->apiKey,
-        ]);
+        $this->widgetTenant->update(['settings' => ['allowed_domains' => ['example.com']]]);
+
+        $response = $this->withHeaders(['Origin' => 'https://example.com'])
+            ->postJson('/api/v1/widget/init', [
+                'api_key' => $this->apiKey,
+            ]);
 
         $response->assertStatus(200);
         $response->assertJsonStructure([
@@ -128,18 +135,20 @@ class WidgetApiTest extends TestCase
 
     public function test_start_conversation_requires_api_key(): void
     {
-        $response = $this->postJson('/api/v1/widget/conversation', []);
+        $response = $this->withHeaders($this->widgetHeaders($this->widgetTenant))
+            ->postJson('/api/v1/widget/conversation', []);
 
-        // Middleware now rejects requests without api_key before validation
+        // Bearer passes session-token middleware; check.limits sees no api_key in body
         $response->assertStatus(401);
         $response->assertJson(['code' => 'NO_TENANT']);
     }
 
     public function test_start_conversation_creates_new_conversation(): void
     {
-        $response = $this->postJson('/api/v1/widget/conversation', [
-            'api_key' => $this->apiKey,
-        ]);
+        $response = $this->withHeaders($this->widgetHeaders($this->widgetTenant))
+            ->postJson('/api/v1/widget/conversation', [
+                'api_key' => $this->apiKey,
+            ]);
 
         $response->assertStatus(200);
         $response->assertJsonStructure([
@@ -157,10 +166,11 @@ class WidgetApiTest extends TestCase
     {
         $customSessionId = 'custom-session-123';
 
-        $response = $this->postJson('/api/v1/widget/conversation', [
-            'api_key' => $this->apiKey,
-            'session_id' => $customSessionId,
-        ]);
+        $response = $this->withHeaders($this->widgetHeaders($this->widgetTenant))
+            ->postJson('/api/v1/widget/conversation', [
+                'api_key' => $this->apiKey,
+                'session_id' => $customSessionId,
+            ]);
 
         $response->assertStatus(200);
         $response->assertJson([
@@ -176,10 +186,11 @@ class WidgetApiTest extends TestCase
             'status' => 'active',
         ]);
 
-        $response = $this->postJson('/api/v1/widget/conversation/end', [
-            'api_key' => $this->apiKey,
-            'conversation_id' => $conversation->id,
-        ]);
+        $response = $this->withHeaders($this->widgetHeaders($this->widgetTenant))
+            ->postJson('/api/v1/widget/conversation/end', [
+                'api_key' => $this->apiKey,
+                'conversation_id' => $conversation->id,
+            ]);
 
         $response->assertStatus(200);
         $response->assertJson(['success' => true]);
@@ -204,10 +215,11 @@ class WidgetApiTest extends TestCase
             'status' => 'active',
         ]);
 
-        $response = $this->postJson('/api/v1/widget/conversation/end', [
-            'api_key' => $this->apiKey, // Using first tenant's API key
-            'conversation_id' => $conversation->id,
-        ]);
+        $response = $this->withHeaders($this->widgetHeaders($this->widgetTenant))
+            ->postJson('/api/v1/widget/conversation/end', [
+                'api_key' => $this->apiKey, // Using first tenant's API key
+                'conversation_id' => $conversation->id,
+            ]);
 
         $response->assertStatus(404);
         $response->assertJson(['error' => 'Conversation not found']);
@@ -215,11 +227,12 @@ class WidgetApiTest extends TestCase
 
     public function test_send_message_requires_valid_conversation(): void
     {
-        $response = $this->postJson('/api/v1/widget/message', [
-            'api_key' => $this->apiKey,
-            'conversation_id' => 99999,
-            'message' => 'Hello',
-        ]);
+        $response = $this->withHeaders($this->widgetHeaders($this->widgetTenant))
+            ->postJson('/api/v1/widget/message', [
+                'api_key' => $this->apiKey,
+                'conversation_id' => 99999,
+                'message' => 'Hello',
+            ]);
 
         $response->assertStatus(404);
         $response->assertJson(['error' => 'Conversation not found']);
@@ -233,10 +246,11 @@ class WidgetApiTest extends TestCase
             'status' => 'active',
         ]);
 
-        $response = $this->postJson('/api/v1/widget/message', [
-            'api_key' => $this->apiKey,
-            'conversation_id' => $conversation->id,
-        ]);
+        $response = $this->withHeaders($this->widgetHeaders($this->widgetTenant))
+            ->postJson('/api/v1/widget/message', [
+                'api_key' => $this->apiKey,
+                'conversation_id' => $conversation->id,
+            ]);
 
         $response->assertStatus(422);
         $response->assertJsonValidationErrors('message');
@@ -252,11 +266,12 @@ class WidgetApiTest extends TestCase
 
         $longMessage = str_repeat('a', 2001);
 
-        $response = $this->postJson('/api/v1/widget/message', [
-            'api_key' => $this->apiKey,
-            'conversation_id' => $conversation->id,
-            'message' => $longMessage,
-        ]);
+        $response = $this->withHeaders($this->widgetHeaders($this->widgetTenant))
+            ->postJson('/api/v1/widget/message', [
+                'api_key' => $this->apiKey,
+                'conversation_id' => $conversation->id,
+                'message' => $longMessage,
+            ]);
 
         $response->assertStatus(422);
         $response->assertJsonValidationErrors('message');

@@ -14,6 +14,10 @@ class WidgetRateLimitTest extends TestCase
     {
         parent::setUp();
         Cache::flush();
+        // Raise the per-IP init limit above the per-tenant throttle (20) so this
+        // test exercises the per-tenant bucket without the IP bucket interfering.
+        config()->set('widget.ip_init_per_min', 100);
+        config()->set('widget.ip_daily_cap', 100000);
     }
 
     public function test_widget_endpoint_rate_limits_at_20_per_minute(): void

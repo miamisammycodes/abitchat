@@ -12,6 +12,9 @@ use App\Services\Knowledge\RetrievalService;
 use App\Services\Leads\LeadService;
 use App\Services\LLM\ChatService;
 use App\Services\Usage\UsageTracker;
+use App\Services\Widget\SessionTokenService;
+use App\Support\Http\CanonicalOrigin;
+use App\Support\Widget\WidgetAudit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -26,6 +29,7 @@ class ChatController extends Controller
         private RetrievalService $retrievalService,
         private LeadService $leadService,
         private UsageTracker $usageTracker,
+        private SessionTokenService $sessionTokens,
     ) {}
 
     /**
@@ -43,6 +47,21 @@ class ChatController extends Controller
             return $this->errorResponse('Invalid API key', 'TENANT_NOT_FOUND', 401);
         }
 
+        $origin = CanonicalOrigin::from($request->header('Origin') ?? $request->header('Referer'));
+        $ip = $request->ip();
+
+        if ($origin === null || $origin === '' || $ip === null || $ip === '') {
+            return response()->json([
+                'success' => false,
+                'error' => 'Cannot identify request origin or IP',
+                'code' => 'ORIGIN_OR_IP_MISSING',
+            ], 400);
+        }
+
+        $minted = $this->sessionTokens->mint($tenant, $origin, $ip);
+
+        WidgetAudit::log(WidgetAudit::EVENT_INIT, $tenant, $origin, $request);
+
         Log::debug('[Widget] (NO $) Initialized', [
             'tenant_id' => $tenant->id,
         ]);
@@ -54,6 +73,8 @@ class ChatController extends Controller
                 'welcome_message' => $tenant->settings['welcome_message'] ?? 'Hello! How can I help you today?',
                 'primary_color' => $tenant->settings['primary_color'] ?? '#4F46E5',
             ],
+            'session_token' => $minted['token'],
+            'expires_at' => $minted['expires_at'],
         ]);
     }
 

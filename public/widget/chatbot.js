@@ -46,6 +46,7 @@
             conversationId: null,
             sessionId: null,
             messages: [],
+            sessionToken: null,
         },
         container: null,
         elements: {},
@@ -475,6 +476,11 @@
                         this.config.primaryColor = response.config.primary_color;
                     }
 
+                    // Store session token for Bearer auth on subsequent calls
+                    if (response.session_token) {
+                        this.state.sessionToken = response.session_token;
+                    }
+
                     // Update header with new config
                     const headerName = this.elements.container.querySelector('.chatbot-header-info h3');
                     if (headerName) headerName.textContent = this.config.botName;
@@ -674,11 +680,25 @@
             return sessionId;
         },
 
+        async refreshSessionToken() {
+            const data = await this.apiCall('/api/v1/widget/init', {
+                method: 'POST',
+                body: JSON.stringify({ api_key: this.config.apiKey }),
+                retries: 0,
+            });
+            if (!data.session_token) {
+                throw new Error('Init response missing session_token');
+            }
+            this.state.sessionToken = data.session_token;
+            return data;
+        },
+
         async apiCall(endpoint, options = {}) {
             const url = this.config.baseUrl + endpoint;
             const timeout = options.timeout || 75000;
             const maxRetries = options.retries ?? 2;
             let lastError;
+            let attempted401Refresh = false;
 
             for (let attempt = 0; attempt <= maxRetries; attempt++) {
                 if (attempt > 0) {
@@ -691,18 +711,39 @@
                 const timeoutId = setTimeout(() => controller.abort(), timeout);
 
                 try {
-                    const response = await fetch(url, {
+                    const fetchOptions = {
                         ...options,
                         signal: controller.signal,
                         headers: {
                             'Content-Type': 'application/json',
                             'Accept': 'application/json',
-                            ...options.headers
-                        }
-                    });
+                            // Authorization is injected before ...options.headers so callers can intentionally override it
+                            ...(endpoint !== '/api/v1/widget/init' && this.state.sessionToken
+                                ? { 'Authorization': `Bearer ${this.state.sessionToken}` }
+                                : {}),
+                            ...options.headers,
+                        },
+                    };
+
+                    const response = await fetch(url, fetchOptions);
 
                     clearTimeout(timeoutId);
                     this.showReconnecting(false);
+
+                    if (response.status === 401
+                        && endpoint !== '/api/v1/widget/init'
+                        && !attempted401Refresh
+                    ) {
+                        attempted401Refresh = true;
+                        try {
+                            await this.refreshSessionToken();
+                            // Retry the loop with the fresh token; don't count as a normal retry
+                            attempt--;
+                            continue;
+                        } catch (refreshErr) {
+                            console.error('[Chatbot] Session refresh failed, surfacing original 401:', refreshErr);
+                        }
+                    }
 
                     if (!response.ok) {
                         if (response.status >= 400 && response.status < 500) {

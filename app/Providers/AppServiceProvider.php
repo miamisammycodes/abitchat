@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Services\Crawler\RobotsTxtPolicy;
+use App\Services\Widget\SessionTokenService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -21,6 +22,15 @@ class AppServiceProvider extends ServiceProvider
         // RobotsTxtPolicy instance (and its per-instance cache) within a single
         // request / queue job, without persisting state across jobs in long-running workers.
         $this->app->scoped(RobotsTxtPolicy::class);
+
+        $this->app->singleton(SessionTokenService::class, function ($app) {
+            $key = (string) config('app.key');
+            if ($key === '') {
+                throw new \RuntimeException('APP_KEY must be set to use widget session tokens');
+            }
+
+            return new SessionTokenService($key);
+        });
     }
 
     /**
