@@ -174,6 +174,8 @@ Verify these four assumptions before Task 1 begins. Document findings inline; if
 4. Migration timestamp ordering — check latest migration filename: `ls database/migrations/ | tail -5`. New migration must have a timestamp after the last existing one. Use `2026_05_20_000001_add_api_key_hash_to_tenants_table.php` unless a newer migration already exists with that prefix.
 
 5. TenantFactory api_key handling — check `database/factories/TenantFactory.php`: does `definition()` set `api_key` explicitly? If so, the boot hook will not fire on factory creation if it only fires on `creating` without an api_key; the `saving` hook covers post-create rotation but confirm factory tenants get api_key_hash set via the `creating` hook path or via test setup.
+
+6. Firebase\JWT consumer scan — run: `grep -rn "Firebase\\JWT\|JWT::decode\|JWT::\$timestamp" app/ tests/ --include="*.php"`. Confirm that `SessionTokenService` is the ONLY consumer. If other classes also set `JWT::$timestamp`, note the coordination risk in the code comment added in Task 3's implementation (setting PHP_INT_MAX in one class may affect another class's concurrent decode on the same Octane worker). If SessionTokenService is the only consumer, the Task 3 approach is safe for single-consumer isolation.
   </action>
   <verify>
     <automated>grep -rn "where('api_key'" app/ --include="*.php" | wc -l | grep -q "^4$" && echo "4 sites confirmed" || echo "MISMATCH - check output"</automated>
@@ -221,7 +223,7 @@ MIGRATION: Create `database/migrations/2026_05_20_000001_add_api_key_hash_to_ten
 TENANT MODEL (`app/Models/Tenant.php`):
 - Add `api_key_hash` to `$fillable` (needed for `update()` in the backfill).
 - Add a PHPDoc `@property string|null $api_key_hash` above the class for Larastan (required — DEC-09, same lesson as PR #19 enum casts).
-- In `booted()`, expand the `creating` hook: after setting `api_key`, set `api_key_hash = hash('sha256', $tenant->api_key . config('app.key'))`.
+- In `booted()`, expand the `creating` hook: AFTER the `if (empty($tenant->api_key))` block (not inside it — the hash must be set regardless of whether api_key was just generated or was factory-provided), add: `$tenant->api_key_hash = hash('sha256', $tenant->api_key . config('app.key'));`. This ensures factory-created tenants (where api_key is already set, so the empty-guard is skipped) still get api_key_hash populated during creation.
 - Add a new `saving` hook (fires on create AND update): `if ($tenant->isDirty('api_key') && $tenant->api_key) { $tenant->api_key_hash = hash('sha256', $tenant->api_key . config('app.key')); }` — this covers api_key rotation at any point after creation.
 - The pepper is `config('app.key')` per D-07. This is identical to the derivation in `SessionTokenService::mint()` where `$this->secret` = `config('app.key')` (verified: AppServiceProvider passes `config('app.key')` as constructor arg).
 
@@ -389,8 +391,8 @@ Commit: `feat(15): trustProxies env-config + audit try/catch guard + null api_ke
     tests/Unit/Enums/WidgetAuditEventTest.php
   </files>
   <behavior>
-    Test: SessionTokenService::verify() succeeds with a just-expired token when Carbon::now() is frozen BEFORE decode — verifying that JWT::$timestamp is NOT being set (post-decode manual exp check behavior)
-    Test: Two concurrent verify() calls (simulated by running verify() inside a generator/fiber boundary after JWT::decode but before cleanup) do not interfere — the static mutation window is eliminated
+    Test: test_carbon_travel_correctly_expires_token — mint a token at Carbon::now(), then Carbon::setTestNow(now()->addHours(1)) so the token's exp is in the past; call verify() and assert it throws InvalidSessionTokenException with message "Token has expired". Proves the post-decode Carbon-based exp check works and that JWT::$timestamp is NOT controlling timing.
+    Test: test_jwt_timestamp_reset_to_null_in_finally — after any verify() call (both a successful one and a call that throws InvalidSessionTokenException), assert JWT::$timestamp === null immediately after the call returns or throws. Proves the finally block always cleans up the static property regardless of the code path taken.
     Test: verify() with a genuinely expired token throws InvalidSessionTokenException with reason "Token has expired"
     Test: WidgetAuditEvent enum has cases for INIT, REQUEST, REJECTED; WidgetAudit::EVENT_* string constants are removed and replaced with the enum
     Test: RequireWidgetSessionToken uses WidgetAuditEvent enum values (not raw strings) for audit log event names
