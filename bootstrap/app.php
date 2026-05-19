@@ -18,6 +18,21 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Trust-none default (D-02): production topology is Forge single server
+        // (nginx → PHP-FPM/FastCGI) with Cloudflare DNS-only (grey cloud, no proxy).
+        // REMOTE_ADDR is already the real client IP. Set TRUSTED_PROXIES to a
+        // comma-separated CIDR list only if an HTTP proxy is introduced in future.
+        $middleware->trustProxies(
+            at: array_filter(
+                array_map('trim', explode(',', (string) env('TRUSTED_PROXIES', ''))),
+                fn (string $s) => $s !== '',
+            ),
+            headers: Request::HEADER_X_FORWARDED_FOR
+                | Request::HEADER_X_FORWARDED_HOST
+                | Request::HEADER_X_FORWARDED_PORT
+                | Request::HEADER_X_FORWARDED_PROTO,
+        );
+
         $middleware->web(append: [
             HandleInertiaRequests::class,
         ]);

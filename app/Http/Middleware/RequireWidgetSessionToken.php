@@ -11,6 +11,7 @@ use App\Support\Widget\WidgetAudit;
 use App\Support\Widget\WidgetErrors;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -45,12 +46,19 @@ class RequireWidgetSessionToken
         try {
             $tenant = $this->tokens->verify($bearer, $origin, $request->ip());
         } catch (InvalidSessionTokenException $e) {
-            Log::channel(WidgetAudit::CHANNEL)->warning(WidgetAudit::EVENT_REJECTED, [
-                'reason' => $e->getMessage(),
-                'origin' => $origin,
-                'ip_hash' => WidgetAudit::ipHash($request->ip()),
-                'endpoint' => $request->path(),
-            ]);
+            // Rejected path audit — wrapped so an APP_KEY-empty RuntimeException
+            // from WidgetAudit::ipHash() never crashes the widget response (CONS-22-b).
+            try {
+                Log::channel(WidgetAudit::CHANNEL)->warning(WidgetAudit::EVENT_REJECTED, [
+                    'reason' => $e->getMessage(),
+                    'origin' => $origin,
+                    'ip_hash' => WidgetAudit::ipHash($request->ip()),
+                    'endpoint' => $request->path(),
+                ]);
+            } catch (\Throwable $auditEx) {
+                Cache::increment('widget_audit_failures');
+                Log::warning('[Widget] Audit log failure (rejected path)', ['error' => $auditEx->getMessage()]);
+            }
 
             return response()->json(['error' => WidgetErrors::SESSION_EXPIRED], 401);
         }
@@ -60,7 +68,14 @@ class RequireWidgetSessionToken
             return response()->json(['error' => WidgetErrors::SESSION_EXPIRED], 401);
         }
 
-        WidgetAudit::log(WidgetAudit::EVENT_REQUEST, $tenant, $origin, $request);
+        // Approved path audit — wrapped so an APP_KEY-empty RuntimeException
+        // from WidgetAudit::ipHash() never crashes an approved widget request (CONS-22-b).
+        try {
+            WidgetAudit::log(WidgetAudit::EVENT_REQUEST, $tenant, $origin, $request);
+        } catch (\Throwable $e) {
+            Cache::increment('widget_audit_failures');
+            Log::warning('[Widget] Audit log failure (approved path)', ['error' => $e->getMessage()]);
+        }
 
         $request->attributes->set('widget_tenant', $tenant);
 
