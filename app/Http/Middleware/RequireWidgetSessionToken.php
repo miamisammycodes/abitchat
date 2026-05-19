@@ -8,6 +8,7 @@ use App\Exceptions\Widget\InvalidSessionTokenException;
 use App\Services\Widget\SessionTokenService;
 use App\Support\Http\CanonicalOrigin;
 use App\Support\Widget\WidgetAudit;
+use App\Support\Widget\WidgetErrors;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -18,7 +19,7 @@ class RequireWidgetSessionToken
 
     public function handle(Request $request, Closure $next): Response
     {
-        $bearer = $this->extractBearer($request);
+        $bearer = $request->bearerToken() ?: null;
         $dualAccept = (bool) config('widget.session_dual_accept', true);
 
         // Missing Bearer
@@ -30,7 +31,7 @@ class RequireWidgetSessionToken
                 return $response;
             }
 
-            return response()->json(['error' => 'session_token_required'], 401);
+            return response()->json(['error' => WidgetErrors::SESSION_TOKEN_REQUIRED], 401);
         }
 
         // Bearer present — must verify, regardless of dual-accept
@@ -39,29 +40,13 @@ class RequireWidgetSessionToken
         try {
             $tenant = $this->tokens->verify($bearer, $origin ?? '', $request->ip() ?? '');
         } catch (InvalidSessionTokenException) {
-            return response()->json(['error' => 'session_expired'], 401);
+            return response()->json(['error' => WidgetErrors::SESSION_EXPIRED], 401);
         }
 
-        WidgetAudit::log('widget_request', $tenant, $origin, $request);
+        WidgetAudit::log(WidgetAudit::EVENT_REQUEST, $tenant, $origin, $request);
 
         $request->attributes->set('widget_tenant', $tenant);
 
         return $next($request);
-    }
-
-    private function extractBearer(Request $request): ?string
-    {
-        $header = $request->header('Authorization');
-        if ($header === null) {
-            return null;
-        }
-
-        if (! str_starts_with(strtolower($header), 'bearer ')) {
-            return null;
-        }
-
-        $token = trim(substr($header, 7));
-
-        return $token !== '' ? $token : null;
     }
 }

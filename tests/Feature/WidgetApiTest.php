@@ -23,12 +23,9 @@ class WidgetApiTest extends TestCase
     {
         parent::setUp();
 
-        $this->widgetTenant = Tenant::create([
+        $this->widgetTenant = $this->createWidgetTenant([
             'name' => 'Widget Test Company',
             'slug' => 'widget-test',
-            'status' => 'active',
-            'trial_ends_at' => now()->addDays(14),
-            'settings' => ['allowed_domains' => ['example.com']],
         ]);
 
         // Tenant creates api_key automatically via boot method

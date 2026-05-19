@@ -6,6 +6,7 @@ namespace Tests\Feature\Widget;
 
 use App\Models\Tenant;
 use App\Services\Widget\SessionTokenService;
+use App\Support\Widget\WidgetErrors;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -47,7 +48,7 @@ class SessionTokenFlowTest extends TestCase
             'Authorization' => 'Bearer not.a.real.jwt',
         ])->postJson('/api/v1/widget/conversation', ['api_key' => $this->tenant->api_key]);
 
-        $response->assertStatus(401)->assertJson(['error' => 'session_expired']);
+        $response->assertStatus(401)->assertJson(['error' => WidgetErrors::SESSION_EXPIRED]);
     }
 
     public function test_conversation_endpoint_falls_through_without_bearer_during_dual_accept(): void
@@ -68,7 +69,7 @@ class SessionTokenFlowTest extends TestCase
         $response = $this->withHeaders(['Origin' => 'https://example.com'])
             ->postJson('/api/v1/widget/conversation', ['api_key' => $this->tenant->api_key]);
 
-        $response->assertStatus(401)->assertJson(['error' => 'session_token_required']);
+        $response->assertStatus(401)->assertJson(['error' => WidgetErrors::SESSION_TOKEN_REQUIRED]);
     }
 
     public function test_init_endpoint_does_not_require_bearer(): void

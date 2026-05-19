@@ -12,15 +12,8 @@ final class CanonicalOrigin
             return null;
         }
         $parts = parse_url($raw);
-        if (! isset($parts['scheme'], $parts['host'])) {
-            return null;
-        }
-        $origin = $parts['scheme'].'://'.$parts['host'];
-        if (isset($parts['port'])) {
-            $origin .= ':'.$parts['port'];
-        }
 
-        return $origin;
+        return is_array($parts) ? self::fromParts($parts) : null;
     }
 
     /**

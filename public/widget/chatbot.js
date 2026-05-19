@@ -681,23 +681,16 @@
         },
 
         async refreshSessionToken() {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 15000);
-            try {
-                const response = await fetch(this.config.baseUrl + '/api/v1/widget/init', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                    body: JSON.stringify({ api_key: this.config.apiKey }),
-                    signal: controller.signal,
-                });
-                if (!response.ok) throw new Error('Session refresh failed');
-                const data = await response.json();
-                if (!data.session_token) throw new Error('Init response missing session_token');
-                this.state.sessionToken = data.session_token;
-                return data;
-            } finally {
-                clearTimeout(timeoutId);
+            const data = await this.apiCall('/api/v1/widget/init', {
+                method: 'POST',
+                body: JSON.stringify({ api_key: this.config.apiKey }),
+                retries: 0,
+            });
+            if (!data.session_token) {
+                throw new Error('Init response missing session_token');
             }
+            this.state.sessionToken = data.session_token;
+            return data;
         },
 
         async apiCall(endpoint, options = {}) {
@@ -724,7 +717,7 @@
                         headers: {
                             'Content-Type': 'application/json',
                             'Accept': 'application/json',
-                            // Authorization is injected before ...options.headers so callers can intentionally override it (no callers do today)
+                            // Authorization is injected before ...options.headers so callers can intentionally override it
                             ...(endpoint !== '/api/v1/widget/init' && this.state.sessionToken
                                 ? { 'Authorization': `Bearer ${this.state.sessionToken}` }
                                 : {}),

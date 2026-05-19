@@ -6,7 +6,6 @@ namespace Tests\Feature;
 
 use App\Models\Conversation;
 use App\Models\Lead;
-use App\Models\Tenant;
 use App\Services\Leads\LeadService;
 use Tests\Concerns\AuthenticatesWidget;
 use Tests\TestCase;
@@ -21,12 +20,9 @@ class WidgetLeadCaptureTest extends TestCase
     {
         parent::setUp();
 
-        $this->tenant = Tenant::create([
+        $this->tenant = $this->createWidgetTenant([
             'name' => 'Lead Test Co',
             'slug' => 'lead-test-co',
-            'status' => 'active',
-            'trial_ends_at' => now()->addDays(14),
-            'settings' => ['allowed_domains' => ['example.com']],
         ]);
 
         $this->conversation = Conversation::create([

@@ -21,6 +21,22 @@ trait AuthenticatesWidget
     }
 
     /**
+     * Create a widget-enabled tenant with sensible defaults.
+     *
+     * @param  array<string, mixed>  $overrides
+     */
+    protected function createWidgetTenant(array $overrides = []): Tenant
+    {
+        return Tenant::create(array_merge([
+            'name' => 'Acme',
+            'slug' => 'acme',
+            'status' => 'active',
+            'trial_ends_at' => now()->addDays(14),
+            'settings' => ['allowed_domains' => ['example.com']],
+        ], $overrides));
+    }
+
+    /**
      * Mint a session token for the given tenant and return HTTP headers
      * suitable for passing to withHeaders() or postJson().
      *

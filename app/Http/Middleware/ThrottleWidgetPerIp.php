@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Support\Widget\WidgetErrors;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -21,7 +22,7 @@ class ThrottleWidgetPerIp
             $retryAfter = RateLimiter::availableIn($key);
 
             return response()->json([
-                'error' => 'rate_limited',
+                'error' => WidgetErrors::RATE_LIMITED,
                 'retry_after' => $retryAfter,
             ], 429)->header('Retry-After', (string) $retryAfter);
         }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Widget;
 
 use App\Models\Tenant;
+use App\Support\Widget\WidgetErrors;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
@@ -45,7 +46,7 @@ class PerIpThrottleTest extends TestCase
             ->assertHeader('Retry-After');
 
         $body = $blocked->json();
-        $this->assertSame('rate_limited', $body['error']);
+        $this->assertSame(WidgetErrors::RATE_LIMITED, $body['error']);
         $this->assertIsInt($body['retry_after']);
         $this->assertGreaterThan(0, $body['retry_after']);
     }

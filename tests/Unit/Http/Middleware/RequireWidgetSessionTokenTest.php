@@ -7,6 +7,7 @@ namespace Tests\Unit\Http\Middleware;
 use App\Http\Middleware\RequireWidgetSessionToken;
 use App\Models\Tenant;
 use App\Services\Widget\SessionTokenService;
+use App\Support\Widget\WidgetErrors;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Tests\TestCase;
@@ -49,7 +50,7 @@ class RequireWidgetSessionTokenTest extends TestCase
         $response = $this->middleware->handle($request, fn () => response()->json(['ok' => true]));
 
         $this->assertSame(401, $response->getStatusCode());
-        $this->assertSame('session_expired', json_decode($response->getContent(), true)['error']);
+        $this->assertSame(WidgetErrors::SESSION_EXPIRED, json_decode($response->getContent(), true)['error']);
     }
 
     public function test_falls_through_when_missing_bearer_during_dual_accept(): void
@@ -71,7 +72,7 @@ class RequireWidgetSessionTokenTest extends TestCase
         $response = $this->middleware->handle($request, fn () => response()->json(['ok' => true]));
 
         $this->assertSame(401, $response->getStatusCode());
-        $this->assertSame('session_token_required', json_decode($response->getContent(), true)['error']);
+        $this->assertSame(WidgetErrors::SESSION_TOKEN_REQUIRED, json_decode($response->getContent(), true)['error']);
     }
 
     public function test_treats_bearer_with_empty_token_as_missing(): void
@@ -82,7 +83,7 @@ class RequireWidgetSessionTokenTest extends TestCase
         $response = $this->middleware->handle($request, fn () => response()->json(['ok' => true]));
 
         $this->assertSame(401, $response->getStatusCode());
-        $this->assertSame('session_token_required', json_decode($response->getContent(), true)['error']);
+        $this->assertSame(WidgetErrors::SESSION_TOKEN_REQUIRED, json_decode($response->getContent(), true)['error']);
     }
 
     public function test_ip_mismatch_returns_401(): void

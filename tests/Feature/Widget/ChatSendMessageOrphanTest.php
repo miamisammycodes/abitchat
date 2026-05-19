@@ -27,12 +27,9 @@ class ChatSendMessageOrphanTest extends TestCase
     {
         parent::setUp();
 
-        $this->tenant = Tenant::create([
+        $this->tenant = $this->createWidgetTenant([
             'name' => 'Chat Co',
             'slug' => 'chat-co',
-            'status' => 'active',
-            'trial_ends_at' => now()->addDays(14),
-            'settings' => ['allowed_domains' => ['example.com']],
         ]);
 
         User::create([
