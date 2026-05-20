@@ -363,14 +363,16 @@ class ChatController extends Controller
             return null;
         }
 
-        $cached = Cache::get("tenant:api_key:{$apiKey}");
+        $cacheKey = 'tenant:api_key_hash:'.Tenant::hashApiKey($apiKey);
+
+        $cached = Cache::get($cacheKey);
         if ($cached !== null) {
             return $cached;
         }
 
-        $tenant = Tenant::where('api_key_hash', hash('sha256', $apiKey.config('app.key')))->first();
+        $tenant = Tenant::where('api_key_hash', Tenant::hashApiKey($apiKey))->first();
         if ($tenant) {
-            Cache::put("tenant:api_key:{$apiKey}", $tenant, 300);
+            Cache::put($cacheKey, $tenant, 300);
         }
 
         return $tenant;

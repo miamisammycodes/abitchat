@@ -49,7 +49,7 @@ class ApiKeyHashLookupTest extends TestCase
         // Rotate the api_key — the hash stored in the token sub will no longer match
         $this->tenant->update(['api_key' => 'rotated-key-'.now()->timestamp]);
         // Clear cache so lookup doesn't return stale tenant
-        Cache::forget("tenant:api_key:{$this->tenant->api_key}");
+        Cache::forget('tenant:api_key_hash:'.Tenant::hashApiKey($this->tenant->api_key));
 
         $this->expectException(InvalidSessionTokenException::class);
         $service->verify($minted['token'], 'https://example.com', '127.0.0.1');
@@ -58,7 +58,7 @@ class ApiKeyHashLookupTest extends TestCase
     public function test_validate_widget_domain_resolves_tenant_via_api_key_hash(): void
     {
         // Clear cache to ensure a fresh DB lookup
-        Cache::forget("tenant:api_key:{$this->tenant->api_key}");
+        Cache::forget('tenant:api_key_hash:'.Tenant::hashApiKey($this->tenant->api_key));
 
         // Make a request to init (which goes through ValidateWidgetDomain)
         $response = $this->withHeaders(['Origin' => 'https://example.com'])
@@ -80,7 +80,7 @@ class ApiKeyHashLookupTest extends TestCase
     public function test_chat_controller_finds_tenant_via_api_key_hash(): void
     {
         // Clear the api_key cache to force a fresh DB lookup
-        Cache::forget("tenant:api_key:{$this->tenant->api_key}");
+        Cache::forget('tenant:api_key_hash:'.Tenant::hashApiKey($this->tenant->api_key));
 
         $headers = $this->widgetHeaders($this->tenant);
         $response = $this->withHeaders($headers)

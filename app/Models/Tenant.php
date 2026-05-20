@@ -63,6 +63,17 @@ class Tenant extends BaseTenant
         'api_key',
     ];
 
+    /**
+     * Canonical recipe for api_key_hash. Single source of truth for the
+     * SHA-256 + APP_KEY-pepper derivation used by the column, the JWT `sub`
+     * claim, and all cache keys. Never inline this expression elsewhere —
+     * route every caller through this helper so the recipe can never drift.
+     */
+    public static function hashApiKey(string $apiKey): string
+    {
+        return hash('sha256', $apiKey.config('app.key'));
+    }
+
     protected static function booted(): void
     {
         static::creating(function (Tenant $tenant) {
@@ -74,13 +85,13 @@ class Tenant extends BaseTenant
             }
             // Always compute hash from the final api_key (generated or provided).
             // Must run AFTER the api_key assignment above so the hash is correct.
-            $tenant->api_key_hash = hash('sha256', $tenant->api_key.config('app.key'));
+            $tenant->api_key_hash = self::hashApiKey($tenant->api_key);
         });
 
         // Covers api_key rotation at any point after creation.
         static::saving(function (Tenant $tenant) {
             if ($tenant->isDirty('api_key') && $tenant->api_key) {
-                $tenant->api_key_hash = hash('sha256', $tenant->api_key.config('app.key'));
+                $tenant->api_key_hash = self::hashApiKey($tenant->api_key);
             }
         });
 

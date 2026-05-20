@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Client;
 
+use App\Models\Tenant;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -14,14 +15,15 @@ class WidgetApiKeyRotationTest extends TestCase
     {
         $this->actingAsTenantUser();
         $oldKey = $this->tenant->api_key;
+        $oldCacheKey = 'tenant:api_key_hash:'.Tenant::hashApiKey($oldKey);
 
-        Cache::put("tenant:api_key:{$oldKey}", $this->tenant->fresh(), 300);
+        Cache::put($oldCacheKey, $this->tenant->fresh(), 300);
 
         $this->post(route('client.widget.regenerate-key'))->assertRedirect();
 
         $this->tenant->refresh();
         $this->assertNotSame($oldKey, $this->tenant->api_key);
-        $this->assertNull(Cache::get("tenant:api_key:{$oldKey}"));
+        $this->assertNull(Cache::get($oldCacheKey));
     }
 
     public function test_db_update_runs_before_cache_forget(): void
@@ -33,12 +35,13 @@ class WidgetApiKeyRotationTest extends TestCase
         // two steps would re-cache the old key.
         $this->actingAsTenantUser();
         $oldKey = $this->tenant->api_key;
+        $oldCacheKey = 'tenant:api_key_hash:'.Tenant::hashApiKey($oldKey);
 
         $events = [];
 
         Cache::shouldReceive('forget')
             ->once()
-            ->with("tenant:api_key:{$oldKey}")
+            ->with($oldCacheKey)
             ->andReturnUsing(function () use (&$events) {
                 $events[] = 'forget';
 

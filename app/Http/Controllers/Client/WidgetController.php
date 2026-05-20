@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
 use App\Models\CrawlSession;
+use App\Models\Tenant;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -75,7 +76,7 @@ class WidgetController extends Controller
             'api_key' => bin2hex(random_bytes(32)),
         ]);
 
-        Cache::forget("tenant:api_key:{$oldKey}");
+        Cache::forget('tenant:api_key_hash:'.Tenant::hashApiKey($oldKey));
 
         return back()->with('success', 'API key regenerated successfully.');
     }
