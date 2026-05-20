@@ -33,8 +33,15 @@ class DatabaseSeederMatrixTest extends TestCase
         return $app;
     }
 
-    protected function afterRefreshingDatabase(): void
+    /**
+     * Override runDatabaseMigrations to skip rollback on teardown.
+     * SQLite does not support the ALTER TABLE operations required to roll back
+     * the make_users_tenant_id_nullable migration, causing an error during teardown.
+     * Since this test uses an in-memory :memory: DB, rollback is unnecessary.
+     */
+    public function runDatabaseMigrations(): void
     {
+        $this->artisan('migrate:fresh');
         $this->artisan('db:seed');
     }
 

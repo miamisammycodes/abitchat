@@ -7,10 +7,10 @@ namespace Tests\Unit\Models;
 use App\Exceptions\Billing\TransactionAlreadyProcessed;
 use App\Exceptions\Billing\TransactionPlanInactive;
 use App\Exceptions\Billing\TransactionStatusNotAllowed;
-use App\Models\AdminUser;
 use App\Models\Plan;
 use App\Models\Tenant;
 use App\Models\Transaction;
+use App\Models\User;
 use Tests\TestCase;
 
 class TransactionApproveAndActivateTest extends TestCase
@@ -38,11 +38,7 @@ class TransactionApproveAndActivateTest extends TestCase
     {
         $tenant = $this->makeTenant();
         $plan = $this->makePlan();
-        $admin = AdminUser::create([
-            'name' => 'Admin',
-            'email' => 'admin@test.example',
-            'password' => bcrypt('password'),
-        ]);
+        $admin = $this->createSuperAdmin();
         $tx = Transaction::create([
             'tenant_id' => $tenant->id, 'plan_id' => $plan->id,
             'transaction_number' => 'TXN1', 'reference_number' => 'REF001',
@@ -100,11 +96,7 @@ class TransactionApproveAndActivateTest extends TestCase
     {
         $tenant = $this->makeTenant();
         $plan = $this->makePlan();
-        $admin = AdminUser::create([
-            'name' => 'Admin',
-            'email' => 'admin@test.example',
-            'password' => bcrypt('password'),
-        ]);
+        $admin = $this->createSuperAdmin();
         $tx = Transaction::create([
             'tenant_id' => $tenant->id, 'plan_id' => $plan->id,
             'transaction_number' => 'TXN3', 'reference_number' => 'REF003',

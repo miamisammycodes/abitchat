@@ -4,28 +4,24 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Admin;
 
-use App\Models\AdminUser;
 use App\Models\Conversation;
 use App\Models\Lead;
 use App\Models\Plan;
 use App\Models\Tenant;
 use App\Models\Transaction;
 use App\Models\UsageRecord;
+use App\Models\User;
 use Tests\TestCase;
 
 class AdminClientShowTest extends TestCase
 {
-    private AdminUser $admin;
+    private User $admin;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->admin = AdminUser::create([
-            'name' => 'A',
-            'email' => 'a@test.example',
-            'password' => bcrypt('x'),
-        ]);
+        $this->admin = $this->createSuperAdmin();
     }
 
     public function test_show_renders_stats_for_a_client_with_data(): void
@@ -70,7 +66,7 @@ class AdminClientShowTest extends TestCase
             'transaction_number' => 'tx-'.uniqid(),
         ]);
 
-        $response = $this->actingAs($this->admin, 'admin')
+        $response = $this->actingAs($this->admin)
             ->get("/admin/clients/{$tenant->id}");
 
         $response->assertStatus(200);
