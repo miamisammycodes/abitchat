@@ -164,7 +164,7 @@ const submit = () => {
               <Button variant="outline" as-child>
                 <Link :href="route('client.knowledge.index')">Cancel</Link>
               </Button>
-              <Button type="submit" :disabled="form.processing">
+              <Button v-if="$page.props.auth.user.can.manage_knowledge_base" type="submit" :disabled="form.processing">
                 {{ form.processing ? 'Processing...' : 'Add Knowledge' }}
               </Button>
             </div>

@@ -165,7 +165,7 @@ function formatPrice(plan) {
             <template v-if="plan.id !== currentPlanId">
               <!-- Enterprise Contact Us Button -->
               <Button
-                v-if="plan.is_contact_sales"
+                v-if="plan.is_contact_sales && $page.props.auth.user.can.manage_billing"
                 variant="default"
                 class="w-full"
                 @click="openEnterpriseModal"
@@ -175,7 +175,7 @@ function formatPrice(plan) {
               </Button>
               <!-- Free Trial Button -->
               <Button
-                v-else-if="plan.price == 0"
+                v-else-if="plan.price == 0 && $page.props.auth.user.can.manage_billing"
                 variant="default"
                 class="w-full"
                 :disabled="trialForm.processing"
@@ -277,7 +277,7 @@ function formatPrice(plan) {
               <Button type="button" variant="ghost" @click="closeEnterpriseModal">
                 Cancel
               </Button>
-              <Button type="submit" :disabled="inquiryForm.processing">
+              <Button v-if="$page.props.auth.user.can.manage_billing" type="submit" :disabled="inquiryForm.processing">
                 Send Inquiry
               </Button>
             </div>
