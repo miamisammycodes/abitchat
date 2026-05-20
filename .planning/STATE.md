@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Backlog Completion
 status: executing
-stopped_at: "Phase 15 gap-closure plan ready (15-02-PLAN.md). Resume with `/gsd:execute-phase 15 --gaps-only`. Cross-phase contract still holds: Phase 14 depends on Phase 15's `api_key_hash` blind-index — execute 15-gap → re-verify → 14."
+stopped_at: "Phase 15 COMPLETE (5/5 SC verified, re-verification passed). PR #30 ready for `gh pr ready 30` → review → merge → delete branch. Then `/gsd:execute-phase 14` (Data Encryption at Rest) — now unblocked by api_key_hash."
 last_updated: "2026-05-20T05:46:52.719Z"
 last_activity: 2026-05-20
 progress:
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-20)
 
 ## Current Position
 
-Phase: 15 (widget-session-token-hardening) — GAP CLOSURE
-Plan: 2 of 2 shipped (wave 1); 15-02-PLAN.md ready (wave 2, gap closure)
-Status: Ready to execute
-Last activity: 2026-05-20
+Phase: 15 (widget-session-token-hardening) — COMPLETE (5/5 SC verified)
+Plan: 2 of 2 shipped (wave 1 + wave 2 gap closure)
+Status: Ready for PR ready (gh pr ready 30) → merge → Phase 14
+Last activity: 2026-05-20 -- Phase 15 re-verified passed (5/5 SC); CR-01 + CR-02 closed
 
 Progress: [██░░░░░░░░] ~18% (Phases 1–13 complete; Phases 14–22 pending)
 
@@ -84,5 +84,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-05-20T05:46:43.382Z
-Stopped at: Phase 15 gap-closure plan ready (15-02-PLAN.md). Resume with `/gsd:execute-phase 15 --gaps-only`. Cross-phase contract still holds: Phase 14 depends on Phase 15's `api_key_hash` blind-index — execute 15-gap → re-verify → 14.
-Resume file: None
+Stopped at: Phase 15 COMPLETE (5/5 SC verified). PR #30 ready to flip from DRAFT → ready via `gh pr ready 30`. Cross-phase: Phase 14 (Data Encryption at Rest) is now unblocked by `api_key_hash`.
+Resume file: .planning/phases/15-widget-session-token-hardening/15-VERIFICATION.md, .planning/phases/14-data-encryption-at-rest/14-CONTEXT.md

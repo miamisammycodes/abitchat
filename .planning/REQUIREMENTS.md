@@ -33,13 +33,13 @@ Shipped requirements are baseline context. PARTIAL and PENDING requirements map 
 
 | ID | Description | Status | Phase |
 |----|-------------|--------|-------|
-| CONS-22-a | TrustProxies middleware configured for proxy-aware IP resolution | DEFERRED | Phase 15 |
-| CONS-22-b | Audit-log try/catch hardening (WidgetAudit::log unguarded) | DEFERRED | Phase 15 |
-| CONS-22-c | api_key null guard in middleware chain | DEFERRED | Phase 15 |
-| CONS-22-d | Octane race condition on SessionTokenService singleton | DEFERRED | Phase 15 |
-| CONS-22-e | Enum/value-object cleanup for JWT token claims | DEFERRED | Phase 15 |
-| CONS-22-f | Indexed api_key_hash column for lookup performance | DEFERRED | Phase 15 |
-| CONS-22-g | Flip WIDGET_SESSION_DUAL_ACCEPT=false (strict mode cutover) | DEFERRED | Phase 15 |
+| CONS-22-a | TrustProxies middleware configured for proxy-aware IP resolution | SATISFIED | Phase 15 |
+| CONS-22-b | Audit-log try/catch hardening (WidgetAudit::log unguarded) | SATISFIED | Phase 15 |
+| CONS-22-c | api_key null guard in middleware chain | SATISFIED | Phase 15 |
+| CONS-22-d | Octane race condition on SessionTokenService singleton | SATISFIED | Phase 15 |
+| CONS-22-e | Enum/value-object cleanup for JWT token claims | SATISFIED | Phase 15 |
+| CONS-22-f | Indexed api_key_hash column for lookup performance | SATISFIED | Phase 15 |
+| CONS-22-g | Flip WIDGET_SESSION_DUAL_ACCEPT=false (strict mode cutover) | SATISFIED | Phase 15 |
 
 ### Admin Dashboard Extensions (ADH / ASH / ACM / ATU / AAL / APA)
 
