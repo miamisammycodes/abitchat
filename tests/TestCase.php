@@ -2,7 +2,6 @@
 
 namespace Tests;
 
-use App\Models\AdminUser as Admin;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -54,15 +53,4 @@ abstract class TestCase extends BaseTestCase
         return $this;
     }
 
-    /**
-     * Create an admin user
-     */
-    protected function createAdmin(): Admin
-    {
-        return Admin::create([
-            'name' => 'Test Admin',
-            'email' => 'admin@example.com',
-            'password' => bcrypt('password'),
-        ]);
-    }
 }
