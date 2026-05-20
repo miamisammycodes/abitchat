@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Backlog Completion
 status: executing
-stopped_at: "Phase 15 MERGED to main (commit 85baf40, 2026-05-20). Branch deleted. Next: `/gsd:execute-phase 14` (Data Encryption at Rest, 3 plans/2 waves, already planned at 44f7bb7) — now unblocked by api_key_hash blind index shipped in Phase 15."
+stopped_at: "Phase 15 MERGED to main (PR #30 = 85baf40 + PR #31 SC2 hotfix = 1eb9bbc, 2026-05-20). Both branches deleted. Next: `/gsd:execute-phase 14` (Data Encryption at Rest, 3 plans/2 waves, already planned at 44f7bb7) — now unblocked by api_key_hash blind index shipped in Phase 15."
 last_updated: "2026-05-20T05:46:52.719Z"
 last_activity: 2026-05-20
 progress:
