@@ -9,6 +9,7 @@ use App\Models\KnowledgeItem;
 use App\Models\Lead;
 use App\Models\Plan;
 use App\Models\Tenant;
+use Illuminate\Support\Facades\Queue;
 use Tests\Concerns\SeedsRoleMatrix;
 use Tests\TestCase;
 
@@ -369,7 +370,7 @@ class AbilityCoverageTest extends TestCase
 
         // Fake the queue to prevent ProcessKnowledgeItem from running synchronously.
         // We only need to verify the gate allows managers (not 403), not the full store flow.
-        \Illuminate\Support\Facades\Queue::fake();
+        Queue::fake();
 
         $response = $this->post(route('client.knowledge.store'), [
             'type' => 'text',
