@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Seeders;
 
 use App\Models\AdminUser;
@@ -60,10 +62,14 @@ class DatabaseSeeder extends Seeder
         ]);
 
         // Create test tenant
+        // WithoutModelEvents disables the creating hook that auto-sets api_key_hash,
+        // so we must set it explicitly here to keep the column in sync.
+        $tenantApiKey = bin2hex(random_bytes(32));
         $tenant = Tenant::create([
             'name' => 'Test Company',
             'slug' => 'test-company',
-            'api_key' => bin2hex(random_bytes(32)),
+            'api_key' => $tenantApiKey,
+            'api_key_hash' => hash('sha256', $tenantApiKey.config('app.key')),
             'status' => 'active',
             'plan_id' => $freePlan->id,
             'settings' => [

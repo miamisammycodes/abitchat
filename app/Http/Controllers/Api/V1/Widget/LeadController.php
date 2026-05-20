@@ -34,7 +34,7 @@ class LeadController extends Controller
             'custom_fields' => 'nullable|array',
         ]);
 
-        $tenant = Tenant::where('api_key', $request->api_key)->first();
+        $tenant = Tenant::where('api_key_hash', Tenant::hashApiKey($request->api_key))->first();
 
         if (! $tenant) {
             return response()->json(['error' => 'Invalid API key'], 401);

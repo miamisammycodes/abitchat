@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Widget;
 
+use App\Enums\Widget\WidgetAuditEvent;
 use App\Models\Tenant;
 use App\Services\Widget\SessionTokenService;
-use App\Support\Widget\WidgetAudit;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
@@ -38,7 +38,7 @@ class AuditLogTest extends TestCase
             ->assertOk();
 
         $this->assertNotNull($captured);
-        $this->assertSame('widget_init', $captured['message']);
+        $this->assertSame(WidgetAuditEvent::Init->value, $captured['message']);
         $this->assertSame($tenant->id, $captured['context']['tenant_id']);
         $this->assertSame('https://example.com', $captured['context']['origin']);
         $this->assertNotEmpty($captured['context']['ip_hash']);
@@ -61,7 +61,7 @@ class AuditLogTest extends TestCase
         Log::shouldReceive('info')->andReturnNull();  // absorb init log
         // warning() may fire more than once (e.g. SessionTokenService also warns on decode errors)
         Log::shouldReceive('warning')->atLeast()->once()->andReturnUsing(function ($message, $context) use (&$captured) {
-            if ($message === WidgetAudit::EVENT_REJECTED) {
+            if ($message === WidgetAuditEvent::Rejected->value) {
                 $captured = ['message' => $message, 'context' => $context];
             }
 
@@ -75,7 +75,7 @@ class AuditLogTest extends TestCase
             ->assertStatus(401);
 
         $this->assertNotNull($captured);
-        $this->assertSame(WidgetAudit::EVENT_REJECTED, $captured['message']);
+        $this->assertSame(WidgetAuditEvent::Rejected->value, $captured['message']);
         $this->assertArrayHasKey('reason', $captured['context']);
         $this->assertSame('https://example.com', $captured['context']['origin']);
     }
@@ -94,7 +94,7 @@ class AuditLogTest extends TestCase
         Log::shouldReceive('channel')->with('widget_audit')->andReturnSelf();
         Log::shouldReceive('info')->andReturnUsing(function ($message, $context) use (&$captured) {
             // Only capture the widget_request event (skip the init event).
-            if ($message === 'widget_request') {
+            if ($message === WidgetAuditEvent::Request->value) {
                 $captured = ['message' => $message, 'context' => $context];
             }
 
@@ -110,7 +110,7 @@ class AuditLogTest extends TestCase
             ->assertSuccessful();
 
         $this->assertNotNull($captured);
-        $this->assertSame('widget_request', $captured['message']);
+        $this->assertSame(WidgetAuditEvent::Request->value, $captured['message']);
         $this->assertSame($tenant->id, $captured['context']['tenant_id']);
         $this->assertSame(64, strlen($captured['context']['ip_hash']));
     }

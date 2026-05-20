@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Widget;
 
+use App\Enums\Widget\WidgetAuditEvent;
 use App\Models\Tenant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -12,15 +13,9 @@ final class WidgetAudit
 {
     public const CHANNEL = 'widget_audit';
 
-    public const EVENT_INIT = 'widget_init';
-
-    public const EVENT_REQUEST = 'widget_request';
-
-    public const EVENT_REJECTED = 'widget_token_rejected';
-
-    public static function log(string $event, Tenant $tenant, ?string $origin, Request $request): void
+    public static function log(WidgetAuditEvent $event, Tenant $tenant, ?string $origin, Request $request): void
     {
-        Log::channel(self::CHANNEL)->info($event, [
+        Log::channel(self::CHANNEL)->info($event->value, [
             'tenant_id' => $tenant->id,
             'origin' => $origin,
             'ip_hash' => self::ipHash($request->ip()),

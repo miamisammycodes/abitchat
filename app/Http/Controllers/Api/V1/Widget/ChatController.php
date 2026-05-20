@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Widget;
 
+use App\Enums\Widget\WidgetAuditEvent;
 use App\Http\Controllers\Controller;
 use App\Models\Conversation;
 use App\Models\Message;
@@ -60,7 +61,7 @@ class ChatController extends Controller
 
         $minted = $this->sessionTokens->mint($tenant, $origin, $ip);
 
-        WidgetAudit::log(WidgetAudit::EVENT_INIT, $tenant, $origin, $request);
+        WidgetAudit::log(WidgetAuditEvent::Init, $tenant, $origin, $request);
 
         Log::debug('[Widget] (NO $) Initialized', [
             'tenant_id' => $tenant->id,
@@ -358,14 +359,20 @@ class ChatController extends Controller
      */
     private function findTenantByApiKey(string $apiKey): ?Tenant
     {
-        $cached = Cache::get("tenant:api_key:{$apiKey}");
+        if (! $apiKey) {
+            return null;
+        }
+
+        $cacheKey = 'tenant:api_key_hash:'.Tenant::hashApiKey($apiKey);
+
+        $cached = Cache::get($cacheKey);
         if ($cached !== null) {
             return $cached;
         }
 
-        $tenant = Tenant::where('api_key', $apiKey)->first();
+        $tenant = Tenant::where('api_key_hash', Tenant::hashApiKey($apiKey))->first();
         if ($tenant) {
-            Cache::put("tenant:api_key:{$apiKey}", $tenant, 300);
+            Cache::put($cacheKey, $tenant, 300);
         }
 
         return $tenant;

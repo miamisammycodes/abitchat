@@ -8,7 +8,6 @@ use App\Http\Controllers\Controller;
 use App\Models\CrawlSession;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -68,14 +67,14 @@ class WidgetController extends Controller
 
     public function regenerateApiKey(Request $request): RedirectResponse
     {
+        // Cache invalidation is owned by Tenant::saved hook (CR-02 fix) —
+        // the model layer evicts the old api_key-keyed cache slot uniformly
+        // across all rotation paths. Per CLAUDE.md "no dual-system support."
         $tenant = $this->getTenant($request);
-        $oldKey = $tenant->api_key;
 
         $tenant->update([
             'api_key' => bin2hex(random_bytes(32)),
         ]);
-
-        Cache::forget("tenant:api_key:{$oldKey}");
 
         return back()->with('success', 'API key regenerated successfully.');
     }

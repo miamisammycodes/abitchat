@@ -150,7 +150,7 @@ class SessionTokenServiceTest extends TestCase
         $this->travelBack();
 
         $this->expectException(InvalidSessionTokenException::class);
-        $this->expectExceptionMessageMatches('/Cannot handle token/');
+        $this->expectExceptionMessageMatches('/not yet valid/i');
         $this->service->verify($result['token'], 'https://example.com', '203.0.113.10');
     }
 }

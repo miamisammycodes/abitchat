@@ -72,9 +72,9 @@ class CheckUsageLimits
         }
 
         return Cache::remember(
-            "tenant:api_key:{$apiKey}",
+            'tenant:api_key_hash:'.Tenant::hashApiKey($apiKey),
             300,
-            fn () => Tenant::where('api_key', $apiKey)->first(),
+            fn () => Tenant::where('api_key_hash', Tenant::hashApiKey($apiKey))->first(),
         );
     }
 
