@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Backlog Completion
 status: executing
-stopped_at: "Phase 15 gap-closure plan (15-02-PLAN.md) ready. Run `/gsd:execute-phase 15 --gaps-only` to close CR-01 (cache-key rename to api_key_hash) + CR-02 (saved-hook invalidation on rotation) and flip SC4 + SC5 from PARTIAL to SATISFIED."
-last_updated: "2026-05-20T12:20:00Z"
-last_activity: 2026-05-20 -- Phase 15 gap-closure plan created (15-02-PLAN.md, wave 2)
+stopped_at: "Phase 15 gap-closure plan ready (15-02-PLAN.md). Resume with `/gsd:execute-phase 15 --gaps-only`. Cross-phase contract still holds: Phase 14 depends on Phase 15's `api_key_hash` blind-index — execute 15-gap → re-verify → 14."
+last_updated: "2026-05-20T05:46:52.719Z"
+last_activity: 2026-05-20
 progress:
   total_phases: 9
-  completed_phases: 0
-  total_plans: 4
-  completed_plans: 0
-  percent: 0
+  completed_phases: 1
+  total_plans: 5
+  completed_plans: 2
+  percent: 11
 ---
 
 # Project State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-05-20)
 ## Current Position
 
 Phase: 15 (widget-session-token-hardening) — GAP CLOSURE
-Plan: 1 of 2 shipped (wave 1); 15-02-PLAN.md ready (wave 2, gap closure)
-Status: Phase 15 wave 1 verified gaps_found (3/5 SC); gap plan ready for execute
-Last activity: 2026-05-20 -- Phase 15 gap-closure plan created (15-02-PLAN.md)
+Plan: 2 of 2 shipped (wave 1); 15-02-PLAN.md ready (wave 2, gap closure)
+Status: Ready to execute
+Last activity: 2026-05-20
 
 Progress: [██░░░░░░░░] ~18% (Phases 1–13 complete; Phases 14–22 pending)
 
@@ -79,9 +79,10 @@ None yet.
 | Crawler | DNS-TXT domain ownership verification | Out of scope | PR #25 |
 | Crawler | Per-tenant crawl cadence configuration | Out of scope | PR #25 |
 | Crawler | Crawled content retention policy | Out of scope | PR #25 |
+| Phase 15 P02 | 35 | 3 tasks | 11 files |
 
 ## Session Continuity
 
-Last session: 2026-05-20
+Last session: 2026-05-20T05:46:43.382Z
 Stopped at: Phase 15 gap-closure plan ready (15-02-PLAN.md). Resume with `/gsd:execute-phase 15 --gaps-only`. Cross-phase contract still holds: Phase 14 depends on Phase 15's `api_key_hash` blind-index — execute 15-gap → re-verify → 14.
-Resume file: .planning/phases/15-widget-session-token-hardening/15-02-PLAN.md, .planning/phases/15-widget-session-token-hardening/15-VERIFICATION.md, .planning/phases/14-data-encryption-at-rest/14-CONTEXT.md
+Resume file: None
