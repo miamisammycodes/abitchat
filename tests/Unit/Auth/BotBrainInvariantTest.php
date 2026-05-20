@@ -14,7 +14,7 @@ class BotBrainInvariantTest extends TestCase
 {
     public function test_no_client_form_request_references_bot_custom_instructions(): void
     {
-        $requestsDir = __DIR__ . '/../../../app/Http/Requests/Client';
+        $requestsDir = __DIR__.'/../../../app/Http/Requests/Client';
 
         if (! is_dir($requestsDir)) {
             $this->markTestSkipped('Client FormRequests directory not found.');
@@ -33,7 +33,7 @@ class BotBrainInvariantTest extends TestCase
                 'bot_custom_instructions',
                 $contents,
                 sprintf(
-                    'D-09 violation: Client FormRequest file "%s" references bot_custom_instructions. ' .
+                    'D-09 violation: Client FormRequest file "%s" references bot_custom_instructions. '.
                     'Bot brain is platform-admin only and must never be validated by tenant-side requests.',
                     basename($filePath)
                 )
