@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Client;
 
+use App\Enums\Ability;
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
 use App\Models\Tenant;
@@ -84,6 +85,7 @@ class BillingController extends Controller
      */
     public function submitPayment(Request $request, Plan $plan): RedirectResponse
     {
+        $this->authorize(Ability::ManageBilling->value);
         abort_if(! $plan->is_active, 404);
 
         $validated = $request->validate([
@@ -165,6 +167,7 @@ class BillingController extends Controller
      */
     public function activateTrial(Request $request, Plan $plan): RedirectResponse
     {
+        $this->authorize(Ability::ManageBilling->value);
         abort_if(! $plan->is_active, 404);
 
         if ($plan->price > 0) {

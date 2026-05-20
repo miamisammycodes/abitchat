@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Client;
 
+use App\Enums\Ability;
 use App\Http\Controllers\Controller;
 use App\Models\Conversation;
 use App\Models\User;
@@ -81,6 +82,7 @@ class ConversationController extends Controller
 
     public function archive(Request $request, Conversation $conversation): RedirectResponse
     {
+        $this->authorize(Ability::ManageConversations->value);
         /** @var User $user */
         $user = $request->user();
         abort_if($conversation->tenant_id !== $user->tenant_id, 404);
@@ -93,6 +95,7 @@ class ConversationController extends Controller
 
     public function unarchive(Request $request, Conversation $conversation): RedirectResponse
     {
+        $this->authorize(Ability::ManageConversations->value);
         /** @var User $user */
         $user = $request->user();
         abort_if($conversation->tenant_id !== $user->tenant_id, 404);
@@ -105,6 +108,7 @@ class ConversationController extends Controller
 
     public function export(Request $request, Conversation $conversation): StreamedResponse
     {
+        $this->authorize(Ability::ManageConversations->value);
         /** @var User $user */
         $user = $request->user();
         abort_if($conversation->tenant_id !== $user->tenant_id, 404);

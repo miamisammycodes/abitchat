@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Enums\CrawlMode;
+use App\Enums\Role;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Jobs\CrawlWebsiteJob;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Models\UserRole;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -53,12 +55,22 @@ class RegisterController extends Controller
                 'name' => $request->name,
                 'email' => $request->email,
                 'password' => $request->password,
-                'role' => 'owner',
             ]);
 
             Log::debug('[Register] (NO $) Owner user created', [
                 'user_id' => $user->id,
                 'email' => $user->email,
+            ]);
+
+            UserRole::create([
+                'user_id' => $user->id,
+                'role' => Role::Owner,
+                'tenant_id' => $tenant->id,
+            ]);
+
+            Log::debug('[Register] (NO $) Registered owner role', [
+                'user_id' => $user->id,
+                'tenant_id' => $tenant->id,
             ]);
 
             event(new Registered($user));

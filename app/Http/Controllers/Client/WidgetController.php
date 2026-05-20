@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Client;
 
+use App\Enums\Ability;
 use App\Http\Controllers\Controller;
 use App\Models\CrawlSession;
 use Illuminate\Http\RedirectResponse;
@@ -36,6 +37,7 @@ class WidgetController extends Controller
 
     public function update(Request $request): RedirectResponse
     {
+        $this->authorize(Ability::ManageTenantSettings->value);
         $validated = $request->validate([
             'welcome_message' => 'nullable|string|max:500',
             'primary_color' => 'nullable|string|max:7',
@@ -67,6 +69,7 @@ class WidgetController extends Controller
 
     public function regenerateApiKey(Request $request): RedirectResponse
     {
+        $this->authorize(Ability::ManageTenantSettings->value);
         // Cache invalidation is owned by Tenant::saved hook (CR-02 fix) —
         // the model layer evicts the old api_key-keyed cache slot uniformly
         // across all rotation paths. Per CLAUDE.md "no dual-system support."

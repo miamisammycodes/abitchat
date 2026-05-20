@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Client;
 
+use App\Enums\Ability;
 use App\Enums\KnowledgeItemStatus;
 use App\Http\Controllers\Controller;
 use App\Jobs\ProcessKnowledgeItem;
@@ -76,6 +77,7 @@ class KnowledgeBaseController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $this->authorize(Ability::ManageKnowledgeBase->value);
         $tenant = $this->getTenant();
 
         $validated = $request->validate([
@@ -180,6 +182,7 @@ class KnowledgeBaseController extends Controller
 
     public function update(Request $request, KnowledgeItem $item): RedirectResponse
     {
+        $this->authorize(Ability::ManageKnowledgeBase->value);
         $this->authorize('update', $item);
 
         $validated = $request->validate([
@@ -208,6 +211,7 @@ class KnowledgeBaseController extends Controller
 
     public function destroy(Request $request, KnowledgeItem $item): RedirectResponse
     {
+        $this->authorize(Ability::ManageKnowledgeBase->value);
         $this->authorize('delete', $item);
 
         Log::debug('[Knowledge] (NO $) Deleting item', [
@@ -243,6 +247,7 @@ class KnowledgeBaseController extends Controller
 
     public function reprocess(KnowledgeItem $item): RedirectResponse
     {
+        $this->authorize(Ability::ManageKnowledgeBase->value);
         $this->authorize('update', $item);
 
         $item->chunks()->delete();
@@ -261,6 +266,7 @@ class KnowledgeBaseController extends Controller
 
     public function retry(KnowledgeItem $item): RedirectResponse
     {
+        $this->authorize(Ability::ManageKnowledgeBase->value);
         $this->authorize('update', $item);
 
         $this->workflow->retry($item);
