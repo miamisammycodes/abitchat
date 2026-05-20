@@ -19,6 +19,7 @@
     </source>
     <php>
         <env name="APP_BASE_PATH" value="/Users/sam/Dev/laravel/chatbot/.claude/worktrees/agent-a8af1f9346722d6e4"/>
+        <env name="APP_KEY" value="base64:Ejlaz90xFnUF8dFTpJcvLpEKDXAsVtvm38aHItX78Cc="/>
         <env name="APP_ENV" value="testing"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>

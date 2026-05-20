@@ -1,12 +1,12 @@
 <?php
 
 use App\Http\Controllers\Admin\ActivityLogController as AdminActivityLogController;
-use App\Http\Controllers\Admin\Auth\LoginController as AdminLoginController;
 use App\Http\Controllers\Admin\ClientController as AdminClientController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\EnterpriseInquiryController as AdminEnterpriseInquiryController;
 use App\Http\Controllers\Admin\PlanController as AdminPlanController;
 use App\Http\Controllers\Admin\TransactionController as AdminTransactionController;
+use App\Http\Controllers\Auth\ChooseRoleController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
@@ -21,7 +21,6 @@ use App\Http\Controllers\Client\KnowledgeBaseController;
 use App\Http\Controllers\Client\LeadController;
 use App\Http\Controllers\Client\WebsiteIndexingController;
 use App\Http\Controllers\Client\WidgetController;
-use App\Http\Middleware\AdminAuthenticate;
 use App\Models\Tenant;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -59,6 +58,10 @@ Route::middleware('auth')->group(function () {
     Route::post('logout', [LoginController::class, 'destroy'])->name('logout');
 
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // Dual-role chooser — shown when a user holds both super_admin + a tenant role
+    Route::get('/login/choose', [ChooseRoleController::class, 'create'])->name('login.choose');
+    Route::post('/login/choose', [ChooseRoleController::class, 'store'])->name('login.choose.store');
 
     // Knowledge Base
     Route::prefix('knowledge')->name('client.knowledge.')->group(function () {
@@ -134,44 +137,39 @@ Route::middleware('auth')->group(function () {
     });
 });
 
-// Admin routes
-Route::prefix('admin')->name('admin.')->group(function () {
-    Route::middleware('guest:admin')->group(function () {
-        Route::get('login', [AdminLoginController::class, 'create'])->name('login');
-        Route::post('login', [AdminLoginController::class, 'store'])->name('login.store');
-    });
+// Admin routes — protected by single web guard + RequireSuperAdmin middleware
+// Pitfall 7: Stripe/Cashier webhook routes are auto-registered by Cashier's service provider
+// at /stripe/webhook (outside this group) and must NOT be placed here.
+Route::prefix('admin')->name('admin.')->middleware(['auth', 'require.super_admin'])->group(function () {
+    Route::post('logout', [LoginController::class, 'destroy'])->name('logout');
+    Route::get('dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
 
-    Route::middleware(AdminAuthenticate::class)->group(function () {
-        Route::post('logout', [AdminLoginController::class, 'destroy'])->name('logout');
-        Route::get('dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
+    // Client Management
+    Route::get('clients', [AdminClientController::class, 'index'])->name('clients.index');
+    Route::get('clients/{client}', [AdminClientController::class, 'show'])->name('clients.show');
+    Route::put('clients/{client}/status', [AdminClientController::class, 'updateStatus'])->name('clients.update-status');
+    Route::put('clients/{client}/plan', [AdminClientController::class, 'updatePlan'])->name('clients.update-plan');
+    Route::put('clients/{client}/bot-personality', [AdminClientController::class, 'updateBotPersonality'])->name('clients.update-bot-personality');
+    Route::post('clients/{id}/restore', [AdminClientController::class, 'restore'])->name('clients.restore');
 
-        // Client Management
-        Route::get('clients', [AdminClientController::class, 'index'])->name('clients.index');
-        Route::get('clients/{client}', [AdminClientController::class, 'show'])->name('clients.show');
-        Route::put('clients/{client}/status', [AdminClientController::class, 'updateStatus'])->name('clients.update-status');
-        Route::put('clients/{client}/plan', [AdminClientController::class, 'updatePlan'])->name('clients.update-plan');
-        Route::put('clients/{client}/bot-personality', [AdminClientController::class, 'updateBotPersonality'])->name('clients.update-bot-personality');
-        Route::post('clients/{id}/restore', [AdminClientController::class, 'restore'])->name('clients.restore');
+    // Plan Management
+    Route::get('plans', [AdminPlanController::class, 'index'])->name('plans.index');
+    Route::get('plans/create', [AdminPlanController::class, 'create'])->name('plans.create');
+    Route::post('plans', [AdminPlanController::class, 'store'])->name('plans.store');
+    Route::get('plans/{plan}/edit', [AdminPlanController::class, 'edit'])->name('plans.edit');
+    Route::put('plans/{plan}', [AdminPlanController::class, 'update'])->name('plans.update');
+    Route::patch('plans/{plan}/toggle', [AdminPlanController::class, 'toggleStatus'])->name('plans.toggle');
 
-        // Plan Management
-        Route::get('plans', [AdminPlanController::class, 'index'])->name('plans.index');
-        Route::get('plans/create', [AdminPlanController::class, 'create'])->name('plans.create');
-        Route::post('plans', [AdminPlanController::class, 'store'])->name('plans.store');
-        Route::get('plans/{plan}/edit', [AdminPlanController::class, 'edit'])->name('plans.edit');
-        Route::put('plans/{plan}', [AdminPlanController::class, 'update'])->name('plans.update');
-        Route::patch('plans/{plan}/toggle', [AdminPlanController::class, 'toggleStatus'])->name('plans.toggle');
+    // Transaction Approval
+    Route::get('transactions', [AdminTransactionController::class, 'index'])->name('transactions.index');
+    Route::get('transactions/{transaction}', [AdminTransactionController::class, 'show'])->name('transactions.show');
+    Route::post('transactions/{transaction}/approve', [AdminTransactionController::class, 'approve'])->name('transactions.approve');
+    Route::post('transactions/{transaction}/reject', [AdminTransactionController::class, 'reject'])->name('transactions.reject');
 
-        // Transaction Approval
-        Route::get('transactions', [AdminTransactionController::class, 'index'])->name('transactions.index');
-        Route::get('transactions/{transaction}', [AdminTransactionController::class, 'show'])->name('transactions.show');
-        Route::post('transactions/{transaction}/approve', [AdminTransactionController::class, 'approve'])->name('transactions.approve');
-        Route::post('transactions/{transaction}/reject', [AdminTransactionController::class, 'reject'])->name('transactions.reject');
+    // Enterprise Inquiries
+    Route::get('inquiries', [AdminEnterpriseInquiryController::class, 'index'])->name('inquiries.index');
+    Route::put('inquiries/{inquiry}', [AdminEnterpriseInquiryController::class, 'update'])->name('inquiries.update');
 
-        // Enterprise Inquiries
-        Route::get('inquiries', [AdminEnterpriseInquiryController::class, 'index'])->name('inquiries.index');
-        Route::put('inquiries/{inquiry}', [AdminEnterpriseInquiryController::class, 'update'])->name('inquiries.update');
-
-        // Activity Logs
-        Route::get('activity-logs', [AdminActivityLogController::class, 'index'])->name('logs.index');
-    });
+    // Activity Logs
+    Route::get('activity-logs', [AdminActivityLogController::class, 'index'])->name('logs.index');
 });
