@@ -23,7 +23,7 @@ class RequireWidgetSessionToken
     public function handle(Request $request, Closure $next): Response
     {
         $bearer = $request->bearerToken() ?: null;
-        $dualAccept = (bool) config('widget.session_dual_accept', true);
+        $dualAccept = (bool) config('widget.session_dual_accept', false);
 
         // Missing Bearer
         if ($bearer === null) {
@@ -65,7 +65,7 @@ class RequireWidgetSessionToken
         }
 
         $bodyApiKey = $request->input('api_key');
-        if ($bodyApiKey !== null && $bodyApiKey !== $tenant->api_key) {
+        if ($bodyApiKey !== null && ! hash_equals((string) $tenant->api_key, (string) $bodyApiKey)) {
             return response()->json(['error' => WidgetErrors::SESSION_EXPIRED], 401);
         }
 
