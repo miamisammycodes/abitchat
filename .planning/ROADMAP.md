@@ -166,7 +166,7 @@ Plans:
 **Goal:** Unify the existing two-table/two-guard auth split into a single-guard four-role RBAC foundation (super_admin, owner, manager, agent) so one user can hold multiple roles (e.g. super_admin + owner-of-tenant), every controller/policy/UI surface is gated by the canonical permission matrix, and the trigger that exposed the half-baked role system (UpdateWebsiteIndexingRequest::authorize() calling deleted isOwner()) is resolved end-to-end.
 **Requirements**: D-01..D-21 (CONTEXT.md decisions; this is a foundation phase with no formal REQ-IDs in REQUIREMENTS.md — it prepares Phase 17's REQ-ctm-* / REQ-cdh-08 / REQ-ccm-08)
 **Depends on:** Phase 16
-**Plans:** 7/8 plans executed
+**Plans:** 8/8 plans complete
 
 Plans:
 
@@ -177,7 +177,7 @@ Plans:
 - [x] 16.1-05-PLAN.md — Wave 4: Client controllers authorize sweep (10 controllers), RegisterController writes UserRole(owner), AdminActivityLog::log() rewrite
 - [x] 16.1-06a-PLAN.md — Wave 5: HandleInertiaRequests share() emits auth.user.can flat map, RoleBadge + ContextSwitchChip components, ChooseRole.vue page, AdminLayout + ClientLayout updates
 - [x] 16.1-06b-PLAN.md — Wave 5: per-page v-if sweep across 16 Client Vue surfaces (admin pages stay gated by RequireSuperAdmin middleware), VueCanKeyAlignmentTest static guard catches template typos against Ability::cases()
-- [ ] 16.1-07-PLAN.md — Wave 6: DatabaseSeeder rebuild (4-account matrix + Demo Co), CLAUDE.md test creds update, 52-cell role×ability matrix tests (Gate + RolePermissions levels), manual D-20 browser smoke checkpoint, end-of-phase PHPStan baseline=0 + Pint + cross-cutting grep guards
+- [x] 16.1-07-PLAN.md — Wave 6: DatabaseSeeder rebuild (4-account matrix + Demo Co), CLAUDE.md test creds update, 52-cell role×ability matrix tests (Gate + RolePermissions levels), manual D-20 browser smoke checkpoint, end-of-phase PHPStan baseline=0 + Pint + cross-cutting grep guards
 
 ### Phase 17: Team Management
 
