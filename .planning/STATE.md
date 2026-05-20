@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Backlog Completion
-status: executing
-stopped_at: "Phase 15 MERGED to main (PR #30 = 85baf40 + PR #31 SC2 hotfix = 1eb9bbc, 2026-05-20). Both branches deleted. Next: `/gsd:execute-phase 14` (Data Encryption at Rest, 3 plans/2 waves, already planned at 44f7bb7) — now unblocked by api_key_hash blind index shipped in Phase 15."
-last_updated: "2026-05-20T05:46:52.719Z"
-last_activity: 2026-05-20
+status: completed
+stopped_at: Phase 16.1 context gathered
+last_updated: "2026-05-20T10:17:46.970Z"
+last_activity: 2026-05-20 -- Phase 16.1 inserted (Role Foundation)
 progress:
-  total_phases: 9
+  total_phases: 10
   completed_phases: 1
   total_plans: 5
   completed_plans: 2
-  percent: 11
+  percent: 10
 ---
 
 # Project State
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-05-20)
 
 Phase: 15 (widget-session-token-hardening) — MERGED to main (85baf40)
 Plan: 2 of 2 shipped (wave 1 + wave 2 gap closure)
-Status: Phase 15 complete; ready for `/gsd:execute-phase 14` (Data Encryption at Rest)
-Last activity: 2026-05-20 -- PR #30 merged, feature branch deleted
+Status: Phase 15 complete. Phase 16.1 (Role Foundation) inserted as urgent slice ahead of Phase 17 to unblock isOwner() guard on UpdateWebsiteIndexingRequest. Available next: `/gsd:plan-phase 16.1` or `/gsd:execute-phase 14`.
+Last activity: 2026-05-20 -- Phase 16.1 inserted (Role Foundation)
 
 Progress: [██░░░░░░░░] ~18% (Phases 1–13 complete; Phases 14–22 pending)
 
@@ -58,6 +58,10 @@ See PROJECT.md Key Decisions table for full log. Critical decisions affecting v1
 - Phase 15 (Widget Hardening) has an internal ordering constraint: TrustProxies first → CONS-22 hardening → flip DUAL_ACCEPT last
 - Phase 20 (Conversation Polish) must follow Phase 17 (Team Mgmt) for REQ-ccm-08 (conversation assignment)
 - Phase 21 (Analytics) must follow Phase 20 for REQ-can-05 (quality metrics depend on REQ-ccm-07 ratings)
+
+### Roadmap Evolution
+
+- 2026-05-20 — Phase 16.1 (Role Foundation) inserted after Phase 16 (URGENT). Splits Phase 17 (Team Management) into a foundation slice (role taxonomy + Gate/Policy enforcement + seeder/UI gates) and the full team layer (invites, SSO, ownership transfer, conversation assignment). Triggered by isOwner() 403 on UpdateWebsiteIndexingRequest exposing the half-baked role system already partially scaffolded in `users.role`.
 - All other phases are independently selectable
 
 ### Pending Todos
@@ -83,6 +87,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-20T05:46:43.382Z
-Stopped at: Phase 15 MERGED to main (85baf40). Next: `/gsd:execute-phase 14`. Phase 14 plan already on main (commit 44f7bb7; 3 plans, 2 waves).
-Resume file: .planning/phases/14-data-encryption-at-rest/14-CONTEXT.md, .planning/phases/14-data-encryption-at-rest/14-PLAN.md
+Last session: 2026-05-20T10:17:46.963Z
+Stopped at: Phase 16.1 context gathered
+Resume file: .planning/phases/16.1-role-foundation/16.1-CONTEXT.md
