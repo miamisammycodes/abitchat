@@ -131,6 +131,18 @@ class KnowledgeBaseController extends Controller
 
         $item->loadCount('chunks');
 
+        $chunks = $item->chunks()
+            ->orderBy('chunk_index')
+            ->get(['id', 'chunk_index', 'content'])
+            ->map(fn ($chunk) => [
+                'index' => $chunk->chunk_index,
+                'content' => (string) $chunk->content,
+                'chars' => mb_strlen((string) $chunk->content),
+            ])
+            ->all();
+
+        $chunksWithEmbedding = $item->chunks()->whereNotNull('embedding')->count();
+
         return Inertia::render('Client/KnowledgeBase/Show', [
             'item' => [
                 'id' => $item->id,
@@ -146,6 +158,8 @@ class KnowledgeBaseController extends Controller
                 'error_message' => $item->error_message,
                 'failed_at' => $item->failed_at?->format('M d, Y H:i'),
             ],
+            'chunks' => $chunks,
+            'chunks_with_embedding' => $chunksWithEmbedding,
         ]);
     }
 
