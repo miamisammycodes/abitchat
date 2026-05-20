@@ -42,7 +42,7 @@ class TransactionPolicyTest extends TestCase
         $this->transaction = Transaction::create([
             'tenant_id' => $this->tenant->id,
             'plan_id' => $plan->id,
-            'transaction_number' => 'TXN-POLICY-' . uniqid(),
+            'transaction_number' => 'TXN-POLICY-'.uniqid(),
             'amount' => 1000,
             'payment_method' => 'bank_transfer',
             'payment_date' => now(),
