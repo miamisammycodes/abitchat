@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Client;
 
+use App\Enums\Ability;
 use App\Http\Controllers\Controller;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -12,6 +13,7 @@ class DashboardController extends Controller
 {
     public function index(): Response
     {
+        $this->authorize(Ability::ViewDashboard->value);
         $tenant = $this->getTenant();
 
         $planLabel = match (true) {

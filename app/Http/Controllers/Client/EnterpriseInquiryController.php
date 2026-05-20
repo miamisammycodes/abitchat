@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Client;
 
+use App\Enums\Ability;
 use App\Http\Controllers\Controller;
 use App\Models\EnterpriseInquiry;
 use App\Notifications\EnterpriseInquiryNotification;
@@ -15,6 +16,7 @@ class EnterpriseInquiryController extends Controller
 {
     public function store(Request $request): RedirectResponse
     {
+        $this->authorize(Ability::ViewDashboard->value);
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
