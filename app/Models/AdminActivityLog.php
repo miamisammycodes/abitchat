@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\Role;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -22,14 +23,15 @@ class AdminActivityLog extends Model
         'user_agent',
     ];
 
+    /** @var array<string, string> */
     protected $casts = [
         'details' => 'array',
     ];
 
-    /** @return BelongsTo<AdminUser, $this> */
+    /** @return BelongsTo<User, $this> */
     public function admin(): BelongsTo
     {
-        return $this->belongsTo(AdminUser::class, 'admin_user_id');
+        return $this->belongsTo(User::class, 'admin_user_id');
     }
 
     /** @return MorphTo<Model, $this> */
@@ -48,10 +50,14 @@ class AdminActivityLog extends Model
         ?Model $target = null,
         array $details = []
     ): self {
-        $admin = Auth::guard('admin')->user();
+        $user = Auth::user();
+
+        if (! $user instanceof User || ! $user->hasRole(Role::SuperAdmin)) {
+            throw new \LogicException('AdminActivityLog::log called outside super_admin context');
+        }
 
         return self::create([
-            'admin_user_id' => $admin->id,
+            'admin_user_id' => $user->id,
             'action_type' => $actionType,
             'target_type' => $target ? get_class($target) : null,
             'target_id' => $target?->id,

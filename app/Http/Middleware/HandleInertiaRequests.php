@@ -6,7 +6,6 @@ namespace App\Http\Middleware;
 
 use App\Models\CrawlSession;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Inertia\Middleware;
 use Tighten\Ziggy\Ziggy;
 
@@ -40,19 +39,12 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
-        $admin = Auth::guard('admin')->user();
         $tenant = $request->user()?->tenant;
 
         return [
             ...parent::share($request),
             'auth' => [
                 'user' => $request->user(),
-                'admin' => $admin ? [
-                    'id' => $admin->id,
-                    'name' => $admin->name,
-                    'email' => $admin->email,
-                    'role' => $admin->role,
-                ] : null,
             ],
             'tenant' => $tenant ? [
                 'id' => $tenant->id,

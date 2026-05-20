@@ -90,7 +90,7 @@ class TransactionController extends Controller
             'admin_notes' => 'nullable|string|max:1000',
         ]);
 
-        $admin = Auth::guard('admin')->user();
+        $admin = Auth::user();
 
         try {
             $transaction->approveAndActivate(
@@ -119,7 +119,7 @@ class TransactionController extends Controller
             'admin_notes' => 'required|string|max:1000',
         ]);
 
-        $admin = Auth::guard('admin')->user();
+        $admin = Auth::user();
 
         try {
             DB::transaction(function () use ($transaction, $validated, $admin) {
