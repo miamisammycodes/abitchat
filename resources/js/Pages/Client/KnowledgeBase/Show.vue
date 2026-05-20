@@ -59,7 +59,7 @@ const getStatusVariant = (status) => {
           <p class="text-muted-foreground mt-1">Knowledge item details</p>
         </div>
         <div class="flex items-center gap-2 flex-shrink-0">
-          <Button variant="outline" size="sm" @click="reprocess">
+          <Button v-if="$page.props.auth.user.can.manage_knowledge_base" variant="outline" size="sm" @click="reprocess">
             <RefreshCw class="h-4 w-4 mr-2" />
             Reprocess
           </Button>
@@ -69,7 +69,7 @@ const getStatusVariant = (status) => {
               Edit
             </Link>
           </Button>
-          <Button variant="outline" size="sm" @click="deleteItem" class="text-destructive hover:text-destructive">
+          <Button v-if="$page.props.auth.user.can.manage_knowledge_base" variant="outline" size="sm" @click="deleteItem" class="text-destructive hover:text-destructive">
             <Trash2 class="h-4 w-4 mr-2" />
             Delete
           </Button>

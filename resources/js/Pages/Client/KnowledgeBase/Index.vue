@@ -195,7 +195,7 @@ const getTypeIcon = (type) => {
                   </Badge>
                   <div class="flex items-center gap-1">
                     <Button
-                      v-if="item.status === 'failed'"
+                      v-if="item.status === 'failed' && $page.props.auth.user.can.manage_knowledge_base"
                       variant="ghost"
                       size="icon"
                       title="Retry processing"
@@ -208,7 +208,7 @@ const getTypeIcon = (type) => {
                         <Pencil class="h-4 w-4" />
                       </Link>
                     </Button>
-                    <Button variant="ghost" size="icon" @click="deleteItem(item)">
+                    <Button v-if="$page.props.auth.user.can.manage_knowledge_base" variant="ghost" size="icon" @click="deleteItem(item)">
                       <Trash2 class="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
