@@ -7,7 +7,6 @@ namespace Tests\Feature\Admin;
 use App\Models\Plan;
 use App\Models\Tenant;
 use App\Models\Transaction;
-use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 

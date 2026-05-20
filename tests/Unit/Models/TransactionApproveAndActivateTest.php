@@ -10,7 +10,6 @@ use App\Exceptions\Billing\TransactionStatusNotAllowed;
 use App\Models\Plan;
 use App\Models\Tenant;
 use App\Models\Transaction;
-use App\Models\User;
 use Tests\TestCase;
 
 class TransactionApproveAndActivateTest extends TestCase

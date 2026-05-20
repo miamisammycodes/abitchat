@@ -12,12 +12,12 @@ $worktreeRoot = dirname(__DIR__);
 $mainVendor = '/Users/sam/Dev/laravel/chatbot/vendor';
 
 // Load the shared autoloader
-$loader = require $mainVendor . '/autoload.php';
+$loader = require $mainVendor.'/autoload.php';
 
 // Strip App\* and Database\* entries from the compiled classmap via reflection.
 // Without this, the classmap takes priority over PSR-4 and all App\* classes
 // resolve to the main repo's app/ directory, ignoring worktree changes.
-$ref = new \ReflectionClass($loader);
+$ref = new ReflectionClass($loader);
 $prop = $ref->getProperty('classMap');
 $prop->setAccessible(true);
 
@@ -34,8 +34,8 @@ $prop->setValue($loader, $filtered);
 // then the root prefix as fallback. Without the sub-namespace entries, autoload_psr4.php's
 // pre-registered 'Database\\Seeders\\' and 'Database\\Factories\\' entries (pointing to
 // the main repo) take precedence over our 'Database\\' root prefix.
-$loader->setPsr4('App\\', [$worktreeRoot . '/app']);
-$loader->setPsr4('Tests\\', [$worktreeRoot . '/tests']);
-$loader->setPsr4('Database\\Seeders\\', [$worktreeRoot . '/database/seeders']);
-$loader->setPsr4('Database\\Factories\\', [$worktreeRoot . '/database/factories']);
-$loader->setPsr4('Database\\', [$worktreeRoot . '/database']);
+$loader->setPsr4('App\\', [$worktreeRoot.'/app']);
+$loader->setPsr4('Tests\\', [$worktreeRoot.'/tests']);
+$loader->setPsr4('Database\\Seeders\\', [$worktreeRoot.'/database/seeders']);
+$loader->setPsr4('Database\\Factories\\', [$worktreeRoot.'/database/factories']);
+$loader->setPsr4('Database\\', [$worktreeRoot.'/database']);
