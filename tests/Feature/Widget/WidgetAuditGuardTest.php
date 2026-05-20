@@ -96,4 +96,29 @@ class WidgetAuditGuardTest extends TestCase
         // Should return 401, not 500
         $response->assertStatus(401);
     }
+
+    public function test_audit_failure_on_init_path_is_also_swallowed(): void
+    {
+        Cache::forget('widget_audit_failures');
+
+        Log::shouldReceive('channel')
+            ->with(WidgetAudit::CHANNEL)
+            ->andThrow(new \RuntimeException('Simulated audit log failure on init path'));
+
+        Log::shouldReceive('warning')->andReturnNull();
+        Log::shouldReceive('debug')->andReturnNull();
+        Log::shouldReceive('error')->andReturnNull();
+        Log::shouldReceive('info')->andReturnNull();
+
+        $response = $this->withHeaders([
+            'Origin' => 'https://example.com',
+        ])->postJson('/api/v1/widget/init', ['api_key' => $this->tenant->api_key]);
+
+        // The init request must succeed and return a session_token despite the audit failure.
+        // If line 64 of ChatController::init() were unguarded, this would return 500.
+        $response->assertOk()->assertJsonStructure(['success', 'config', 'session_token', 'expires_at']);
+
+        $this->assertGreaterThanOrEqual(1, Cache::get('widget_audit_failures', 0),
+            'widget_audit_failures counter must be incremented on init-path audit failure');
+    }
 }

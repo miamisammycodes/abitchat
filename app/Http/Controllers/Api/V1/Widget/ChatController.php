@@ -61,7 +61,15 @@ class ChatController extends Controller
 
         $minted = $this->sessionTokens->mint($tenant, $origin, $ip);
 
-        WidgetAudit::log(WidgetAuditEvent::Init, $tenant, $origin, $request);
+        // Guard audit-log writes the same way RequireWidgetSessionToken does (SC2 / CONS-22-b):
+        // a log-driver failure must never propagate as HTTP 500 from the token-issuance endpoint,
+        // which would block every widget visitor's first request until the log driver recovers.
+        try {
+            WidgetAudit::log(WidgetAuditEvent::Init, $tenant, $origin, $request);
+        } catch (\Throwable $e) {
+            Cache::increment('widget_audit_failures');
+            Log::warning('[Widget] Audit log failure (init path)', ['error' => $e->getMessage()]);
+        }
 
         Log::debug('[Widget] (NO $) Initialized', [
             'tenant_id' => $tenant->id,
