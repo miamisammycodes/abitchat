@@ -88,15 +88,32 @@ class Tenant extends BaseTenant
             $tenant->api_key_hash = self::hashApiKey($tenant->api_key);
         });
 
-        // Covers api_key rotation at any point after creation.
+        // Covers api_key rotation at any point after creation, including
+        // nullification — a null api_key must clear the hash too so no
+        // orphaned hash continues to resolve to this tenant.
         static::saving(function (Tenant $tenant) {
-            if ($tenant->isDirty('api_key') && $tenant->api_key) {
-                $tenant->api_key_hash = self::hashApiKey($tenant->api_key);
+            if ($tenant->isDirty('api_key')) {
+                $tenant->api_key_hash = $tenant->api_key
+                    ? self::hashApiKey($tenant->api_key)
+                    : null;
             }
         });
 
         static::saved(function (Tenant $tenant) {
             Cache::forget("tenant:{$tenant->id}:with_plan");
+
+            // CR-02: Any api_key rotation — controller, console, factory,
+            // job, or direct model save — must invalidate the api_key-keyed
+            // cache slot for the PREVIOUS key. Use getOriginal('api_key')
+            // because the slot to evict is keyed on the OLD value's hash;
+            // forgetting the current value would no-op against an empty
+            // slot and leave the stale slot alive (the auth-bypass window).
+            if ($tenant->wasChanged('api_key')) {
+                $oldKey = $tenant->getOriginal('api_key');
+                if (! empty($oldKey)) {
+                    Cache::forget('tenant:api_key_hash:'.self::hashApiKey($oldKey));
+                }
+            }
         });
     }
 
