@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests;
 
 use App\Enums\Role;
@@ -61,5 +63,4 @@ abstract class TestCase extends BaseTestCase
 
         return $this;
     }
-
 }

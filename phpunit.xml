@@ -18,7 +18,6 @@
         </include>
     </source>
     <php>
-        <env name="APP_BASE_PATH" value="/Users/sam/Dev/laravel/chatbot/.claude/worktrees/agent-a35b91dc4e6611a14"/>
         <env name="APP_KEY" value="base64:Ejlaz90xFnUF8dFTpJcvLpEKDXAsVtvm38aHItX78Cc="/>
         <env name="APP_ENV" value="testing"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
