@@ -57,7 +57,8 @@ class AuthShareTest extends TestCase
 
     public function test_anonymous_request_has_null_user_and_no_admin_key(): void
     {
-        $auth = $this->getSharedAuth('/dashboard');
+        // Use the public home route — /dashboard requires auth and would redirect
+        $auth = $this->getSharedAuth('/');
 
         $this->assertNull($auth['user'], 'Anonymous request should have null auth.user');
         $this->assertArrayNotHasKey('admin', $auth, 'auth.admin key must not exist');
