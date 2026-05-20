@@ -53,11 +53,9 @@ final class RolePermissions
         $minRole = self::MIN_ROLE[$ability->value];
 
         if ($minRole === Role::SuperAdmin) {
-            // @phpstan-ignore-next-line argument.type
             return $user->hasRole(Role::SuperAdmin);
         }
 
-        // @phpstan-ignore-next-line method.notFound
         return $tenant !== null && $user->hasRoleAtLeast($minRole, $tenant);
     }
 
