@@ -166,14 +166,14 @@ Plans:
 **Goal:** Unify the existing two-table/two-guard auth split into a single-guard four-role RBAC foundation (super_admin, owner, manager, agent) so one user can hold multiple roles (e.g. super_admin + owner-of-tenant), every controller/policy/UI surface is gated by the canonical permission matrix, and the trigger that exposed the half-baked role system (UpdateWebsiteIndexingRequest::authorize() calling deleted isOwner()) is resolved end-to-end.
 **Requirements**: D-01..D-21 (CONTEXT.md decisions; this is a foundation phase with no formal REQ-IDs in REQUIREMENTS.md — it prepares Phase 17's REQ-ctm-* / REQ-cdh-08 / REQ-ccm-08)
 **Depends on:** Phase 16
-**Plans:** 3/8 plans executed
+**Plans:** 4/8 plans executed
 
 Plans:
 
 - [x] 16.1-01-PLAN.md — Wave 1: Backed Role + Ability enums, RolePermissions decision engine, Wave 0 test scaffolds
 - [x] 16.1-02-PLAN.md — Wave 2: Migration sequence (drop FKs, drop admin_users, re-point FKs, drop users.role, make tenant_id nullable, create user_roles), UserRole model, User multi-role methods, Transaction::approvedBy retarget, AdminUser deletion
 - [x] 16.1-03-PLAN.md — Wave 3: Single-guard cutover (drop admin guard), RequireSuperAdmin middleware, /login/choose chooser, role-aware LoginController redirect, webhook safety (Stripe + DK Bank stay anonymous)
-- [ ] 16.1-04-PLAN.md — Wave 4: Gate registration in AppServiceProvider, 4 policy upgrades stacking ownership + role-tier, UpdateWebsiteIndexingRequest fix (THE TRIGGER)
+- [x] 16.1-04-PLAN.md — Wave 4: Gate registration in AppServiceProvider, 4 policy upgrades stacking ownership + role-tier, UpdateWebsiteIndexingRequest fix (THE TRIGGER)
 - [ ] 16.1-05-PLAN.md — Wave 4: Client controllers authorize sweep (10 controllers), RegisterController writes UserRole(owner), AdminActivityLog::log() rewrite
 - [ ] 16.1-06a-PLAN.md — Wave 5: HandleInertiaRequests share() emits auth.user.can flat map, RoleBadge + ContextSwitchChip components, ChooseRole.vue page, AdminLayout + ClientLayout updates
 - [ ] 16.1-06b-PLAN.md — Wave 5: per-page v-if sweep across 16 Client Vue surfaces (admin pages stay gated by RequireSuperAdmin middleware), VueCanKeyAlignmentTest static guard catches template typos against Ability::cases()
