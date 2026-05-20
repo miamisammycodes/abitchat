@@ -115,9 +115,10 @@ Plans:
   3. The `api_key` null guard is in place in the middleware chain; a missing api_key returns a structured 401 rather than an unhandled exception
   4. `WIDGET_SESSION_DUAL_ACCEPT` is flipped to `false` (strict mode cutover complete); legacy api_key-only requests return 401 with a clear error code
   5. `api_key_hash` column has a database index; lookup performance does not degrade under load
-**Plans**: 1 plan
+**Plans**: 2 plans (1 + 1 gap-closure)
 Plans:
 - [x] 15-PLAN.md — Task 0 (verify) + Task 1 (api_key_hash + lookup migration) + Task 2 (TrustProxies + audit guard + null guard) + Task 3 (Octane race fix + enum cleanup) + Task 4 (strict-mode cutover) (completed 2026-05-20)
+- [ ] 15-02-PLAN.md — Gap closure: Task 1 (CR-01 cache-key rename + Tenant::hashApiKey helper) + Task 2 (CR-02 saved-hook invalidation + WR-02 null branch + WidgetController duplicate-forget cleanup) + Task 3 (WR-01 hash_equals + WR-04 seeder strict_types + WR-05 behavioral TrustProxies + WR-07 dual_accept fallback)
 
 ### Phase 16: Admin Dashboard Extensions
 **Goal**: Platform administrators have full operational visibility — system health, failed job management, tenant impersonation, broadcast messaging, complete audit logs, and advanced analytics — so they can operate the platform without SSH access.
@@ -221,7 +222,7 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 1–13. v1.0 Phases | v1.0 | - | Complete | 2026-05-20 |
 | 14. Data Encryption | v1.1 | 0/TBD | Not started | - |
-| 15. Widget Hardening | v1.1 | 1/1 | Gaps open (3/5 SC) | - |
+| 15. Widget Hardening | v1.1 | 1/2 | Gap plan ready (3/5 SC; 15-02-PLAN pending) | - |
 | 16. Admin Dashboard Extensions | v1.1 | 0/TBD | Not started | - |
 | 17. Team Management | v1.1 | 0/TBD | Not started | - |
 | 18. WP.org Submission | v1.1 | 0/TBD | Not started | - |
