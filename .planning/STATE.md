@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Backlog Completion
-status: completed
-stopped_at: Phase 16.1 context gathered
-last_updated: "2026-05-20T10:17:46.970Z"
-last_activity: 2026-05-20 -- Phase 16.1 inserted (Role Foundation)
+status: executing
+stopped_at: Phase 16.1 UI-SPEC approved
+last_updated: "2026-05-20T13:51:41.616Z"
+last_activity: 2026-05-20 -- Phase 16.1 execution started
 progress:
   total_phases: 10
   completed_phases: 1
-  total_plans: 5
+  total_plans: 13
   completed_plans: 2
   percent: 10
 ---
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-20)
 
 **Core value:** Enable any WordPress site owner to deploy an AI-powered chatbot — trained on their own content — that captures leads, answers visitor questions, and delivers measurable ROI, without technical expertise.
-**Current focus:** Phase 15 — widget-session-token-hardening
+**Current focus:** Phase 16.1 — role-foundation
 
 ## Current Position
 
-Phase: 15 (widget-session-token-hardening) — MERGED to main (85baf40)
-Plan: 2 of 2 shipped (wave 1 + wave 2 gap closure)
-Status: Phase 15 complete. Phase 16.1 (Role Foundation) inserted as urgent slice ahead of Phase 17 to unblock isOwner() guard on UpdateWebsiteIndexingRequest. Available next: `/gsd:plan-phase 16.1` or `/gsd:execute-phase 14`.
-Last activity: 2026-05-20 -- Phase 16.1 inserted (Role Foundation)
+Phase: 16.1 (role-foundation) — EXECUTING
+Plan: 1 of 8
+Status: Executing Phase 16.1
+Last activity: 2026-05-20 -- Phase 16.1 execution started
 
 Progress: [██░░░░░░░░] ~18% (Phases 1–13 complete; Phases 14–22 pending)
 
@@ -87,6 +87,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-20T10:17:46.963Z
-Stopped at: Phase 16.1 context gathered
-Resume file: .planning/phases/16.1-role-foundation/16.1-CONTEXT.md
+Last session: 2026-05-20T10:48:04.833Z
+Stopped at: Phase 16.1 UI-SPEC approved
+Resume file: .planning/phases/16.1-role-foundation/16.1-UI-SPEC.md

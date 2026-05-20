@@ -166,11 +166,11 @@ Plans:
 **Goal:** Unify the existing two-table/two-guard auth split into a single-guard four-role RBAC foundation (super_admin, owner, manager, agent) so one user can hold multiple roles (e.g. super_admin + owner-of-tenant), every controller/policy/UI surface is gated by the canonical permission matrix, and the trigger that exposed the half-baked role system (UpdateWebsiteIndexingRequest::authorize() calling deleted isOwner()) is resolved end-to-end.
 **Requirements**: D-01..D-21 (CONTEXT.md decisions; this is a foundation phase with no formal REQ-IDs in REQUIREMENTS.md — it prepares Phase 17's REQ-ctm-* / REQ-cdh-08 / REQ-ccm-08)
 **Depends on:** Phase 16
-**Plans:** 8 plans in 6 waves
+**Plans:** 1/8 plans executed
 
 Plans:
 
-- [ ] 16.1-01-PLAN.md — Wave 1: Backed Role + Ability enums, RolePermissions decision engine, Wave 0 test scaffolds
+- [x] 16.1-01-PLAN.md — Wave 1: Backed Role + Ability enums, RolePermissions decision engine, Wave 0 test scaffolds
 - [ ] 16.1-02-PLAN.md — Wave 2: Migration sequence (drop FKs, drop admin_users, re-point FKs, drop users.role, make tenant_id nullable, create user_roles), UserRole model, User multi-role methods, Transaction::approvedBy retarget, AdminUser deletion
 - [ ] 16.1-03-PLAN.md — Wave 3: Single-guard cutover (drop admin guard), RequireSuperAdmin middleware, /login/choose chooser, role-aware LoginController redirect, webhook safety (Stripe + DK Bank stay anonymous)
 - [ ] 16.1-04-PLAN.md — Wave 4: Gate registration in AppServiceProvider, 4 policy upgrades stacking ownership + role-tier, UpdateWebsiteIndexingRequest fix (THE TRIGGER)
