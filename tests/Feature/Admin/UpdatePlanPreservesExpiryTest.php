@@ -4,24 +4,20 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Admin;
 
-use App\Models\AdminUser;
 use App\Models\Plan;
 use App\Models\Tenant;
+use App\Models\User;
 use Carbon\Carbon;
 use Tests\TestCase;
 
 class UpdatePlanPreservesExpiryTest extends TestCase
 {
-    private AdminUser $admin;
+    private User $admin;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->admin = AdminUser::create([
-            'name' => 'Admin',
-            'email' => 'admin@test.example',
-            'password' => bcrypt('password'),
-        ]);
+        $this->admin = $this->createSuperAdmin();
     }
 
     private function makeTenant(?Carbon $expires = null): Tenant
@@ -55,7 +51,7 @@ class UpdatePlanPreservesExpiryTest extends TestCase
         $tenant = $this->makeTenant($existing);
         $plan = $this->makePlan('yearly');
 
-        $this->actingAs($this->admin, 'admin')
+        $this->actingAs($this->admin)
             ->put(route('admin.clients.update-plan', $tenant), [
                 'plan_id' => $plan->id,
             ])
@@ -77,7 +73,7 @@ class UpdatePlanPreservesExpiryTest extends TestCase
         $tenant = $this->makeTenant($expired);
         $plan = $this->makePlan('monthly');
 
-        $this->actingAs($this->admin, 'admin')
+        $this->actingAs($this->admin)
             ->put(route('admin.clients.update-plan', $tenant), [
                 'plan_id' => $plan->id,
             ])
@@ -99,7 +95,7 @@ class UpdatePlanPreservesExpiryTest extends TestCase
         $plan = $this->makePlan('monthly');
         $explicit = now()->addMonths(6)->startOfDay();
 
-        $this->actingAs($this->admin, 'admin')
+        $this->actingAs($this->admin)
             ->put(route('admin.clients.update-plan', $tenant), [
                 'plan_id' => $plan->id,
                 'expires_at' => $explicit->toDateString(),

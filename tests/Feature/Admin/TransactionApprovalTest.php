@@ -14,7 +14,7 @@ class TransactionApprovalTest extends TestCase
 {
     public function test_approval_preserves_remaining_paid_time(): void
     {
-        $admin = $this->createAdmin();
+        $admin = $this->createSuperAdmin();
         $this->actingAsTenantUser(); // sets $this->tenant
 
         $plan = Plan::create([
@@ -49,7 +49,7 @@ class TransactionApprovalTest extends TestCase
             'status' => 'pending',
         ]);
 
-        $this->actingAs($admin, 'admin')
+        $this->actingAs($admin)
             ->post("/admin/transactions/{$transaction->id}/approve", ['admin_notes' => 'ok'])
             ->assertRedirect();
 
@@ -65,7 +65,7 @@ class TransactionApprovalTest extends TestCase
 
     public function test_approval_uses_now_when_no_existing_expiry(): void
     {
-        $admin = $this->createAdmin();
+        $admin = $this->createSuperAdmin();
         $this->actingAsTenantUser();
 
         $plan = Plan::create([
@@ -94,7 +94,7 @@ class TransactionApprovalTest extends TestCase
             'status' => 'pending',
         ]);
 
-        $this->actingAs($admin, 'admin')
+        $this->actingAs($admin)
             ->post("/admin/transactions/{$transaction->id}/approve")
             ->assertRedirect();
 

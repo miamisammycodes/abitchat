@@ -63,4 +63,26 @@ abstract class TestCase extends BaseTestCase
 
         return $this;
     }
+
+    /**
+     * Create a SuperAdmin user for testing.
+     * Uses a unique email to avoid collision with the DatabaseSeeder's admin@example.com.
+     */
+    protected function createSuperAdmin(): User
+    {
+        $admin = User::create([
+            'name' => 'Test Admin',
+            'email' => 'admin_test_'.uniqid().'@example.com',
+            'password' => bcrypt('password'),
+            'tenant_id' => null,
+        ]);
+
+        UserRole::create([
+            'user_id' => $admin->id,
+            'role' => Role::SuperAdmin,
+            'tenant_id' => null,
+        ]);
+
+        return $admin;
+    }
 }

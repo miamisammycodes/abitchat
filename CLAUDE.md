@@ -2,13 +2,18 @@
 
 ## Test Credentials
 
-**Client User:**
-- Email: `test@example.com`
-- Password: `password`
+All accounts use the password `password`.
 
-**Admin User:**
-- Email: `admin@example.com`
-- Password: `password`
+**Tenant: Test Company**
+- `admin@example.com` — Platform Admin (super_admin only; no tenant)
+- `test@example.com` — Owner of Test Company + Platform Admin (dual-role; exercises chooser flow)
+- `manager@example.com` — Manager of Test Company
+- `agent@example.com` — Agent of Test Company
+
+**Tenant: Demo Co**
+- `owner@demo.example` — Owner of Demo Co
+- `manager@demo.example` — Manager of Demo Co
+- `agent@demo.example` — Agent of Demo Co
 
 ## Development URLs
 
