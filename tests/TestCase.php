@@ -2,8 +2,10 @@
 
 namespace Tests;
 
+use App\Enums\Role;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Models\UserRole;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
@@ -21,7 +23,8 @@ abstract class TestCase extends BaseTestCase
     }
 
     /**
-     * Create a tenant with a user for testing
+     * Create a tenant with a user for testing.
+     * The user is assigned the Owner role so Gate checks pass for owner-level mutations.
      */
     protected function createTenantWithUser(): User
     {
@@ -36,6 +39,12 @@ abstract class TestCase extends BaseTestCase
             'name' => 'Test User',
             'email' => 'test@example.com',
             'password' => bcrypt('password'),
+            'tenant_id' => $this->tenant->id,
+        ]);
+
+        UserRole::create([
+            'user_id' => $this->user->id,
+            'role' => Role::Owner,
             'tenant_id' => $this->tenant->id,
         ]);
 
