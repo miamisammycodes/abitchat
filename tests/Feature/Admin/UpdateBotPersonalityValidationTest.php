@@ -4,24 +4,20 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Admin;
 
-use App\Models\AdminUser;
 use App\Models\Tenant;
+use App\Models\User;
 use Tests\TestCase;
 
 class UpdateBotPersonalityValidationTest extends TestCase
 {
-    private AdminUser $admin;
+    private User $admin;
 
     protected Tenant $tenantTarget;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->admin = AdminUser::create([
-            'name' => 'Admin',
-            'email' => 'admin@test.example',
-            'password' => bcrypt('password'),
-        ]);
+        $this->admin = $this->createSuperAdmin();
         $this->tenantTarget = Tenant::create([
             'name' => 'Tenant',
             'slug' => 'tenant',
@@ -37,7 +33,7 @@ class UpdateBotPersonalityValidationTest extends TestCase
             'bot_custom_instructions' => str_repeat('a', 1000),
         ];
 
-        $response = $this->actingAs($this->admin, 'admin')
+        $response = $this->actingAs($this->admin)
             ->put(route('admin.clients.update-bot-personality', $this->tenantTarget), $payload);
 
         $response->assertRedirect();
@@ -52,7 +48,7 @@ class UpdateBotPersonalityValidationTest extends TestCase
             'bot_custom_instructions' => str_repeat('a', 1001),
         ];
 
-        $response = $this->actingAs($this->admin, 'admin')
+        $response = $this->actingAs($this->admin)
             ->put(route('admin.clients.update-bot-personality', $this->tenantTarget), $payload);
 
         $response->assertRedirect();
@@ -67,7 +63,7 @@ class UpdateBotPersonalityValidationTest extends TestCase
             'bot_custom_instructions' => null,
         ];
 
-        $response = $this->actingAs($this->admin, 'admin')
+        $response = $this->actingAs($this->admin)
             ->put(route('admin.clients.update-bot-personality', $this->tenantTarget), $payload);
 
         $response->assertRedirect();

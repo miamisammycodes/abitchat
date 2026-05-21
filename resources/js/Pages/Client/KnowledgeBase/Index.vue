@@ -76,7 +76,7 @@ const getTypeIcon = (type) => {
       <!-- Header -->
       <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold text-foreground">Knowledge Base</h1>
-        <Button as-child>
+        <Button v-if="$page.props.auth.user.can.manage_knowledge_base" as-child>
           <Link :href="route('client.knowledge.create')">
             <Plus class="h-4 w-4 mr-2" />
             Add Knowledge
@@ -156,7 +156,7 @@ const getTypeIcon = (type) => {
             <FileText class="mx-auto h-12 w-12 text-muted-foreground" />
             <h3 class="mt-2 text-sm font-medium text-foreground">No knowledge items</h3>
             <p class="mt-1 text-sm text-muted-foreground">Get started by adding your first knowledge item.</p>
-            <div class="mt-6">
+            <div v-if="$page.props.auth.user.can.manage_knowledge_base" class="mt-6">
               <Button as-child>
                 <Link :href="route('client.knowledge.create')">
                   <Plus class="h-4 w-4 mr-2" />
@@ -195,7 +195,7 @@ const getTypeIcon = (type) => {
                   </Badge>
                   <div class="flex items-center gap-1">
                     <Button
-                      v-if="item.status === 'failed'"
+                      v-if="item.status === 'failed' && $page.props.auth.user.can.manage_knowledge_base"
                       variant="ghost"
                       size="icon"
                       title="Retry processing"
@@ -203,12 +203,12 @@ const getTypeIcon = (type) => {
                     >
                       <RefreshCw class="h-4 w-4 text-primary" />
                     </Button>
-                    <Button variant="ghost" size="icon" as-child>
+                    <Button v-if="$page.props.auth.user.can.manage_knowledge_base" variant="ghost" size="icon" as-child>
                       <Link :href="route('client.knowledge.edit', item.id)">
                         <Pencil class="h-4 w-4" />
                       </Link>
                     </Button>
-                    <Button variant="ghost" size="icon" @click="deleteItem(item)">
+                    <Button v-if="$page.props.auth.user.can.manage_knowledge_base" variant="ghost" size="icon" @click="deleteItem(item)">
                       <Trash2 class="h-4 w-4 text-destructive" />
                     </Button>
                   </div>

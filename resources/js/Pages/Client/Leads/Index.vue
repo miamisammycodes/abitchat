@@ -96,7 +96,7 @@ function exportCsv() {
       <!-- Header -->
       <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold text-foreground">Leads</h1>
-        <Button @click="exportCsv">
+        <Button v-if="$page.props.auth.user.can.manage_leads" @click="exportCsv">
           <Download class="h-4 w-4 mr-2" />
           Export CSV
         </Button>

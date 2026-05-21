@@ -83,7 +83,7 @@ const banks = [
             Scan with any Bhutanese bank app to pay. DK Bank payments are verified instantly;
             other banks require pasting your transaction reference after paying.
           </p>
-          <Button as-child>
+          <Button v-if="$page.props.auth.user.can.manage_billing" as-child>
             <Link :href="route('client.billing.dk-qr.start', plan.id)" method="post" as="button">
               Generate QR
             </Link>
@@ -250,7 +250,7 @@ const banks = [
                 </div>
 
                 <div class="flex items-center gap-4 pt-4">
-                  <Button type="submit" class="flex-1" :disabled="form.processing">
+                  <Button v-if="$page.props.auth.user.can.manage_billing" type="submit" class="flex-1" :disabled="form.processing">
                     {{ form.processing ? 'Submitting...' : 'Submit Payment' }}
                   </Button>
                   <Button variant="outline" as-child>

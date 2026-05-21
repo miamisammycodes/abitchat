@@ -130,7 +130,7 @@ function deleteLead() {
               Export
             </a>
           </Button>
-          <Button variant="outline" size="sm" @click="deleteLead" class="text-destructive hover:text-destructive">
+          <Button v-if="$page.props.auth.user.can.manage_leads" variant="outline" size="sm" @click="deleteLead" class="text-destructive hover:text-destructive">
             <Trash2 class="h-4 w-4 mr-2" />
             Delete
           </Button>
@@ -193,7 +193,7 @@ function deleteLead() {
           <Card>
             <CardHeader class="flex flex-row items-center justify-between">
               <CardTitle>Lead Score</CardTitle>
-              <Button variant="ghost" size="sm" @click="showScoreModal = true">
+              <Button v-if="$page.props.auth.user.can.manage_leads" variant="ghost" size="sm" @click="showScoreModal = true">
                 Adjust
               </Button>
             </CardHeader>
@@ -225,7 +225,7 @@ function deleteLead() {
           <Card>
             <CardHeader class="flex flex-row items-center justify-between">
               <CardTitle>Status</CardTitle>
-              <Button variant="ghost" size="sm" @click="showStatusModal = true">
+              <Button v-if="$page.props.auth.user.can.manage_leads" variant="ghost" size="sm" @click="showStatusModal = true">
                 Change
               </Button>
             </CardHeader>

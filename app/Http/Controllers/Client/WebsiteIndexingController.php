@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Client;
 
+use App\Enums\Ability;
 use App\Enums\CrawlMode;
 use App\Enums\CrawlSessionStatus;
 use App\Http\Controllers\Controller;
@@ -31,6 +32,7 @@ class WebsiteIndexingController extends Controller
 
     public function recrawl(Request $request): RedirectResponse
     {
+        $this->authorize(Ability::ManageTenantSettings->value);
         $tenant = $this->getTenant($request);
 
         if ($tenant->website_url === null) {

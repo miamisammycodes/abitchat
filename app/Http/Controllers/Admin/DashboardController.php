@@ -11,7 +11,6 @@ use App\Models\Tenant;
 use App\Models\Transaction;
 use App\Models\UsageRecord;
 use App\Models\User;
-use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -19,8 +18,6 @@ class DashboardController extends Controller
 {
     public function index(): Response
     {
-        $admin = Auth::guard('admin')->user();
-
         // Basic stats
         $totalTenants = Tenant::count();
         $activeTenants = Tenant::where('status', 'active')->count();

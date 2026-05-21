@@ -161,6 +161,24 @@ Plans:
 **Plans**: TBD
 **UI hint**: yes
 
+### Phase 16.1: Role Foundation (INSERTED)
+
+**Goal:** Unify the existing two-table/two-guard auth split into a single-guard four-role RBAC foundation (super_admin, owner, manager, agent) so one user can hold multiple roles (e.g. super_admin + owner-of-tenant), every controller/policy/UI surface is gated by the canonical permission matrix, and the trigger that exposed the half-baked role system (UpdateWebsiteIndexingRequest::authorize() calling deleted isOwner()) is resolved end-to-end.
+**Requirements**: D-01..D-21 (CONTEXT.md decisions; this is a foundation phase with no formal REQ-IDs in REQUIREMENTS.md — it prepares Phase 17's REQ-ctm-* / REQ-cdh-08 / REQ-ccm-08)
+**Depends on:** Phase 16
+**Plans:** 8/8 plans complete
+
+Plans:
+
+- [x] 16.1-01-PLAN.md — Wave 1: Backed Role + Ability enums, RolePermissions decision engine, Wave 0 test scaffolds
+- [x] 16.1-02-PLAN.md — Wave 2: Migration sequence (drop FKs, drop admin_users, re-point FKs, drop users.role, make tenant_id nullable, create user_roles), UserRole model, User multi-role methods, Transaction::approvedBy retarget, AdminUser deletion
+- [x] 16.1-03-PLAN.md — Wave 3: Single-guard cutover (drop admin guard), RequireSuperAdmin middleware, /login/choose chooser, role-aware LoginController redirect, webhook safety (Stripe + DK Bank stay anonymous)
+- [x] 16.1-04-PLAN.md — Wave 4: Gate registration in AppServiceProvider, 4 policy upgrades stacking ownership + role-tier, UpdateWebsiteIndexingRequest fix (THE TRIGGER)
+- [x] 16.1-05-PLAN.md — Wave 4: Client controllers authorize sweep (10 controllers), RegisterController writes UserRole(owner), AdminActivityLog::log() rewrite
+- [x] 16.1-06a-PLAN.md — Wave 5: HandleInertiaRequests share() emits auth.user.can flat map, RoleBadge + ContextSwitchChip components, ChooseRole.vue page, AdminLayout + ClientLayout updates
+- [x] 16.1-06b-PLAN.md — Wave 5: per-page v-if sweep across 16 Client Vue surfaces (admin pages stay gated by RequireSuperAdmin middleware), VueCanKeyAlignmentTest static guard catches template typos against Ability::cases()
+- [x] 16.1-07-PLAN.md — Wave 6: DatabaseSeeder rebuild (4-account matrix + Demo Co), CLAUDE.md test creds update, 52-cell role×ability matrix tests (Gate + RolePermissions levels), manual D-20 browser smoke checkpoint, end-of-phase PHPStan baseline=0 + Pint + cross-cutting grep guards
+
 ### Phase 17: Team Management
 
 **Goal**: Tenant owners can invite team members to their dashboard with role-based access control, and assign conversations to team members, enabling collaborative use of the platform.

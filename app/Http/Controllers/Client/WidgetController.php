@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Client;
 
+use App\Enums\Ability;
 use App\Http\Controllers\Controller;
 use App\Models\CrawlSession;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -17,11 +19,15 @@ class WidgetController extends Controller
     {
         $tenant = $this->getTenant($request);
 
+        // CR-01: api_key is a tenant secret — only expose to users with manage-tenant-settings.
+        // Below-Owner roles see a placeholder; the Vue layer hides regenerate/reveal controls.
+        $canManageSettings = Gate::allows(Ability::ManageTenantSettings->value);
+
         return Inertia::render('Client/Widget/Index', [
             'tenant' => [
                 'id' => $tenant->id,
                 'name' => $tenant->name,
-                'api_key' => $tenant->api_key,
+                'api_key' => $canManageSettings ? $tenant->api_key : null,
                 'settings' => $tenant->settings ?? [],
             ],
             'embedUrl' => $request->getSchemeAndHttpHost().'/widget/chatbot.js',
@@ -36,6 +42,7 @@ class WidgetController extends Controller
 
     public function update(Request $request): RedirectResponse
     {
+        $this->authorize(Ability::ManageTenantSettings->value);
         $validated = $request->validate([
             'welcome_message' => 'nullable|string|max:500',
             'primary_color' => 'nullable|string|max:7',
@@ -67,6 +74,7 @@ class WidgetController extends Controller
 
     public function regenerateApiKey(Request $request): RedirectResponse
     {
+        $this->authorize(Ability::ManageTenantSettings->value);
         // Cache invalidation is owned by Tenant::saved hook (CR-02 fix) —
         // the model layer evicts the old api_key-keyed cache slot uniformly
         // across all rotation paths. Per CLAUDE.md "no dual-system support."

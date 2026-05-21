@@ -84,7 +84,8 @@ function lastLabel(arr) {
         </div>
       </div>
 
-      <!-- Stats Overview -->
+      <!-- Stats Overview (only visible to roles with view_analytics_full) -->
+      <template v-if="$page.props.auth.user.can.view_analytics_full">
       <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <Card>
           <CardContent class="p-4">
@@ -380,6 +381,13 @@ function lastLabel(arr) {
             </div>
           </CardContent>
         </Card>
+      </div>
+      </template>
+
+      <!-- R4 empty state: shown when role lacks view_analytics_full -->
+      <div v-else class="rounded-md border border-dashed p-8 text-center bg-muted/30">
+        <h3 class="text-sm font-semibold text-foreground">No actions available</h3>
+        <p class="text-sm text-muted-foreground mt-2">Your role can view this page but not modify it. Ask your workspace owner if you need elevated access.</p>
       </div>
     </div>
   </ClientLayout>

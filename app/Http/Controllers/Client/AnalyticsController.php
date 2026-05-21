@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Client;
 
+use App\Enums\Ability;
 use App\Http\Controllers\Controller;
 use App\Services\Analytics\AnalyticsService;
 use Illuminate\Http\Request;
@@ -18,6 +19,7 @@ class AnalyticsController extends Controller
 
     public function index(Request $request): Response
     {
+        $this->authorize(Ability::ViewAnalyticsFull->value);
         $validated = $request->validate([
             'days' => 'nullable|integer|min:1|max:90',
         ]);

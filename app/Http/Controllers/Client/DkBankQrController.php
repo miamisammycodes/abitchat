@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Client;
 
+use App\Enums\Ability;
 use App\Exceptions\Billing\DkQrGenerationException;
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
@@ -21,6 +22,7 @@ final class DkBankQrController extends Controller
 
     public function start(Request $request, Plan $plan): RedirectResponse
     {
+        $this->authorize(Ability::ManageBilling->value);
         abort_if(! $plan->is_active, 404);
 
         $tenant = $this->getTenant($request);

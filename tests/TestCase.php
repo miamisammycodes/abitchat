@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests;
 
-use App\Models\AdminUser as Admin;
+use App\Enums\Role;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Models\UserRole;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
@@ -22,7 +25,8 @@ abstract class TestCase extends BaseTestCase
     }
 
     /**
-     * Create a tenant with a user for testing
+     * Create a tenant with a user for testing.
+     * The user is assigned the Owner role so Gate checks pass for owner-level mutations.
      */
     protected function createTenantWithUser(): User
     {
@@ -37,6 +41,12 @@ abstract class TestCase extends BaseTestCase
             'name' => 'Test User',
             'email' => 'test@example.com',
             'password' => bcrypt('password'),
+            'tenant_id' => $this->tenant->id,
+        ]);
+
+        UserRole::create([
+            'user_id' => $this->user->id,
+            'role' => Role::Owner,
             'tenant_id' => $this->tenant->id,
         ]);
 
@@ -55,14 +65,24 @@ abstract class TestCase extends BaseTestCase
     }
 
     /**
-     * Create an admin user
+     * Create a SuperAdmin user for testing.
+     * Uses a unique email to avoid collision with the DatabaseSeeder's admin@example.com.
      */
-    protected function createAdmin(): Admin
+    protected function createSuperAdmin(): User
     {
-        return Admin::create([
+        $admin = User::create([
             'name' => 'Test Admin',
-            'email' => 'admin@example.com',
+            'email' => 'admin_test_'.uniqid().'@example.com',
             'password' => bcrypt('password'),
+            'tenant_id' => null,
         ]);
+
+        UserRole::create([
+            'user_id' => $admin->id,
+            'role' => Role::SuperAdmin,
+            'tenant_id' => null,
+        ]);
+
+        return $admin;
     }
 }

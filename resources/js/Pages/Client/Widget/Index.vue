@@ -189,7 +189,7 @@ function recrawlNow() {
                   Copy
                 </Button>
               </div>
-              <Button variant="ghost" size="sm" class="text-destructive" @click="regenerateApiKey">
+              <Button v-if="$page.props.auth.user.can.manage_tenant_settings" variant="ghost" size="sm" class="text-destructive" @click="regenerateApiKey">
                 <RefreshCw class="h-4 w-4 mr-2" />
                 Regenerate API Key
               </Button>
@@ -290,7 +290,7 @@ function recrawlNow() {
                   />
                 </div>
 
-                <Button type="submit" class="w-full" :disabled="form.processing">
+                <Button v-if="$page.props.auth.user.can.manage_tenant_settings" type="submit" class="w-full" :disabled="form.processing">
                   {{ form.processing ? 'Saving...' : 'Save Settings' }}
                 </Button>
               </form>
@@ -316,7 +316,7 @@ function recrawlNow() {
                   <input type="checkbox" id="auto_recrawl" v-model="indexingForm.auto_recrawl" />
                   <Label for="auto_recrawl">Re-crawl my site daily</Label>
                 </div>
-                <div class="flex gap-2">
+                <div v-if="$page.props.auth.user.can.manage_tenant_settings" class="flex gap-2">
                   <Button type="submit" :disabled="indexingForm.processing">Save</Button>
                   <Button type="button" variant="outline" @click="recrawlNow" :disabled="!indexingForm.website_url">
                     Re-crawl now

@@ -4,24 +4,20 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Admin;
 
-use App\Models\AdminUser;
 use App\Models\Plan;
 use App\Models\Tenant;
 use App\Models\Transaction;
+use App\Models\User;
 use Tests\TestCase;
 
 class ApproveInactivePlanTest extends TestCase
 {
-    private AdminUser $admin;
+    private User $admin;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->admin = AdminUser::create([
-            'name' => 'Admin',
-            'email' => 'admin@test.example',
-            'password' => bcrypt('password'),
-        ]);
+        $this->admin = $this->createSuperAdmin();
         $this->tenant = Tenant::create([
             'name' => 'Tenant',
             'slug' => 'tenant',
@@ -59,7 +55,7 @@ class ApproveInactivePlanTest extends TestCase
         ]);
         $txn = $this->makePendingTransaction($plan);
 
-        $response = $this->actingAs($this->admin, 'admin')
+        $response = $this->actingAs($this->admin)
             ->post(route('admin.transactions.approve', $txn));
 
         $response->assertRedirect();
@@ -90,7 +86,7 @@ class ApproveInactivePlanTest extends TestCase
         ]);
         $txn = $this->makePendingTransaction($plan);
 
-        $response = $this->actingAs($this->admin, 'admin')
+        $response = $this->actingAs($this->admin)
             ->post(route('admin.transactions.approve', $txn));
 
         $response->assertRedirect();

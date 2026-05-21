@@ -3,6 +3,8 @@ import { ref, computed } from 'vue'
 import { Link, usePage, router } from '@inertiajs/vue3'
 import { Button } from '@/Components/ui/button'
 import { Avatar, AvatarFallback } from '@/Components/ui/avatar'
+import RoleBadge from '@/Components/RoleBadge.vue'
+import ContextSwitchChip from '@/Components/ContextSwitchChip.vue'
 import {
   LayoutDashboard,
   MessageSquare,
@@ -23,6 +25,7 @@ import { useTheme } from '@/composables/useTheme'
 
 const page = usePage()
 const user = computed(() => page.props.auth?.user)
+const primaryRole = computed(() => user.value?.primary_role ?? null)
 const tenant = computed(() => page.props.tenant)
 const usageWarnings = computed(() => page.props.usageWarnings ?? [])
 const usageStats = computed(() => page.props.usageStats ?? [])
@@ -150,6 +153,9 @@ const getInitials = (name) => {
         </Button>
 
         <div class="flex flex-1 items-center justify-end gap-4">
+          <!-- Context switch (only visible for dual-role users) -->
+          <ContextSwitchChip :user="user" context="client" />
+
           <!-- Theme toggle -->
           <Button variant="ghost" size="icon" @click="toggleTheme" title="Toggle theme">
             <Sun v-if="theme === 'dark'" class="h-5 w-5" />
@@ -166,6 +172,7 @@ const getInitials = (name) => {
               <Avatar class="h-8 w-8">
                 <AvatarFallback class="text-xs">{{ getInitials(user?.name) }}</AvatarFallback>
               </Avatar>
+              <RoleBadge :role="primaryRole" />
               <span class="hidden sm:block text-sm font-medium">{{ user?.name }}</span>
               <ChevronDown class="h-4 w-4 text-muted-foreground" />
             </Button>

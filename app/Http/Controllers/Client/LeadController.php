@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Client;
 
+use App\Enums\Ability;
 use App\Http\Controllers\Controller;
 use App\Models\Lead;
 use App\Services\Leads\LeadService;
@@ -96,6 +97,7 @@ class LeadController extends Controller
 
     public function update(Request $request, Lead $lead): RedirectResponse
     {
+        $this->authorize(Ability::ManageLeads->value);
         $this->authorize('update', $lead);
 
         $validated = $request->validate([
@@ -128,6 +130,7 @@ class LeadController extends Controller
 
     public function destroy(Request $request, Lead $lead): RedirectResponse
     {
+        $this->authorize(Ability::ManageLeads->value);
         $this->authorize('delete', $lead);
 
         $lead->delete();
@@ -138,6 +141,7 @@ class LeadController extends Controller
 
     public function exportSingle(Request $request, Lead $lead): StreamedResponse
     {
+        $this->authorize(Ability::ManageLeads->value);
         $this->authorize('view', $lead);
 
         $lead->load(['conversation.messages']);
@@ -189,6 +193,7 @@ class LeadController extends Controller
 
     public function export(Request $request): StreamedResponse
     {
+        $this->authorize(Ability::ManageLeads->value);
         $tenant = $this->getTenant($request);
 
         $query = Lead::forTenant($tenant);

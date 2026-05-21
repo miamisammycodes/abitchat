@@ -6,10 +6,12 @@ namespace Tests\Feature\Client;
 
 use App\Enums\CrawlMode;
 use App\Enums\CrawlSessionStatus;
+use App\Enums\Role;
 use App\Jobs\CrawlWebsiteJob;
 use App\Models\CrawlSession;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Models\UserRole;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Tests\TestCase;
@@ -21,7 +23,8 @@ class WebsiteIndexingControllerTest extends TestCase
     public function test_update_changes_website_url(): void
     {
         $tenant = Tenant::factory()->create(['website_url' => null]);
-        $user = User::factory()->create(['tenant_id' => $tenant->id, 'role' => 'owner']);
+        $user = User::factory()->create(['tenant_id' => $tenant->id]);
+        UserRole::create(['user_id' => $user->id, 'role' => Role::Owner, 'tenant_id' => $tenant->id]);
 
         $response = $this->actingAs($user)->patch('/widget-settings/website-indexing', [
             'website_url' => 'https://newsite.com',
@@ -37,7 +40,8 @@ class WebsiteIndexingControllerTest extends TestCase
     {
         Bus::fake();
         $tenant = Tenant::factory()->create(['website_url' => 'https://example.com']);
-        $user = User::factory()->create(['tenant_id' => $tenant->id, 'role' => 'owner']);
+        $user = User::factory()->create(['tenant_id' => $tenant->id]);
+        UserRole::create(['user_id' => $user->id, 'role' => Role::Owner, 'tenant_id' => $tenant->id]);
 
         $response = $this->actingAs($user)->post('/widget-settings/website-indexing/recrawl');
 
@@ -49,7 +53,8 @@ class WebsiteIndexingControllerTest extends TestCase
     {
         Bus::fake();
         $tenant = Tenant::factory()->create(['website_url' => 'https://example.com']);
-        $user = User::factory()->create(['tenant_id' => $tenant->id, 'role' => 'owner']);
+        $user = User::factory()->create(['tenant_id' => $tenant->id]);
+        UserRole::create(['user_id' => $user->id, 'role' => Role::Owner, 'tenant_id' => $tenant->id]);
         CrawlSession::factory()->forTenant($tenant)->create([
             'status' => CrawlSessionStatus::Completed,
             'started_at' => now()->subMinutes(30),
@@ -66,7 +71,8 @@ class WebsiteIndexingControllerTest extends TestCase
     {
         Bus::fake();
         $tenant = Tenant::factory()->create(['website_url' => 'https://example.com']);
-        $user = User::factory()->create(['tenant_id' => $tenant->id, 'role' => 'owner']);
+        $user = User::factory()->create(['tenant_id' => $tenant->id]);
+        UserRole::create(['user_id' => $user->id, 'role' => Role::Owner, 'tenant_id' => $tenant->id]);
         // A previous click queued a job that the worker hasn't picked up yet.
         // started_at is NULL — older cooldown-by-started_at logic would let
         // a second click slip through. New logic blocks via status check.
@@ -86,7 +92,8 @@ class WebsiteIndexingControllerTest extends TestCase
     {
         Bus::fake();
         $tenant = Tenant::factory()->create(['website_url' => 'https://example.com']);
-        $user = User::factory()->create(['tenant_id' => $tenant->id, 'role' => 'owner']);
+        $user = User::factory()->create(['tenant_id' => $tenant->id]);
+        UserRole::create(['user_id' => $user->id, 'role' => Role::Owner, 'tenant_id' => $tenant->id]);
         CrawlSession::factory()->forTenant($tenant)->create([
             'status' => CrawlSessionStatus::Completed,
             'started_at' => now()->subHours(2),
@@ -103,7 +110,8 @@ class WebsiteIndexingControllerTest extends TestCase
     {
         Bus::fake();
         $tenant = Tenant::factory()->create(['website_url' => 'https://old.com']);
-        $user = User::factory()->create(['tenant_id' => $tenant->id, 'role' => 'owner']);
+        $user = User::factory()->create(['tenant_id' => $tenant->id]);
+        UserRole::create(['user_id' => $user->id, 'role' => Role::Owner, 'tenant_id' => $tenant->id]);
 
         $this->actingAs($user)->patch('/widget-settings/website-indexing', [
             'website_url' => null,
@@ -117,7 +125,8 @@ class WebsiteIndexingControllerTest extends TestCase
     public function test_latest_status_returns_null_when_no_session(): void
     {
         $tenant = Tenant::factory()->create();
-        $user = User::factory()->create(['tenant_id' => $tenant->id, 'role' => 'owner']);
+        $user = User::factory()->create(['tenant_id' => $tenant->id]);
+        UserRole::create(['user_id' => $user->id, 'role' => Role::Owner, 'tenant_id' => $tenant->id]);
 
         $response = $this->actingAs($user)->getJson('/widget-settings/website-indexing/status');
 
@@ -127,7 +136,8 @@ class WebsiteIndexingControllerTest extends TestCase
     public function test_latest_status_returns_latest_session_for_tenant(): void
     {
         $tenant = Tenant::factory()->create();
-        $user = User::factory()->create(['tenant_id' => $tenant->id, 'role' => 'owner']);
+        $user = User::factory()->create(['tenant_id' => $tenant->id]);
+        UserRole::create(['user_id' => $user->id, 'role' => Role::Owner, 'tenant_id' => $tenant->id]);
         CrawlSession::factory()->forTenant($tenant)->create([
             'status' => CrawlSessionStatus::Completed,
             'pages_indexed' => 5,
@@ -150,7 +160,8 @@ class WebsiteIndexingControllerTest extends TestCase
     {
         $tenantA = Tenant::factory()->create();
         $tenantB = Tenant::factory()->create();
-        $userA = User::factory()->create(['tenant_id' => $tenantA->id, 'role' => 'owner']);
+        $userA = User::factory()->create(['tenant_id' => $tenantA->id]);
+        UserRole::create(['user_id' => $userA->id, 'role' => Role::Owner, 'tenant_id' => $tenantA->id]);
         CrawlSession::factory()->forTenant($tenantB)->create([
             'status' => CrawlSessionStatus::Running,
         ]);

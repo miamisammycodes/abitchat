@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Enums\Role;
 use App\Models\Conversation;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Models\UserRole;
 use Illuminate\Support\Facades\Cache;
 use Tests\Concerns\AuthenticatesWidget;
 use Tests\TestCase;
@@ -39,6 +41,11 @@ class WidgetApiTest extends TestCase
             'name' => 'Owner',
             'email' => 'owner-'.uniqid().'@example.com',
             'password' => bcrypt('password'),
+            'tenant_id' => $this->widgetTenant->id,
+        ]);
+        UserRole::create([
+            'user_id' => $user->id,
+            'role' => Role::Owner,
             'tenant_id' => $this->widgetTenant->id,
         ]);
 

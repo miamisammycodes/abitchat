@@ -4,20 +4,18 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Admin;
 
-use App\Models\AdminUser;
 use App\Models\Tenant;
+use App\Models\User;
 use Tests\TestCase;
 
 class AdminClientTrashedTest extends TestCase
 {
-    private AdminUser $admin;
+    private User $admin;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->admin = AdminUser::create([
-            'name' => 'A', 'email' => 'a@test.example', 'password' => bcrypt('x'),
-        ]);
+        $this->admin = $this->createSuperAdmin();
     }
 
     public function test_index_hides_soft_deleted_tenants_by_default(): void
@@ -32,7 +30,7 @@ class AdminClientTrashedTest extends TestCase
         ]);
         $deleted->delete();
 
-        $response = $this->actingAs($this->admin, 'admin')->get('/admin/clients');
+        $response = $this->actingAs($this->admin)->get('/admin/clients');
         $response->assertStatus(200);
 
         $clientIds = collect($response->viewData('page')['props']['clients']['data'])->pluck('id')->all();
@@ -52,7 +50,7 @@ class AdminClientTrashedTest extends TestCase
         ]);
         $deleted->delete();
 
-        $response = $this->actingAs($this->admin, 'admin')->get('/admin/clients?trashed=with');
+        $response = $this->actingAs($this->admin)->get('/admin/clients?trashed=with');
         $response->assertStatus(200);
 
         $clientIds = collect($response->viewData('page')['props']['clients']['data'])->pluck('id')->all();
@@ -72,7 +70,7 @@ class AdminClientTrashedTest extends TestCase
         ]);
         $deleted->delete();
 
-        $response = $this->actingAs($this->admin, 'admin')->get('/admin/clients?trashed=only');
+        $response = $this->actingAs($this->admin)->get('/admin/clients?trashed=only');
         $response->assertStatus(200);
 
         $clientIds = collect($response->viewData('page')['props']['clients']['data'])->pluck('id')->all();
@@ -90,7 +88,7 @@ class AdminClientTrashedTest extends TestCase
 
         $this->assertNotNull($tenant->fresh()->deleted_at);
 
-        $response = $this->actingAs($this->admin, 'admin')
+        $response = $this->actingAs($this->admin)
             ->post("/admin/clients/{$tenant->id}/restore");
 
         $response->assertRedirect(route('admin.clients.show', $tenant->id));

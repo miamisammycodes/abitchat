@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Enums\Ability;
+use App\Enums\Role;
 use App\Models\CrawlSession;
+use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Middleware;
 use Tighten\Ziggy\Ziggy;
 
@@ -24,10 +27,17 @@ class HandleInertiaRequests extends Middleware
     /**
      * Determines the current asset version.
      *
+     * Returns null in the testing env so tests do not need to compute and send
+     * `X-Inertia-Version` headers. In all other envs, the manifest hash is used.
+     *
      * @see https://inertiajs.com/asset-versioning
      */
     public function version(Request $request): ?string
     {
+        if (app()->environment('testing')) {
+            return null;
+        }
+
         return parent::version($request);
     }
 
@@ -40,19 +50,20 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
-        $admin = Auth::guard('admin')->user();
-        $tenant = $request->user()?->tenant;
+        $user = $request->user();
+
+        if ($user !== null) {
+            // Eager-load roles once per request (N+1 protection — T-16.1.06a-03).
+            // loadMissing ensures we don't double-query if roles were already loaded.
+            $user->loadMissing('roles');
+        }
+
+        $tenant = $user?->tenant;
 
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $request->user(),
-                'admin' => $admin ? [
-                    'id' => $admin->id,
-                    'name' => $admin->name,
-                    'email' => $admin->email,
-                    'role' => $admin->role,
-                ] : null,
+                'user' => $user !== null ? $this->buildAuthUser($user, $request) : null,
             ],
             'tenant' => $tenant ? [
                 'id' => $tenant->id,
@@ -72,6 +83,117 @@ class HandleInertiaRequests extends Middleware
             'dkBankEnabled' => (bool) config('services.dk_bank.enabled'),
             'latest_crawl_session' => fn () => $this->latestCrawlSession($request),
         ];
+    }
+
+    /**
+     * Build the unified auth.user payload.
+     *
+     * Emits:
+     *   - Standard user fields (id, name, email, tenant_id)
+     *   - can: flat map of all 13 Ability slugs (snake_case) → bool
+     *   - roles: array of role value strings assigned to this user
+     *   - has_super_admin_role: bool
+     *   - has_tenant_role: bool (any non-platform-level role row exists)
+     *   - primary_role: {value, label} derived from URL context
+     *
+     * NOTE: The can map runs Gate::forUser() per request — intentionally not cached
+     * to prevent stale permission leakage (T-16.1.06a-03 threat mitigation).
+     *
+     * @return array<string, mixed>
+     */
+    private function buildAuthUser(User $user, Request $request): array
+    {
+        $hasSuperAdminRole = $user->hasRole(Role::SuperAdmin);
+
+        $hasTenantRole = $user->roles->contains(
+            fn ($ur) => ! $ur->role->isPlatformLevel(),
+        );
+
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'tenant_id' => $user->tenant_id,
+            'can' => $this->buildAbilityMap($user),
+            'roles' => $user->roles->map(fn ($ur) => $ur->role->value)->values()->all(),
+            'has_super_admin_role' => $hasSuperAdminRole,
+            'has_tenant_role' => $hasTenantRole,
+            'primary_role' => $this->resolvePrimaryRole($user, $request, $hasSuperAdminRole),
+        ];
+    }
+
+    /**
+     * Build the flat ability map: snake_case slug → bool.
+     *
+     * Iterates every Ability case and evaluates the registered Gate for the user.
+     * Result is NOT cached — must reflect current role state per request.
+     *
+     * @return array<string, bool>
+     */
+    private function buildAbilityMap(User $user): array
+    {
+        $can = [];
+
+        foreach (Ability::cases() as $ability) {
+            $snakeKey = str_replace('-', '_', $ability->value);
+            $can[$snakeKey] = Gate::forUser($user)->check($ability->value);
+        }
+
+        return $can;
+    }
+
+    /**
+     * Resolve the primary role for URL-context-aware display.
+     *
+     * Logic:
+     * - On /admin/* routes AND user has SuperAdmin role → SuperAdmin is primary
+     * - Otherwise → highest-rank tenant-scoped role (by Role::rank())
+     * - If no tenant roles → null
+     *
+     * @return array{value: string, label: string}|null
+     */
+    private function resolvePrimaryRole(User $user, Request $request, bool $hasSuperAdminRole): ?array
+    {
+        $isAdminRoute = str_starts_with($request->path(), 'admin/') || $request->path() === 'admin';
+
+        if ($isAdminRoute && $hasSuperAdminRole) {
+            return [
+                'value' => Role::SuperAdmin->value,
+                'label' => Role::SuperAdmin->label(),
+            ];
+        }
+
+        // Find highest-rank tenant-scoped role
+        $bestRole = null;
+        $bestRank = -1;
+
+        foreach ($user->roles as $ur) {
+            if ($ur->role->isPlatformLevel()) {
+                continue;
+            }
+
+            if ($ur->role->rank() > $bestRank) {
+                $bestRank = $ur->role->rank();
+                $bestRole = $ur->role;
+            }
+        }
+
+        if ($bestRole !== null) {
+            return [
+                'value' => $bestRole->value,
+                'label' => $bestRole->label(),
+            ];
+        }
+
+        // SuperAdmin with no tenant role on non-admin route
+        if ($hasSuperAdminRole) {
+            return [
+                'value' => Role::SuperAdmin->value,
+                'label' => Role::SuperAdmin->label(),
+            ];
+        }
+
+        return null;
     }
 
     /**

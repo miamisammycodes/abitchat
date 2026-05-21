@@ -168,6 +168,7 @@ onUnmounted(() => { stopPolling() })
           />
           <p v-if="rrnError" class="text-sm text-destructive">{{ rrnError }}</p>
           <Button
+            v-if="$page.props.auth.user.can.manage_billing"
             @click="submitRrn"
             :disabled="state === 'verifying' || state === 'paid' || !rrn"
             class="w-full"

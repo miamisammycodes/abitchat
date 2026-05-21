@@ -16,7 +16,16 @@ const route = useRoute()
 
 const props = defineProps({
   item: Object,
+  chunks: { type: Array, default: () => [] },
+  chunks_with_embedding: { type: Number, default: 0 },
 })
+
+const embeddingSummary = () => {
+  const total = props.chunks.length
+  if (total === 0) return null
+  if (props.chunks_with_embedding === total) return `${total} embedded`
+  return `${props.chunks_with_embedding} / ${total} embedded`
+}
 
 const deleteItem = () => {
   if (confirm('Are you sure you want to delete this item?')) {
@@ -50,17 +59,17 @@ const getStatusVariant = (status) => {
           <p class="text-muted-foreground mt-1">Knowledge item details</p>
         </div>
         <div class="flex items-center gap-2 flex-shrink-0">
-          <Button variant="outline" size="sm" @click="reprocess">
+          <Button v-if="$page.props.auth.user.can.manage_knowledge_base" variant="outline" size="sm" @click="reprocess">
             <RefreshCw class="h-4 w-4 mr-2" />
             Reprocess
           </Button>
-          <Button variant="outline" size="sm" as-child>
+          <Button v-if="$page.props.auth.user.can.manage_knowledge_base" variant="outline" size="sm" as-child>
             <Link :href="route('client.knowledge.edit', item.id)">
               <Pencil class="h-4 w-4 mr-2" />
               Edit
             </Link>
           </Button>
-          <Button variant="outline" size="sm" @click="deleteItem" class="text-destructive hover:text-destructive">
+          <Button v-if="$page.props.auth.user.can.manage_knowledge_base" variant="outline" size="sm" @click="deleteItem" class="text-destructive hover:text-destructive">
             <Trash2 class="h-4 w-4 mr-2" />
             Delete
           </Button>
@@ -120,6 +129,37 @@ const getStatusVariant = (status) => {
               </dd>
             </div>
           </dl>
+        </CardContent>
+      </Card>
+
+      <!-- Chunks Card -->
+      <Card>
+        <CardHeader class="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Chunks</CardTitle>
+            <CardDescription>Text segments indexed for retrieval</CardDescription>
+          </div>
+          <Badge v-if="embeddingSummary()" variant="secondary">
+            {{ embeddingSummary() }}
+          </Badge>
+        </CardHeader>
+        <CardContent>
+          <p v-if="chunks.length === 0" class="text-sm text-muted-foreground">
+            No chunks yet — item has not been processed, or processing failed.
+          </p>
+          <div v-else class="space-y-3">
+            <div
+              v-for="chunk in chunks"
+              :key="chunk.index"
+              class="border border-border rounded-lg overflow-hidden"
+            >
+              <div class="flex items-center justify-between px-4 py-2 bg-muted/40 text-sm">
+                <span class="font-mono font-medium text-foreground">Chunk #{{ chunk.index }}</span>
+                <span class="text-muted-foreground">{{ chunk.chars }} chars</span>
+              </div>
+              <pre class="px-4 py-3 text-sm text-foreground whitespace-pre-wrap font-mono max-h-48 overflow-y-auto">{{ chunk.content }}</pre>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

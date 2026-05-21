@@ -149,7 +149,7 @@ function unarchive() {
                 Export transcript
               </a>
               <button
-                v-if="conversation.status !== 'archived'"
+                v-if="conversation.status !== 'archived' && $page.props.auth.user.can.manage_conversations"
                 @click="archive"
                 class="flex w-full items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-muted"
               >
@@ -157,7 +157,7 @@ function unarchive() {
                 Archive
               </button>
               <button
-                v-else
+                v-else-if="conversation.status === 'archived' && $page.props.auth.user.can.manage_conversations"
                 @click="unarchive"
                 class="flex w-full items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-muted"
               >

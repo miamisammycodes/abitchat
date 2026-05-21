@@ -3,7 +3,8 @@ import { ref, computed } from 'vue'
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import { useRoute } from '@/composables/useRoute'
 import { Button } from '@/Components/ui/button'
-import { Badge } from '@/Components/ui/badge'
+import RoleBadge from '@/Components/RoleBadge.vue'
+import ContextSwitchChip from '@/Components/ContextSwitchChip.vue'
 import {
   LayoutDashboard,
   Building2,
@@ -30,7 +31,8 @@ defineProps({
   }
 })
 
-const admin = computed(() => page.props.auth?.admin || {})
+const user = computed(() => page.props.auth?.user ?? null)
+const primaryRole = computed(() => user.value?.primary_role ?? null)
 const sidebarOpen = ref(false)
 
 const navigation = [
@@ -138,10 +140,9 @@ const logout = () => {
             <h1 class="text-lg font-semibold text-foreground">{{ title }}</h1>
           </div>
           <div class="flex items-center gap-4">
-            <span class="text-sm text-muted-foreground">{{ admin.name }}</span>
-            <Badge variant="secondary">
-              {{ admin.role }}
-            </Badge>
+            <ContextSwitchChip :user="user" context="admin" />
+            <span class="text-sm text-muted-foreground">{{ user?.name }}</span>
+            <RoleBadge :role="primaryRole" />
             <Button variant="ghost" size="icon" @click="toggleTheme" title="Toggle theme" class="text-muted-foreground hover:text-foreground">
               <Sun v-if="theme === 'dark'" class="h-5 w-5" />
               <Moon v-else class="h-5 w-5" />

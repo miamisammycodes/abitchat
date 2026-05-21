@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Client;
 
+use App\Enums\Ability;
 use App\Enums\KnowledgeItemStatus;
 use App\Http\Controllers\Controller;
 use App\Jobs\ProcessKnowledgeItem;
@@ -76,6 +77,7 @@ class KnowledgeBaseController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $this->authorize(Ability::ManageKnowledgeBase->value);
         $tenant = $this->getTenant();
 
         $validated = $request->validate([
@@ -131,6 +133,18 @@ class KnowledgeBaseController extends Controller
 
         $item->loadCount('chunks');
 
+        $chunks = $item->chunks()
+            ->orderBy('chunk_index')
+            ->get(['id', 'chunk_index', 'content'])
+            ->map(fn ($chunk) => [
+                'index' => $chunk->chunk_index,
+                'content' => (string) $chunk->content,
+                'chars' => mb_strlen((string) $chunk->content),
+            ])
+            ->all();
+
+        $chunksWithEmbedding = $item->chunks()->whereNotNull('embedding')->count();
+
         return Inertia::render('Client/KnowledgeBase/Show', [
             'item' => [
                 'id' => $item->id,
@@ -146,6 +160,8 @@ class KnowledgeBaseController extends Controller
                 'error_message' => $item->error_message,
                 'failed_at' => $item->failed_at?->format('M d, Y H:i'),
             ],
+            'chunks' => $chunks,
+            'chunks_with_embedding' => $chunksWithEmbedding,
         ]);
     }
 
@@ -166,6 +182,7 @@ class KnowledgeBaseController extends Controller
 
     public function update(Request $request, KnowledgeItem $item): RedirectResponse
     {
+        $this->authorize(Ability::ManageKnowledgeBase->value);
         $this->authorize('update', $item);
 
         $validated = $request->validate([
@@ -194,6 +211,7 @@ class KnowledgeBaseController extends Controller
 
     public function destroy(Request $request, KnowledgeItem $item): RedirectResponse
     {
+        $this->authorize(Ability::ManageKnowledgeBase->value);
         $this->authorize('delete', $item);
 
         Log::debug('[Knowledge] (NO $) Deleting item', [
@@ -229,6 +247,7 @@ class KnowledgeBaseController extends Controller
 
     public function reprocess(KnowledgeItem $item): RedirectResponse
     {
+        $this->authorize(Ability::ManageKnowledgeBase->value);
         $this->authorize('update', $item);
 
         $item->chunks()->delete();
@@ -247,6 +266,7 @@ class KnowledgeBaseController extends Controller
 
     public function retry(KnowledgeItem $item): RedirectResponse
     {
+        $this->authorize(Ability::ManageKnowledgeBase->value);
         $this->authorize('update', $item);
 
         $this->workflow->retry($item);
