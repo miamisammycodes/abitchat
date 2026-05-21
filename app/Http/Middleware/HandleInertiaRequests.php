@@ -27,10 +27,17 @@ class HandleInertiaRequests extends Middleware
     /**
      * Determines the current asset version.
      *
+     * Returns null in the testing env so tests do not need to compute and send
+     * `X-Inertia-Version` headers. In all other envs, the manifest hash is used.
+     *
      * @see https://inertiajs.com/asset-versioning
      */
     public function version(Request $request): ?string
     {
+        if (app()->environment('testing')) {
+            return null;
+        }
+
         return parent::version($request);
     }
 

@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Client;
 
+use App\Enums\Role;
 use App\Models\CrawlSession;
 use App\Models\CrawlUrlBlocklist;
 use App\Models\KnowledgeItem;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Models\UserRole;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -19,7 +21,8 @@ class KnowledgeBaseCrawlIntegrationTest extends TestCase
     public function test_index_filters_by_crawl_session_id(): void
     {
         $tenant = Tenant::factory()->create();
-        $user = User::factory()->create(['tenant_id' => $tenant->id, 'role' => 'owner']);
+        $user = User::factory()->create(['tenant_id' => $tenant->id]);
+        UserRole::create(['user_id' => $user->id, 'role' => Role::Owner, 'tenant_id' => $tenant->id]);
         $session = CrawlSession::factory()->forTenant($tenant)->create();
 
         KnowledgeItem::factory()->forTenant($tenant)->count(2)->create([
@@ -38,7 +41,8 @@ class KnowledgeBaseCrawlIntegrationTest extends TestCase
     public function test_destroying_webpage_item_adds_to_blocklist_when_confirmed(): void
     {
         $tenant = Tenant::factory()->create();
-        $user = User::factory()->create(['tenant_id' => $tenant->id, 'role' => 'owner']);
+        $user = User::factory()->create(['tenant_id' => $tenant->id]);
+        UserRole::create(['user_id' => $user->id, 'role' => Role::Owner, 'tenant_id' => $tenant->id]);
         $item = KnowledgeItem::factory()->forTenant($tenant)->webpage('https://example.com/x', 'https://example.com/x')->create();
 
         $this->actingAs($user)->delete("/knowledge/{$item->id}", ['blocklist' => true]);
@@ -52,7 +56,8 @@ class KnowledgeBaseCrawlIntegrationTest extends TestCase
     public function test_destroying_webpage_item_skips_blocklist_when_not_confirmed(): void
     {
         $tenant = Tenant::factory()->create();
-        $user = User::factory()->create(['tenant_id' => $tenant->id, 'role' => 'owner']);
+        $user = User::factory()->create(['tenant_id' => $tenant->id]);
+        UserRole::create(['user_id' => $user->id, 'role' => Role::Owner, 'tenant_id' => $tenant->id]);
         $item = KnowledgeItem::factory()->forTenant($tenant)->webpage('https://example.com/y', 'https://example.com/y')->create();
 
         $this->actingAs($user)->delete("/knowledge/{$item->id}", ['blocklist' => false]);
@@ -66,7 +71,8 @@ class KnowledgeBaseCrawlIntegrationTest extends TestCase
     public function test_destroying_non_webpage_does_not_touch_blocklist(): void
     {
         $tenant = Tenant::factory()->create();
-        $user = User::factory()->create(['tenant_id' => $tenant->id, 'role' => 'owner']);
+        $user = User::factory()->create(['tenant_id' => $tenant->id]);
+        UserRole::create(['user_id' => $user->id, 'role' => Role::Owner, 'tenant_id' => $tenant->id]);
         $item = KnowledgeItem::factory()->forTenant($tenant)->create(['type' => 'text']);
 
         $this->actingAs($user)->delete("/knowledge/{$item->id}", ['blocklist' => true]);

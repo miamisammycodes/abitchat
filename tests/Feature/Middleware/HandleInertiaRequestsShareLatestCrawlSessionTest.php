@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Middleware;
 
+use App\Enums\Role;
 use App\Models\CrawlSession;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Models\UserRole;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -18,6 +20,11 @@ class HandleInertiaRequestsShareLatestCrawlSessionTest extends TestCase
     {
         $tenant = Tenant::factory()->create();
         $user = User::factory()->create(['tenant_id' => $tenant->id]);
+        UserRole::create([
+            'user_id' => $user->id,
+            'role' => Role::Owner,
+            'tenant_id' => $tenant->id,
+        ]);
         $session = CrawlSession::factory()->forTenant($tenant)->create();
 
         $response = $this->actingAs($user)->get('/dashboard');
