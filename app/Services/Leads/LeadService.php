@@ -203,6 +203,12 @@ class LeadService
 
         if ($recipients->isNotEmpty()) {
             Notification::send($recipients, new NewLeadNotification($lead));
+        } else {
+            Log::warning('[Email] (NO $) Lead notification skipped — tenant has no owners', [
+                'tenant_id' => $lead->tenant_id,
+                'lead_id' => $lead->id,
+                'email_type' => EmailType::LeadNotification->value,
+            ]);
         }
     }
 

@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 
 class Transaction extends Model
@@ -174,6 +175,12 @@ class Transaction extends Model
 
                 if ($recipients->isNotEmpty()) {
                     Notification::send($recipients, new PaymentReceiptNotification($locked));
+                } else {
+                    Log::warning('[Email] (NO $) Receipt skipped — tenant has no owners', [
+                        'tenant_id' => $locked->tenant->id,
+                        'transaction_id' => $locked->id,
+                        'email_type' => EmailType::Receipt->value,
+                    ]);
                 }
             });
         });
