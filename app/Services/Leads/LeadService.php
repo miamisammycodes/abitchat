@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Services\Leads;
 
+use App\Enums\EmailType;
 use App\Models\Conversation;
 use App\Models\Lead;
 use App\Models\Tenant;
-use App\Notifications\NewLeadNotification;
+use App\Notifications\Leads\NewLeadNotification;
+use App\Services\Email\RecipientResolver;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 
 class LeadService
 {
@@ -195,27 +198,16 @@ class LeadService
      */
     private function notifyNewLead(Lead $lead): void
     {
-        try {
-            $tenant = $lead->tenant;
-            if (! $tenant) {
-                return;
-            }
+        $recipients = app(RecipientResolver::class)
+            ->recipientsFor(EmailType::LeadNotification, $lead->tenant);
 
-            // Get tenant users to notify
-            $users = $tenant->users()->get();
-
-            foreach ($users as $user) {
-                $user->notify(new NewLeadNotification($lead));
-            }
-
-            Log::info('[Lead] (NO $) Notification queued', [
+        if ($recipients->isNotEmpty()) {
+            Notification::send($recipients, new NewLeadNotification($lead));
+        } else {
+            Log::warning('[Email] (NO $) Lead notification skipped — tenant has no owners', [
+                'tenant_id' => $lead->tenant_id,
                 'lead_id' => $lead->id,
-                'notified_users' => $users->count(),
-            ]);
-        } catch (\Exception $e) {
-            Log::error('[Lead] Failed to send notification', [
-                'lead_id' => $lead->id,
-                'error' => $e->getMessage(),
+                'email_type' => EmailType::LeadNotification->value,
             ]);
         }
     }

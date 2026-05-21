@@ -2,15 +2,16 @@
 
 declare(strict_types=1);
 
-namespace App\Notifications;
+namespace App\Notifications\Admin;
 
 use App\Models\EnterpriseInquiry;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Spatie\Multitenancy\Jobs\NotTenantAware;
 
-class EnterpriseInquiryNotification extends Notification implements ShouldQueue
+class EnterpriseInquiryNotification extends Notification implements NotTenantAware, ShouldQueue
 {
     use Queueable;
 
@@ -36,6 +37,7 @@ class EnterpriseInquiryNotification extends Notification implements ShouldQueue
         $inquiry = $this->inquiry;
 
         return (new MailMessage)
+            ->replyTo($inquiry->email)
             ->subject("New Enterprise Inquiry from {$inquiry->name}")
             ->greeting('New Enterprise Plan Inquiry!')
             ->line('A potential customer has submitted an inquiry for the Enterprise plan.')

@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\Role;
 use App\Models\Concerns\BelongsToTenant;
+use App\Notifications\Auth\ResetPasswordNotification;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -60,6 +61,11 @@ class User extends Authenticatable
     public function roles(): HasMany
     {
         return $this->hasMany(UserRole::class);
+    }
+
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new ResetPasswordNotification($token));
     }
 
     /**
