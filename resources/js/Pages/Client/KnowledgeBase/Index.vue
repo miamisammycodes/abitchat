@@ -203,7 +203,7 @@ const getTypeIcon = (type) => {
                     >
                       <RefreshCw class="h-4 w-4 text-primary" />
                     </Button>
-                    <Button variant="ghost" size="icon" as-child>
+                    <Button v-if="$page.props.auth.user.can.manage_knowledge_base" variant="ghost" size="icon" as-child>
                       <Link :href="route('client.knowledge.edit', item.id)">
                         <Pencil class="h-4 w-4" />
                       </Link>

@@ -113,4 +113,58 @@ class UserRoleTest extends TestCase
         $this->assertSame(Role::SuperAdmin, $userRole->role);
         $this->assertNull($userRole->tenant_id);
     }
+
+    public function test_duplicate_super_admin_row_for_same_user_is_rejected(): void
+    {
+        // D-09 invariant: schema-level UNIQUE(user_id, role, tenant_id) does NOT enforce
+        // uniqueness when tenant_id IS NULL on MySQL. The app-layer guard in UserRole::booted()
+        // rejects a second super_admin row for the same user.
+        $user = User::create([
+            'name' => 'Super Admin',
+            'email' => uniqid('admin').'@example.com',
+            'password' => bcrypt('password'),
+            'tenant_id' => null,
+        ]);
+
+        UserRole::create([
+            'user_id' => $user->id,
+            'role' => Role::SuperAdmin,
+            'tenant_id' => null,
+        ]);
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('already has a super_admin role');
+
+        UserRole::create([
+            'user_id' => $user->id,
+            'role' => Role::SuperAdmin,
+            'tenant_id' => null,
+        ]);
+    }
+
+    public function test_super_admin_row_with_non_null_tenant_id_is_rejected(): void
+    {
+        // D-09 invariant: super_admin must always have tenant_id = NULL.
+        $tenant = Tenant::create([
+            'name' => 'Test Co',
+            'slug' => 'test-co-'.uniqid(),
+            'status' => 'active',
+        ]);
+
+        $user = User::create([
+            'name' => 'Super Admin',
+            'email' => uniqid('admin').'@example.com',
+            'password' => bcrypt('password'),
+            'tenant_id' => null,
+        ]);
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('SuperAdmin role must have tenant_id = NULL');
+
+        UserRole::create([
+            'user_id' => $user->id,
+            'role' => Role::SuperAdmin,
+            'tenant_id' => $tenant->id,
+        ]);
+    }
 }
