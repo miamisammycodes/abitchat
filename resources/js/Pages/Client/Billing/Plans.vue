@@ -183,9 +183,9 @@ function formatPrice(plan) {
               >
                 Start Free Trial
               </Button>
-              <!-- Regular Subscribe Button (GET nav — not gated; backend gates on Subscribe page) -->
+              <!-- Regular Subscribe Button (manage_billing required) -->
               <Button
-                v-else-if="! plan.is_contact_sales && plan.price > 0"
+                v-else-if="! plan.is_contact_sales && plan.price > 0 && $page.props.auth.user.can.manage_billing"
                 variant="default"
                 class="w-full"
                 as-child

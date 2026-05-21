@@ -63,7 +63,7 @@ const getStatusVariant = (status) => {
             <RefreshCw class="h-4 w-4 mr-2" />
             Reprocess
           </Button>
-          <Button variant="outline" size="sm" as-child>
+          <Button v-if="$page.props.auth.user.can.manage_knowledge_base" variant="outline" size="sm" as-child>
             <Link :href="route('client.knowledge.edit', item.id)">
               <Pencil class="h-4 w-4 mr-2" />
               Edit
