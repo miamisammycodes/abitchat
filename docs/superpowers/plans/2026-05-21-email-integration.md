@@ -103,6 +103,18 @@ php artisan tinker --execute='echo \App\Models\UserRole::forTenant(\App\Models\T
 ```
 Expected: prints an integer (may be 0 if no owners seeded; non-zero confirms the seeder runs).
 
+- [ ] **Step 4b: Verify `transaction_number` nullability on real DK-paid transactions**
+
+The migration `2026_05_15_000001_add_dk_qr_fields_to_transactions_table.php` made `transaction_number` nullable. The receipt notification uses a fallback chain (`transaction_number ?? dk_reference_no ?? "Transaction-{id}"`). Verify against any DK-paid row, if one exists:
+```bash
+php artisan tinker --execute='
+$tx = \App\Models\Transaction::where("payment_method","dk_qr")->orderBy("id","desc")->first();
+if ($tx) { echo "tx_id=".$tx->id." transaction_number=".($tx->transaction_number ?? "NULL")." dk_reference_no=".$tx->dk_reference_no.PHP_EOL; }
+else { echo "no DK transactions in DB (fine; receipt fallback chain still applies)".PHP_EOL; }
+'
+```
+If `transaction_number` is NULL on real DK rows, that confirms the fallback chain in the notification (Task 5 step 3) is required, not optional.
+
 - [ ] **Step 5: Verify existing email notification call sites are exactly two**
 
 Run:
@@ -924,21 +936,27 @@ class PaymentReceiptNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         $tx = $this->transaction->loadMissing(['tenant', 'plan']);
+
+        // transaction_number is nullable since the DK QR migration; fall back
+        // to the DK reference no, or the row id as a last resort. Used in
+        // subject, body, and attachment filename — keep them all in sync.
+        $ref = $tx->transaction_number ?? $tx->dk_reference_no ?? "Transaction-{$tx->id}";
+
         $pdfBytes = app(ReceiptService::class)->generatePdf($tx);
 
         return (new MailMessage)
-            ->subject("Payment receipt — {$tx->transaction_number}")
+            ->subject("Payment receipt — {$ref}")
             ->greeting("Hi {$tx->tenant->name},")
             ->line("We've received your payment for the **{$tx->plan->name}** plan.")
             ->line("**Amount:** Nu. ".number_format((float) $tx->amount, 2))
-            ->line("**Reference number:** {$tx->transaction_number}")
+            ->line("**Reference:** {$ref}")
             ->line("**Date:** ".$tx->approved_at?->format('M j, Y \a\t g:i A'))
             ->action('View transaction', url("/billing/transactions/{$tx->id}/receipt"))
             ->line('A copy of your receipt is attached.')
             ->line('Thanks for using AbitChat!')
             ->attachData(
                 $pdfBytes,
-                "receipt-{$tx->transaction_number}.pdf",
+                "receipt-{$ref}.pdf",
                 ['mime' => 'application/pdf'],
             );
     }
@@ -1076,7 +1094,9 @@ List the files. Update the import + namespace in each so they reference `App\Not
 
 - [ ] **Step 2: Write/extend the failing test**
 
-If an existing lead notification test exists, update its imports + namespace. Then either edit it or create `tests/Feature/Email/NewLeadNotificationTest.php` with the full contents below:
+If an existing lead notification test exists, update its imports + namespace. Then either edit it or create `tests/Feature/Email/NewLeadNotificationTest.php` with the full contents below.
+
+**Key constraint:** `LeadService::notifyNewLead` is private (line 196 of `LeadService.php`); we drive the integration test through the public `captureFromConversation()` entry point, which fires `notifyNewLead` via `DB::afterCommit`. The two reply-to tests construct the notification directly — no service call needed.
 
 ```php
 <?php
@@ -1086,6 +1106,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Email;
 
 use App\Enums\Role;
+use App\Models\Conversation;
 use App\Models\Lead;
 use App\Models\Tenant;
 use App\Models\User;
@@ -1101,7 +1122,7 @@ class NewLeadNotificationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_lead_notification_routes_via_resolver_to_owners(): void
+    public function test_lead_capture_dispatches_notification_to_owners_via_resolver(): void
     {
         Notification::fake();
 
@@ -1109,9 +1130,12 @@ class NewLeadNotificationTest extends TestCase
         $owner = User::factory()->create();
         UserRole::create(['user_id' => $owner->id, 'tenant_id' => $tenant->id, 'role' => Role::Owner]);
 
-        $lead = Lead::factory()->create(['tenant_id' => $tenant->id, 'email' => 'lead@example.com']);
+        $conversation = Conversation::factory()->create(['tenant_id' => $tenant->id]);
 
-        app(LeadService::class)->notifyNewLead($lead);
+        app(LeadService::class)->captureFromConversation($conversation, [
+            'name' => 'Jane Doe',
+            'email' => 'lead@example.com',
+        ]);
 
         Notification::assertSentTo($owner, NewLeadNotification::class);
     }
@@ -1136,7 +1160,9 @@ class NewLeadNotificationTest extends TestCase
 }
 ```
 
-(Notes: `$mail->replyTo` is a public property on `MailMessage` containing `[email => name]` pairs. `LeadService::notifyNewLead` is a private method today — if so, expose it via an existing public entry point in `LeadService` that calls it as part of capture, or temporarily make it `public` to test directly; the simpler path is to drive it through the public lead-capture entry point and assert the side effect.)
+If `captureFromConversation`'s `$contactInfo` shape doesn't match this — read its current signature in `app/Services/Leads/LeadService.php:25` and adjust the keys. The first assertion (`Notification::assertSentTo`) is what matters; if the capture path expects different keys to actually create the Lead, mirror them.
+
+(Note: `$mail->replyTo` is a public property on `MailMessage` containing `[email => name]` pairs.)
 
 - [ ] **Step 3: Run tests and verify they fail**
 
@@ -1633,6 +1659,12 @@ class EmailRenderingSnapshotTest extends TestCase
 
     public function test_payment_receipt_renders_with_brand_and_amount(): void
     {
+        // Stub the PDF generator — the dompdf render with font embedding adds
+        // ~880KB and ~1s per call. We're testing the email body, not the PDF.
+        $this->mock(\App\Services\Billing\ReceiptService::class, function ($mock) {
+            $mock->shouldReceive('generatePdf')->andReturn('fake-pdf-bytes');
+        });
+
         $tenant = Tenant::factory()->create(['name' => 'Demo Co']);
         $plan = Plan::factory()->create(['name' => 'Starter', 'price' => 999.00]);
         $tx = Transaction::factory()->create([
@@ -1652,6 +1684,31 @@ class EmailRenderingSnapshotTest extends TestCase
         $this->assertStringContainsString('support@abit.bt', $html);
         $this->assertStringContainsString('Nu. 999.00', $html);
         $this->assertStringContainsString('TXN-DEMO', $html);
+    }
+
+    public function test_payment_receipt_falls_back_to_dk_reference_when_transaction_number_null(): void
+    {
+        $this->mock(\App\Services\Billing\ReceiptService::class, function ($mock) {
+            $mock->shouldReceive('generatePdf')->andReturn('fake-pdf-bytes');
+        });
+
+        $tenant = Tenant::factory()->create(['name' => 'Demo Co']);
+        $plan = Plan::factory()->create(['name' => 'Starter']);
+        $tx = Transaction::factory()->create([
+            'tenant_id' => $tenant->id,
+            'plan_id' => $plan->id,
+            'status' => 'approved',
+            'transaction_number' => null,
+            'dk_reference_no' => '77000010',
+            'amount' => 10.00,
+            'approved_at' => now(),
+        ]);
+        $owner = User::factory()->create();
+        UserRole::create(['user_id' => $owner->id, 'tenant_id' => $tenant->id, 'role' => Role::Owner]);
+
+        $html = (new PaymentReceiptNotification($tx))->toMail($owner)->render();
+
+        $this->assertStringContainsString('77000010', $html);
     }
 
     public function test_lead_notification_renders_with_score_label(): void
@@ -1759,7 +1816,11 @@ Final simplify pass on anything new the first pass introduced.
 
 Open http://localhost:8025 in one tab. Then:
 
-- [ ] Log in as `owner@demo.example` / `password`. Trigger a payment approval — easiest is via tinker: `app(\App\Services\Payment\DkBank\DkBankQrService::class)` ... actually simpler: create a pending transaction in tinker then call `approveAndActivate`. Confirm Mailpit shows the receipt email with PDF attachment.
+- [ ] Log in as `owner@demo.example` / `password`. Trigger a payment approval via this exact tinker one-liner (adjust `tenant_id`/`plan_id` if seed IDs differ):
+  ```bash
+  php artisan tinker --execute='$tx=\App\Models\Transaction::factory()->create(["tenant_id"=>2,"plan_id"=>2,"status"=>"awaiting_payment","transaction_number"=>"TXN-SMOKE-".rand(1000,9999)]); $tx->approveAndActivate(allowedFromStatuses:["awaiting_payment"]);'
+  ```
+  Confirm Mailpit shows the receipt email with PDF attachment.
 - [ ] Capture a lead via the widget (`http://127.0.0.1:8001/widget/test.html`). Confirm Mailpit shows the lead notification.
 - [ ] Submit an enterprise inquiry from the marketing page. Confirm Mailpit shows the inquiry email.
 - [ ] Hit `/forgot-password` with `owner@demo.example`. Confirm Mailpit shows the branded reset email.
