@@ -115,4 +115,12 @@ return [
         'name' => env('MAIL_FROM_NAME', 'Example'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Admin Inquiry Recipient
+    |--------------------------------------------------------------------------
+    */
+
+    'admin_inquiry_address' => env('ADMIN_INQUIRY_EMAIL', 'support@abit.bt'),
+
 ];
