@@ -4,15 +4,19 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\EmailType;
 use App\Exceptions\Billing\TransactionAlreadyProcessed;
 use App\Exceptions\Billing\TransactionPlanInactive;
 use App\Exceptions\Billing\TransactionRecordMissing;
 use App\Exceptions\Billing\TransactionStatusNotAllowed;
 use App\Models\Concerns\BelongsToTenant;
+use App\Notifications\Billing\PaymentReceiptNotification;
+use App\Services\Email\RecipientResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 
 class Transaction extends Model
 {
@@ -161,6 +165,17 @@ class Transaction extends Model
             $locked->tenant->extendPlan($locked->plan);
 
             $this->refresh();
+
+            // Email the receipt only after the surrounding transaction commits.
+            // afterCommit ensures rollback at any level does not send the email.
+            DB::afterCommit(function () use ($locked) {
+                $recipients = app(RecipientResolver::class)
+                    ->recipientsFor(EmailType::Receipt, $locked->tenant);
+
+                if ($recipients->isNotEmpty()) {
+                    Notification::send($recipients, new PaymentReceiptNotification($locked));
+                }
+            });
         });
     }
 }
