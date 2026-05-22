@@ -37,7 +37,6 @@ class EnterpriseInquiryController extends Controller
             'status' => 'pending',
         ]);
 
-        // Send notification to admin
         $recipients = app(RecipientResolver::class)
             ->recipientsFor(EmailType::EnterpriseInquiry);
 

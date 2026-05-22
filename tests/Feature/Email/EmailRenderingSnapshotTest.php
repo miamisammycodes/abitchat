@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Email;
 
+use App\Enums\Role;
 use App\Models\EnterpriseInquiry;
 use App\Models\Lead;
 use App\Models\Plan;
@@ -67,7 +68,7 @@ class EmailRenderingSnapshotTest extends TestCase
         ]);
 
         $owner = User::factory()->create();
-        UserRole::create(['user_id' => $owner->id, 'tenant_id' => $tenant->id, 'role' => 'owner']);
+        UserRole::create(['user_id' => $owner->id, 'tenant_id' => $tenant->id, 'role' => Role::Owner]);
 
         $html = (string) (new PaymentReceiptNotification($tx))->toMail($owner)->render();
 
@@ -118,7 +119,7 @@ class EmailRenderingSnapshotTest extends TestCase
         ]);
 
         $owner = User::factory()->create();
-        UserRole::create(['user_id' => $owner->id, 'tenant_id' => $tenant->id, 'role' => 'owner']);
+        UserRole::create(['user_id' => $owner->id, 'tenant_id' => $tenant->id, 'role' => Role::Owner]);
 
         $html = (string) (new PaymentReceiptNotification($tx))->toMail($owner)->render();
 

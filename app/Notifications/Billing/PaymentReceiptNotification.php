@@ -16,6 +16,8 @@ class PaymentReceiptNotification extends Notification implements NotTenantAware,
 {
     use Queueable;
 
+    public int $tries = 1;
+
     public function __construct(public Transaction $transaction) {}
 
     /**
@@ -44,7 +46,7 @@ class PaymentReceiptNotification extends Notification implements NotTenantAware,
             ->line('**Amount:** Nu. '.number_format((float) $tx->amount, 2))
             ->line("**Reference:** {$ref}")
             ->line('**Date:** '.$tx->approved_at?->format('M j, Y \a\t g:i A'))
-            ->action('View transaction', url("/billing/transactions/{$tx->id}/receipt"))
+            ->action('View transaction history', route('client.billing.transactions'))
             ->line('A copy of your receipt is attached.')
             ->line('Thanks for using AbitChat!')
             ->attachData(

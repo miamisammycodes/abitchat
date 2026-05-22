@@ -193,9 +193,6 @@ class LeadService
         return $info;
     }
 
-    /**
-     * Send notification for new lead
-     */
     private function notifyNewLead(Lead $lead): void
     {
         $recipients = app(RecipientResolver::class)

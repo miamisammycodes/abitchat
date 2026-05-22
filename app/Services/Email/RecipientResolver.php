@@ -22,8 +22,6 @@ class RecipientResolver
      * a Collection containing a single AnonymousNotifiable wrapping a raw
      * email address (admin-facing emails).
      *
-     * Phase 21 swaps this implementation to consult notification_preferences.
-     *
      * @return Collection<int, mixed>
      */
     public function recipientsFor(EmailType $type, ?Tenant $tenant = null): Collection
@@ -50,12 +48,12 @@ class RecipientResolver
      */
     private function ownersOf(Tenant $tenant): Collection
     {
-        $userIds = UserRole::query()
-            ->forTenant($tenant)
-            ->where('role', Role::Owner)
-            ->pluck('user_id');
-
-        return User::query()->whereIn('id', $userIds)->get();
+        return User::query()
+            ->whereIn('id', UserRole::query()
+                ->forTenant($tenant)
+                ->where('role', Role::Owner)
+                ->select('user_id'))
+            ->get();
     }
 
     /**

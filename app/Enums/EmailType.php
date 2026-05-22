@@ -10,9 +10,6 @@ enum EmailType: string
     case LeadNotification = 'lead_notification';
     case EnterpriseInquiry = 'enterprise_inquiry';
     case PasswordReset = 'password_reset';
-
-    // Declared now so Phase 17/19/21 don't need to extend the enum.
-    // No sender ships in this PR.
     case TeamInvite = 'team_invite';
     case Cancellation = 'cancellation';
     case Dunning = 'dunning';

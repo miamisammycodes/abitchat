@@ -41,7 +41,7 @@ class NewLeadNotification extends Notification implements NotTenantAware, Should
             ->when($lead->phone, fn ($m) => $m->line("**Phone:** {$lead->phone}"))
             ->when($lead->company, fn ($m) => $m->line("**Company:** {$lead->company}"))
             ->line("**Lead score:** {$lead->score}/100 ({$scoreLabel})")
-            ->action('View lead', url("/leads/{$lead->id}"))
+            ->action('View lead', route('client.leads.show', $lead))
             ->line('Follow up soon to maximize conversion.');
     }
 
