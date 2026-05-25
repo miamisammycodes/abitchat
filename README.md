@@ -67,6 +67,29 @@ php artisan serve
 npm run dev
 ```
 
+### Local email (Mailpit)
+
+This project sends transactional email via Resend in production and Mailpit (a local SMTP catcher) in development.
+
+**Install via Homebrew** (no Docker needed):
+```bash
+brew install mailpit
+brew services start mailpit
+```
+
+**Or via Docker** (if you prefer):
+```bash
+docker run -d --name chatbot-mailpit --restart unless-stopped \
+  -p 1025:1025 -p 8025:8025 axllent/mailpit
+```
+
+Mail UI: http://localhost:8025
+
+Verify with:
+```bash
+php artisan tinker --execute='\Mail::raw("test", fn ($m) => $m->to("test@example.com")->subject("Test"));'
+```
+
 ## License
 
 MIT

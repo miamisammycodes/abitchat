@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Client;
 
 use App\Enums\Ability;
+use App\Enums\EmailType;
 use App\Http\Controllers\Controller;
 use App\Models\EnterpriseInquiry;
-use App\Notifications\EnterpriseInquiryNotification;
+use App\Notifications\Admin\EnterpriseInquiryNotification;
+use App\Services\Email\RecipientResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
@@ -35,10 +37,10 @@ class EnterpriseInquiryController extends Controller
             'status' => 'pending',
         ]);
 
-        // Send notification to admin
-        $adminEmail = config('mail.admin_email', 'admin@example.com');
-        Notification::route('mail', $adminEmail)
-            ->notify(new EnterpriseInquiryNotification($inquiry));
+        $recipients = app(RecipientResolver::class)
+            ->recipientsFor(EmailType::EnterpriseInquiry);
+
+        Notification::send($recipients, new EnterpriseInquiryNotification($inquiry));
 
         return back()->with('success', 'Thank you for your inquiry! Our team will contact you shortly.');
     }
