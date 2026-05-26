@@ -116,6 +116,15 @@ const banner = computed(() => {
   }
 })
 
+const showLink = computed(() => {
+  if (!banner.value?.link) return false
+  // Hide the link when it would just navigate to the page we're already on.
+  // page.url is path-only (e.g. "/widget-settings"); banner.link.href may include a query.
+  const currentPath = page.url.split('?')[0]
+  const linkPath = banner.value.link.href.split('?')[0]
+  return currentPath !== linkPath
+})
+
 const toneClasses = {
   info: 'bg-blue-50 text-blue-900 border-blue-200',
   success: 'bg-emerald-50 text-emerald-900 border-emerald-200',
@@ -141,7 +150,7 @@ const toneClasses = {
         </svg>
         <span>{{ banner.text }}</span>
       </div>
-      <Link v-if="banner.link" :href="banner.link.href" class="text-sm font-medium underline">{{ banner.link.label }}</Link>
+      <Link v-if="showLink" :href="banner.link.href" class="text-sm font-medium underline">{{ banner.link.label }}</Link>
     </div>
   </Card>
 </template>
