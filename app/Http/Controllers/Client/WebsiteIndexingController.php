@@ -57,7 +57,16 @@ class WebsiteIndexingController extends Controller
             return back()->withErrors(['cooldown' => 'Please wait — your last crawl started less than an hour ago.']);
         }
 
-        CrawlWebsiteJob::dispatch($tenant, CrawlMode::Manual);
+        try {
+            CrawlWebsiteJob::dispatch($tenant, CrawlMode::Manual);
+        } catch (\Throwable $e) {
+            \Log::error('[Crawl] (NO $) Queue dispatch failed', [
+                'tenant_id' => $tenant->id,
+                'exception' => $e->getMessage(),
+            ]);
+
+            return back()->withErrors(['queue' => 'Could not queue the re-crawl right now. Please try again in a moment.']);
+        }
 
         return back()->with('success', 'Re-crawl queued.');
     }

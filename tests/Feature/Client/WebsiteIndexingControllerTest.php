@@ -49,6 +49,26 @@ class WebsiteIndexingControllerTest extends TestCase
         Bus::assertDispatched(CrawlWebsiteJob::class, fn (CrawlWebsiteJob $job) => $job->mode === CrawlMode::Manual);
     }
 
+    public function test_manual_recrawl_returns_queue_error_when_dispatch_fails(): void
+    {
+        $tenant = Tenant::factory()->create(['website_url' => 'https://example.com']);
+        $user = User::factory()->create(['tenant_id' => $tenant->id]);
+        UserRole::create(['user_id' => $user->id, 'role' => Role::Owner, 'tenant_id' => $tenant->id]);
+
+        // Swap the Bus with a Mockery mock that throws on dispatch — simulates
+        // queue store unreachable (Redis down, DB queue table locked, etc.).
+        // Do NOT pair this with Bus::fake() — fake() installs BusFake, and
+        // shouldReceive on a swapped facade behaves inconsistently.
+        \Illuminate\Support\Facades\Bus::shouldReceive('dispatch')
+            ->once()
+            ->andThrow(new \RuntimeException('Queue store unreachable'));
+
+        $response = $this->actingAs($user)->post('/widget-settings/website-indexing/recrawl');
+
+        $response->assertSessionHasErrors('queue');
+        $response->assertSessionDoesntHaveErrors(['cooldown', 'website_url']);
+    }
+
     public function test_manual_recrawl_blocked_within_cooldown(): void
     {
         Bus::fake();
