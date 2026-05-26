@@ -113,6 +113,7 @@ onMounted(() => {
   removeExceptionListener = router.on('exception', (event) => {
     if (recrawling.value) {
       recrawlError.value = 'Could not contact the server. Check your connection and try again.'
+      // preventDefault() stops Inertia re-rejecting the error as an unhandled promise (load-bearing).
       event.preventDefault()
     }
   })
