@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { Head, Link, useForm, usePage, router } from '@inertiajs/vue3'
 import { useRoute } from '@/composables/useRoute'
 import ClientLayout from '@/Layouts/ClientLayout.vue'
@@ -105,6 +105,25 @@ function saveIndexing() {
 
 const recrawling = ref(false)
 const recrawlError = ref(null)
+let removeExceptionListener = null
+
+onMounted(() => {
+  // Inertia fires `exception` for axios-level failures (network, timeout).
+  // onError below covers 422 validation; this covers the network gap.
+  removeExceptionListener = router.on('exception', (event) => {
+    if (recrawling.value) {
+      recrawlError.value = 'Could not contact the server. Check your connection and try again.'
+      event.preventDefault()
+    }
+  })
+})
+
+onBeforeUnmount(() => {
+  if (removeExceptionListener) {
+    removeExceptionListener()
+    removeExceptionListener = null
+  }
+})
 
 function recrawlNow() {
   recrawlError.value = null
@@ -113,7 +132,7 @@ function recrawlNow() {
     onStart: () => { recrawling.value = true },
     onFinish: () => { recrawling.value = false },
     onError: (errors) => {
-      recrawlError.value = errors.cooldown || errors.website_url || 'Re-crawl failed. Please try again.'
+      recrawlError.value = errors.cooldown || errors.website_url || errors.queue || 'Re-crawl failed. Please try again.'
     },
   })
 }
