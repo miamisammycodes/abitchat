@@ -61,7 +61,7 @@ class WebsiteIndexingControllerTest extends TestCase
         // queue store unreachable (Redis down, DB queue table locked, etc.).
         // Do NOT pair this with Bus::fake() — fake() installs BusFake, and
         // shouldReceive on a swapped facade behaves inconsistently.
-        \Illuminate\Support\Facades\Bus::shouldReceive('dispatch')
+        Bus::shouldReceive('dispatch')
             ->once()
             ->andThrow(new \RuntimeException('Queue store unreachable'));
 
