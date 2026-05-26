@@ -27,7 +27,7 @@ class WebsiteIndexingController extends Controller
             'auto_recrawl' => $request->boolean('auto_recrawl'),
         ]);
 
-        return back()->with('status', 'Website indexing settings saved.');
+        return back()->with('success', 'Website indexing settings saved.');
     }
 
     public function recrawl(Request $request): RedirectResponse
@@ -59,7 +59,7 @@ class WebsiteIndexingController extends Controller
 
         CrawlWebsiteJob::dispatch($tenant, CrawlMode::Manual);
 
-        return back()->with('status', 'Re-crawl queued.');
+        return back()->with('success', 'Re-crawl queued.');
     }
 
     public function latestStatus(Request $request): JsonResponse

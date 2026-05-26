@@ -2,6 +2,7 @@
 import { Head, Link, router } from '@inertiajs/vue3'
 import { useRoute } from '@/composables/useRoute'
 import ClientLayout from '@/Layouts/ClientLayout.vue'
+import IndexingStatusBanner from '@/Components/IndexingStatusBanner.vue'
 import { Card, CardContent } from '@/Components/ui/card'
 import { Button } from '@/Components/ui/button'
 import { Badge } from '@/Components/ui/badge'
@@ -73,6 +74,9 @@ const getTypeIcon = (type) => {
 
   <ClientLayout>
     <div class="space-y-6">
+      <!-- Live indexing progress (only renders when a crawl is queued/running/recent) -->
+      <IndexingStatusBanner />
+
       <!-- Header -->
       <div class="flex items-center justify-between">
         <h1 class="text-2xl font-bold text-foreground">Knowledge Base</h1>

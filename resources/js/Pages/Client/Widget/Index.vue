@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { Head, Link, useForm, usePage, router } from '@inertiajs/vue3'
 import { useRoute } from '@/composables/useRoute'
 import ClientLayout from '@/Layouts/ClientLayout.vue'
+import IndexingStatusBanner from '@/Components/IndexingStatusBanner.vue'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card'
 import { Button } from '@/Components/ui/button'
 import { Input } from '@/Components/ui/input'
@@ -102,8 +103,19 @@ function saveIndexing() {
   indexingForm.patch(route('widget.indexing.update'), { preserveScroll: true })
 }
 
+const recrawling = ref(false)
+const recrawlError = ref(null)
+
 function recrawlNow() {
-  router.post(route('widget.indexing.recrawl'), {}, { preserveScroll: true })
+  recrawlError.value = null
+  router.post(route('widget.indexing.recrawl'), {}, {
+    preserveScroll: true,
+    onStart: () => { recrawling.value = true },
+    onFinish: () => { recrawling.value = false },
+    onError: (errors) => {
+      recrawlError.value = errors.cooldown || errors.website_url || 'Re-crawl failed. Please try again.'
+    },
+  })
 }
 </script>
 
@@ -123,6 +135,9 @@ function recrawlNow() {
         <Check class="h-4 w-4" />
         <AlertDescription>{{ page.props.flash.success }}</AlertDescription>
       </Alert>
+
+      <!-- Live indexing progress (only renders when a crawl is queued/running/recent) -->
+      <IndexingStatusBanner />
 
       <Alert v-if="!hasAllowedDomains" class="border-amber-300 bg-amber-50 text-amber-900">
         <AlertTriangle class="h-4 w-4" />
@@ -316,11 +331,14 @@ function recrawlNow() {
                   <input type="checkbox" id="auto_recrawl" v-model="indexingForm.auto_recrawl" />
                   <Label for="auto_recrawl">Re-crawl my site daily</Label>
                 </div>
-                <div v-if="$page.props.auth.user.can.manage_tenant_settings" class="flex gap-2">
-                  <Button type="submit" :disabled="indexingForm.processing">Save</Button>
-                  <Button type="button" variant="outline" @click="recrawlNow" :disabled="!indexingForm.website_url">
-                    Re-crawl now
-                  </Button>
+                <div v-if="$page.props.auth.user.can.manage_tenant_settings" class="flex flex-col gap-2">
+                  <div class="flex gap-2">
+                    <Button type="submit" :disabled="indexingForm.processing">Save</Button>
+                    <Button type="button" variant="outline" @click="recrawlNow" :disabled="!indexingForm.website_url || recrawling">
+                      {{ recrawling ? 'Queuing…' : 'Re-crawl now' }}
+                    </Button>
+                  </div>
+                  <p v-if="recrawlError" class="text-sm text-destructive">{{ recrawlError }}</p>
                 </div>
               </form>
 
