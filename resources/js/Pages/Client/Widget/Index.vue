@@ -100,6 +100,7 @@ const indexingForm = useForm({
 })
 
 function saveIndexing() {
+  recrawlError.value = null
   indexingForm.patch(route('widget.indexing.update'), { preserveScroll: true })
 }
 
