@@ -32,6 +32,7 @@ class WebsiteIndexingControllerTest extends TestCase
         ]);
 
         $response->assertSessionHasNoErrors();
+        $response->assertSessionHas('success', 'Website indexing settings saved.');
         $this->assertSame('https://newsite.com', $tenant->fresh()->website_url);
         $this->assertTrue($tenant->fresh()->auto_recrawl);
     }
@@ -46,6 +47,7 @@ class WebsiteIndexingControllerTest extends TestCase
         $response = $this->actingAs($user)->post('/widget-settings/website-indexing/recrawl');
 
         $response->assertSessionHasNoErrors();
+        $response->assertSessionHas('success', 'Re-crawl queued.');
         Bus::assertDispatched(CrawlWebsiteJob::class, fn (CrawlWebsiteJob $job) => $job->mode === CrawlMode::Manual);
     }
 
@@ -123,6 +125,7 @@ class WebsiteIndexingControllerTest extends TestCase
         $response = $this->actingAs($user)->post('/widget-settings/website-indexing/recrawl');
 
         $response->assertSessionHasNoErrors();
+        $response->assertSessionHas('success', 'Re-crawl queued.');
         Bus::assertDispatched(CrawlWebsiteJob::class);
     }
 
