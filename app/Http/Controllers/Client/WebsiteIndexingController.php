@@ -14,6 +14,7 @@ use App\Models\CrawlSession;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class WebsiteIndexingController extends Controller
 {
@@ -60,7 +61,7 @@ class WebsiteIndexingController extends Controller
         try {
             CrawlWebsiteJob::dispatch($tenant, CrawlMode::Manual);
         } catch (\Throwable $e) {
-            \Log::error('[Crawl] (NO $) Queue dispatch failed', [
+            Log::error('[Crawl] (NO $) Queue dispatch failed', [
                 'tenant_id' => $tenant->id,
                 'exception' => $e->getMessage(),
             ]);
