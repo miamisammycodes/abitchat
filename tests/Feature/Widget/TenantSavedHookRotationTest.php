@@ -80,6 +80,57 @@ class TenantSavedHookRotationTest extends TestCase
             ->assertStatus(401);
     }
 
+    public function test_settings_update_invalidates_current_api_key_cache(): void
+    {
+        $apiKey = $this->tenant->api_key;
+        $cacheKey = 'tenant:api_key_hash:'.Tenant::hashApiKey($apiKey);
+
+        // Warm the cache via a real widget request — example.com is allowed
+        // because createWidgetTenant() seeds it in the allowed_domains list.
+        $this->withHeaders(['Origin' => 'https://example.com'])
+            ->postJson('/api/v1/widget/init', ['api_key' => $apiKey])
+            ->assertOk();
+
+        $this->assertTrue(
+            Cache::has($cacheKey),
+            'Precondition: api_key cache slot must be warm before settings update.'
+        );
+
+        // Update settings — add a NEW origin to the allowed list. The api_key
+        // is unchanged, but the cached tenant carries the OLD settings, so
+        // the next request from the new origin would 403 until the cache TTL
+        // expires unless saved() invalidates the current-key slot too.
+        $this->tenant->update([
+            'settings' => [
+                'allowed_domains' => ['example.com', 'newdomain.test'],
+            ],
+        ]);
+
+        $this->assertFalse(
+            Cache::has($cacheKey),
+            'Tenant::saved hook must invalidate the current api_key cache slot when non-api_key fields change.'
+        );
+
+        // Behavior check: a request from the newly-allowed origin must
+        // succeed immediately, not wait out the 300s TTL.
+        $this->withHeaders(['Origin' => 'https://newdomain.test'])
+            ->postJson('/api/v1/widget/init', ['api_key' => $apiKey])
+            ->assertOk();
+    }
+
+    public function test_creation_does_not_seed_api_key_cache_slot(): void
+    {
+        // Fresh tenant via factory — the saved hook fires after create, but
+        // there's no cache slot to evict yet. Confirm none gets seeded.
+        $fresh = Tenant::factory()->create();
+        $cacheKey = 'tenant:api_key_hash:'.Tenant::hashApiKey($fresh->api_key);
+
+        $this->assertFalse(
+            Cache::has($cacheKey),
+            'Tenant creation must not seed the api_key cache slot.'
+        );
+    }
+
     public function test_saving_hook_clears_api_key_hash_when_api_key_set_to_null(): void
     {
         // Sanity check: hash starts non-null after creation.

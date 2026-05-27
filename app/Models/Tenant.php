@@ -102,12 +102,18 @@ class Tenant extends BaseTenant
         static::saved(function (Tenant $tenant) {
             Cache::forget("tenant:{$tenant->id}:with_plan");
 
-            // CR-02: Any api_key rotation — controller, console, factory,
-            // job, or direct model save — must invalidate the api_key-keyed
-            // cache slot for the PREVIOUS key. Use getOriginal('api_key')
-            // because the slot to evict is keyed on the OLD value's hash;
-            // forgetting the current value would no-op against an empty
-            // slot and leave the stale slot alive (the auth-bypass window).
+            // Widget middleware (ValidateWidgetDomain, CheckUsageLimits) and
+            // ChatController cache the full Tenant model under the current
+            // api_key hash for 300s. Any field change — settings.allowed_domains,
+            // is_active, plan_id, trial_ends_at — must evict that slot or the
+            // next widget request keeps reading the stale tenant for up to TTL.
+            if ($tenant->api_key_hash !== null) {
+                Cache::forget('tenant:api_key_hash:'.$tenant->api_key_hash);
+            }
+
+            // CR-02: On rotation, also evict the PREVIOUS key's slot. Use
+            // getOriginal('api_key') because the stale slot is keyed on the
+            // OLD hash; the line above only handles the new hash.
             if ($tenant->wasChanged('api_key')) {
                 $oldKey = $tenant->getOriginal('api_key');
                 if (! empty($oldKey)) {
