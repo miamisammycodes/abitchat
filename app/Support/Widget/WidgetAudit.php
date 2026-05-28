@@ -63,7 +63,9 @@ final class WidgetAudit
         }
 
         try {
-            Log::warning('[Widget] Audit log failure', ['error' => $e->getMessage()]);
+            // error level (not warning): a broken audit log is a lost security
+            // signal, so it must surface at a severity prod alerting watches.
+            Log::error('[Widget] Audit log failure', ['error' => $e->getMessage()]);
         } catch (\Throwable) {
         }
     }
