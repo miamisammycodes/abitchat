@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Auth;
 
 use App\Enums\Role;
+use App\Enums\TenantLifecycle;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\UserRole;
@@ -97,6 +98,20 @@ class RegisterControllerTest extends TestCase
      * Mass-assignment guard: a request body containing role=super_admin must not
      * elevate the registered user beyond Owner.
      */
+    public function test_registration_lands_in_setup_state(): void
+    {
+        $this->post(route('register.store'), $this->validPayload())
+            ->assertRedirect(route('dashboard'));
+
+        $tenant = Tenant::query()->where('name', 'Test Corp')->firstOrFail();
+
+        $this->assertNull($tenant->plan_id);
+        $this->assertNull($tenant->plan_expires_at);
+        $this->assertNull($tenant->trial_ends_at);
+        $this->assertNull($tenant->trial_activated_at);
+        $this->assertSame(TenantLifecycle::Setup, $tenant->lifecycleState());
+    }
+
     public function test_registration_ignores_role_field_in_request_body(): void
     {
         $response = $this->post(route('register.store'), $this->validPayload([
