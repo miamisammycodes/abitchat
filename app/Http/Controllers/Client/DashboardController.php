@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Client;
 
 use App\Enums\Ability;
+use App\Enums\TenantLifecycle;
 use App\Http\Controllers\Controller;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -16,10 +17,11 @@ class DashboardController extends Controller
         $this->authorize(Ability::ViewDashboard->value);
         $tenant = $this->getTenant();
 
-        $planLabel = match (true) {
-            $tenant->hasPlan() => $tenant->currentPlan->name,
-            $tenant->isOnTrial() => 'Trial',
-            default => 'No plan',
+        $planLabel = match ($tenant->lifecycleState()) {
+            TenantLifecycle::Active => $tenant->currentPlan?->name ?? 'Active',
+            TenantLifecycle::Expired => ($tenant->currentPlan?->name ?? 'Plan').' (expired)',
+            TenantLifecycle::LegacyTrial => 'Trial',
+            TenantLifecycle::Setup => 'Not started',
         };
 
         return Inertia::render('Client/Dashboard', [

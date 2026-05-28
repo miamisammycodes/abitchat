@@ -116,12 +116,7 @@ final class UsageTracker
         }
 
         // Setup tenants preview the Free plan's limits.
-        $free = Plan::query()->where('slug', 'free')->where('price', 0)->first();
-        if ($free) {
-            return $this->planLimits($free);
-        }
-
-        return config('billing.trial_limits', []);
+        return $this->freePlanLimits();
     }
 
     /** @return array<string, int> */
@@ -133,6 +128,23 @@ final class UsageTracker
             self::TYPE_TOKENS => (int) $plan->tokens_limit,
             self::TYPE_KNOWLEDGE_ITEMS => (int) $plan->knowledge_items_limit,
         ];
+    }
+
+    /**
+     * Free-plan limits for Setup tenants. Cached because limitsFor() runs on
+     * every client Inertia request and the Free plan is rarely-changing
+     * reference data. Falls back to the configured trial limits if no Free
+     * plan row exists.
+     *
+     * @return array<string, int>
+     */
+    private function freePlanLimits(): array
+    {
+        return Cache::remember('plan:free:limits', 300, function (): array {
+            $free = Plan::query()->where('slug', 'free')->where('price', 0)->first();
+
+            return $free ? $this->planLimits($free) : (array) config('billing.trial_limits', []);
+        });
     }
 
     /**
