@@ -7,6 +7,7 @@ namespace App\Support\Widget;
 use App\Enums\Widget\WidgetAuditEvent;
 use App\Models\Tenant;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 final class WidgetAudit
@@ -15,13 +16,31 @@ final class WidgetAudit
 
     public static function log(WidgetAuditEvent $event, Tenant $tenant, ?string $origin, Request $request): void
     {
-        Log::channel(self::CHANNEL)->info($event->value, [
-            'tenant_id' => $tenant->id,
-            'origin' => $origin,
-            'ip_hash' => self::ipHash($request->ip()),
-            'endpoint' => $request->path(),
-            'method' => $request->method(),
-        ]);
+        try {
+            Log::channel(self::CHANNEL)->info($event->value, [
+                'tenant_id' => $tenant->id,
+                'origin' => $origin,
+                'ip_hash' => self::ipHash($request->ip()),
+                'endpoint' => $request->path(),
+                'method' => $request->method(),
+            ]);
+        } catch (\Throwable $e) {
+            self::recordFailure($e);
+        }
+    }
+
+    public static function reject(string $reason, ?string $origin, Request $request): void
+    {
+        try {
+            Log::channel(self::CHANNEL)->warning(WidgetAuditEvent::Rejected->value, [
+                'reason' => $reason,
+                'origin' => $origin,
+                'ip_hash' => self::ipHash($request->ip()),
+                'endpoint' => $request->path(),
+            ]);
+        } catch (\Throwable $e) {
+            self::recordFailure($e);
+        }
     }
 
     public static function ipHash(?string $ip): string
@@ -32,5 +51,11 @@ final class WidgetAudit
         }
 
         return hash('sha256', ($ip ?? '').$key);
+    }
+
+    private static function recordFailure(\Throwable $e): void
+    {
+        Cache::increment('widget_audit_failures');
+        Log::warning('[Widget] Audit log failure', ['error' => $e->getMessage()]);
     }
 }
