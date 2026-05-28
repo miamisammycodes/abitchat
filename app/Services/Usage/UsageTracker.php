@@ -141,7 +141,7 @@ final class UsageTracker
     private function freePlanLimits(): array
     {
         return Cache::remember('plan:free:limits', 300, function (): array {
-            $free = Plan::query()->where('slug', 'free')->where('price', 0)->first();
+            $free = Plan::query()->free()->first();
 
             return $free ? $this->planLimits($free) : (array) config('billing.trial_limits', []);
         });

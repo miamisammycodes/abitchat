@@ -16,8 +16,10 @@ class DashboardController extends Controller
     {
         $this->authorize(Ability::ViewDashboard->value);
         $tenant = $this->getTenant();
+        $tenant->loadMissing('currentPlan');
+        $state = $tenant->lifecycleState();
 
-        $planLabel = match ($tenant->lifecycleState()) {
+        $planLabel = match ($state) {
             TenantLifecycle::Active => $tenant->currentPlan?->name ?? 'Active',
             TenantLifecycle::Expired => ($tenant->currentPlan?->name ?? 'Plan').' (expired)',
             TenantLifecycle::LegacyTrial => 'Trial',
@@ -28,7 +30,7 @@ class DashboardController extends Controller
             'tenant' => [
                 'name' => $tenant->name,
                 'plan' => $planLabel,
-                'api_key' => $tenant->lifecycleState()->allowsWidget()
+                'api_key' => $state->allowsWidget()
                     ? substr($tenant->api_key, 0, 8).'...'
                     : null,
             ],

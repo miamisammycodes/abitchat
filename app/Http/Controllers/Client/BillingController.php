@@ -171,11 +171,7 @@ class BillingController extends Controller
     {
         $this->authorize(Ability::ManageBilling->value);
 
-        $freePlan = Plan::query()
-            ->where('slug', 'free')
-            ->where('price', 0)
-            ->where('is_active', true)
-            ->first();
+        $freePlan = Plan::query()->free()->first();
 
         if ($freePlan === null) {
             return back()->with('error', 'The free plan is currently unavailable. Please contact support.');

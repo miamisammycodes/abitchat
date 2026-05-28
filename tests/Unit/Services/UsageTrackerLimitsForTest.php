@@ -4,27 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
-use App\Models\Plan;
 use App\Models\Tenant;
 use App\Services\Usage\UsageTracker;
 use Tests\TestCase;
 
 class UsageTrackerLimitsForTest extends TestCase
 {
-    private function freePlan(): Plan
-    {
-        return Plan::create([
-            'name' => 'Free', 'slug' => 'free', 'description' => null, 'price' => 0,
-            'billing_period' => 'monthly', 'conversations_limit' => 100,
-            'messages_per_conversation' => 50, 'knowledge_items_limit' => 10,
-            'tokens_limit' => 50000, 'leads_limit' => 50, 'is_active' => true,
-            'is_contact_sales' => false, 'features' => [], 'sort_order' => 0,
-        ]);
-    }
-
     public function test_setup_tenant_previews_free_plan_limits(): void
     {
-        $this->freePlan();
+        $this->createFreePlan();
         $tenant = Tenant::create(['name' => 'S', 'slug' => 's', 'status' => 'active']);
 
         $limits = app(UsageTracker::class)->limitsFor($tenant);
@@ -37,7 +25,7 @@ class UsageTrackerLimitsForTest extends TestCase
 
     public function test_expired_plan_tenant_still_shows_plan_limits(): void
     {
-        $free = $this->freePlan();
+        $free = $this->createFreePlan();
         $tenant = Tenant::create([
             'name' => 'X', 'slug' => 'x', 'status' => 'active',
             'plan_id' => $free->id, 'plan_expires_at' => now()->subDay(),

@@ -18,8 +18,9 @@ class WidgetController extends Controller
     public function index(Request $request): Response
     {
         $tenant = $this->getTenant($request);
+        $state = $tenant->lifecycleState();
 
-        $widgetUnlocked = $tenant->lifecycleState()->allowsWidget();
+        $widgetUnlocked = $state->allowsWidget();
         $canManageSettings = Gate::allows(Ability::ManageTenantSettings->value);
 
         return Inertia::render('Client/Widget/Index', [
@@ -30,7 +31,7 @@ class WidgetController extends Controller
                 'settings' => $tenant->settings ?? [],
             ],
             'widgetUnlocked' => $widgetUnlocked,
-            'lifecycleState' => $tenant->lifecycleState()->value,
+            'lifecycleState' => $state->value,
             'embedUrl' => $request->getSchemeAndHttpHost().'/widget/chatbot.js',
             'apiUrl' => $request->getSchemeAndHttpHost(),
             'website_url' => $tenant->website_url,
