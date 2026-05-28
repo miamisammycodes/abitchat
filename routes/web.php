@@ -117,7 +117,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/subscribe/{plan}', [BillingController::class, 'submitPayment'])->name('submit-payment');
         Route::get('/transactions', [BillingController::class, 'transactions'])->name('transactions');
         Route::get('/transactions/{transaction}/receipt', [BillingController::class, 'downloadReceipt'])->name('receipt');
-        Route::post('/activate-trial/{plan}', [BillingController::class, 'activateTrial'])->name('activate-trial');
+        Route::post('/start-free-plan', [BillingController::class, 'startFreePlan'])->name('start-free-plan');
         Route::post('/enterprise-inquiry', [EnterpriseInquiryController::class, 'store'])->name('enterprise-inquiry');
 
         // DK Bank QR payment flow

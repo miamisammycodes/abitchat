@@ -163,24 +163,30 @@ class BillingController extends Controller
     }
 
     /**
-     * Activate free trial for a tenant
+     * Start the Free plan — the explicit trial activation. Unlocks the
+     * api_key + widget and begins the 14-day window.
      */
-    public function activateTrial(Request $request, Plan $plan): RedirectResponse
+    public function startFreePlan(Request $request): RedirectResponse
     {
         $this->authorize(Ability::ManageBilling->value);
-        abort_if(! $plan->is_active, 404);
 
-        if ($plan->price > 0) {
-            return back()->with('error', 'This plan requires payment.');
+        $freePlan = Plan::query()
+            ->where('slug', 'free')
+            ->where('price', 0)
+            ->where('is_active', true)
+            ->first();
+
+        if ($freePlan === null) {
+            return back()->with('error', 'The free plan is currently unavailable. Please contact support.');
         }
 
         $tenant = $this->getTenant($request);
 
-        return DB::transaction(function () use ($tenant, $plan) {
+        return DB::transaction(function () use ($tenant, $freePlan) {
             $locked = Tenant::whereKey($tenant->id)->lockForUpdate()->first();
 
             if ($locked->trial_activated_at !== null) {
-                return back()->with('error', 'Your free trial has already been used.');
+                return back()->with('error', 'Your free plan has already been used. Please choose a paid plan.');
             }
 
             if ($locked->plan_id && ! $locked->isPlanExpired()) {
@@ -188,14 +194,14 @@ class BillingController extends Controller
             }
 
             $locked->update([
-                'plan_id' => $plan->id,
-                'plan_expires_at' => now()->addDays(14),
+                'plan_id' => $freePlan->id,
+                'plan_expires_at' => now()->addDays(Tenant::FREE_TRIAL_DAYS),
                 'trial_activated_at' => now(),
             ]);
 
             return redirect()
                 ->route('client.billing.index')
-                ->with('success', 'Your 14-day free trial has been activated! Enjoy exploring all the features.');
+                ->with('success', 'Your 14-day free plan is active — your widget is now live!');
         });
     }
 }
