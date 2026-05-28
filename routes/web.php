@@ -70,10 +70,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/', [KnowledgeBaseController::class, 'store'])->middleware('check.limits:knowledge_items')->name('store');
         Route::get('/{item}', [KnowledgeBaseController::class, 'show'])->name('show');
         Route::get('/{item}/edit', [KnowledgeBaseController::class, 'edit'])->name('edit');
-        Route::put('/{item}', [KnowledgeBaseController::class, 'update'])->name('update');
-        Route::delete('/{item}', [KnowledgeBaseController::class, 'destroy'])->name('destroy');
-        Route::post('/{item}/reprocess', [KnowledgeBaseController::class, 'reprocess'])->name('reprocess');
-        Route::post('/{item}/retry', [KnowledgeBaseController::class, 'retry'])->name('retry');
+        Route::put('/{item}', [KnowledgeBaseController::class, 'update'])->middleware('block.expired')->name('update');
+        Route::delete('/{item}', [KnowledgeBaseController::class, 'destroy'])->middleware('block.expired')->name('destroy');
+        Route::post('/{item}/reprocess', [KnowledgeBaseController::class, 'reprocess'])->middleware('block.expired')->name('reprocess');
+        Route::post('/{item}/retry', [KnowledgeBaseController::class, 'retry'])->middleware('block.expired')->name('retry');
     });
 
     // Widget Settings
