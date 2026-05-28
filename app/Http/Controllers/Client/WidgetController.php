@@ -19,17 +19,18 @@ class WidgetController extends Controller
     {
         $tenant = $this->getTenant($request);
 
-        // CR-01: api_key is a tenant secret — only expose to users with manage-tenant-settings.
-        // Below-Owner roles see a placeholder; the Vue layer hides regenerate/reveal controls.
+        $widgetUnlocked = $tenant->lifecycleState()->allowsWidget();
         $canManageSettings = Gate::allows(Ability::ManageTenantSettings->value);
 
         return Inertia::render('Client/Widget/Index', [
             'tenant' => [
                 'id' => $tenant->id,
                 'name' => $tenant->name,
-                'api_key' => $canManageSettings ? $tenant->api_key : null,
+                'api_key' => ($widgetUnlocked && $canManageSettings) ? $tenant->api_key : null,
                 'settings' => $tenant->settings ?? [],
             ],
+            'widgetUnlocked' => $widgetUnlocked,
+            'lifecycleState' => $tenant->lifecycleState()->value,
             'embedUrl' => $request->getSchemeAndHttpHost().'/widget/chatbot.js',
             'apiUrl' => $request->getSchemeAndHttpHost(),
             'website_url' => $tenant->website_url,
@@ -79,6 +80,10 @@ class WidgetController extends Controller
         // the model layer evicts the old api_key-keyed cache slot uniformly
         // across all rotation paths. Per CLAUDE.md "no dual-system support."
         $tenant = $this->getTenant($request);
+
+        if (! $tenant->lifecycleState()->allowsWidget()) {
+            return back()->with('error', 'Start a plan to manage your widget key.');
+        }
 
         $tenant->update([
             'api_key' => bin2hex(random_bytes(32)),

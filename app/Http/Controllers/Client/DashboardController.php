@@ -26,7 +26,9 @@ class DashboardController extends Controller
             'tenant' => [
                 'name' => $tenant->name,
                 'plan' => $planLabel,
-                'api_key' => substr($tenant->api_key, 0, 8).'...',
+                'api_key' => $tenant->lifecycleState()->allowsWidget()
+                    ? substr($tenant->api_key, 0, 8).'...'
+                    : null,
             ],
             'stats' => [
                 'conversations' => $tenant->conversations()->count(),
