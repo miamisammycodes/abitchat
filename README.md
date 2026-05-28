@@ -30,7 +30,7 @@ cd abitchat
 
 # Install dependencies
 composer install
-npm install
+pnpm install
 
 # Setup environment
 cp .env.example .env
@@ -64,7 +64,7 @@ composer test
 
 # Or individually
 php artisan serve
-npm run dev
+pnpm run dev
 ```
 
 ### Local email (Mailpit)
