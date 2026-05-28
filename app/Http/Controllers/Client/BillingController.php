@@ -56,6 +56,7 @@ class BillingController extends Controller
         return Inertia::render('Client/Billing/Plans', [
             'plans' => Plan::active()->ordered()->get(),
             'currentPlanId' => $tenant->plan_id,
+            'trialUsed' => $tenant->trial_activated_at !== null,
         ]);
     }
 

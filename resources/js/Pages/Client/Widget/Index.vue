@@ -30,9 +30,16 @@ const props = defineProps({
   website_url: { type: String, default: '' },
   auto_recrawl: { type: Boolean, default: true },
   last_crawl_session: { type: Object, default: null },
+  widgetUnlocked: { type: Boolean, default: false },
+  lifecycleState: { type: String, default: 'setup' },
 })
 
 const page = usePage()
+
+const startForm = useForm({})
+function startFreePlan() {
+  startForm.post(route('client.billing.start-free-plan'), { preserveScroll: true })
+}
 
 const form = useForm({
   welcome_message: props.tenant.settings?.welcome_message || 'Hello! How can I help you today?',
@@ -171,64 +178,91 @@ function recrawlNow() {
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Settings Form -->
         <div class="space-y-6">
-          <!-- Embed Code Card -->
-          <Card>
+          <template v-if="widgetUnlocked">
+            <!-- Embed Code Card -->
+            <Card>
+              <CardHeader>
+                <CardTitle>Embed Code</CardTitle>
+                <CardDescription>
+                  Add this code to your website, just before the closing <code class="bg-muted px-1 rounded text-sm">&lt;/body&gt;</code> tag.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div class="relative">
+                  <pre class="bg-zinc-900 text-zinc-100 p-4 rounded-lg text-sm overflow-x-auto"><code>{{ embedCode }}</code></pre>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    class="absolute top-2 right-2"
+                    @click="copyEmbedCode"
+                  >
+                    <Check v-if="copied" class="h-4 w-4 mr-1" />
+                    <Copy v-else class="h-4 w-4 mr-1" />
+                    {{ copied ? 'Copied!' : 'Copy' }}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <!-- API Key Card -->
+            <Card>
+              <CardHeader>
+                <CardTitle>API Key</CardTitle>
+              </CardHeader>
+              <CardContent class="space-y-4">
+                <div class="flex items-center gap-2">
+                  <div class="flex-1 relative">
+                    <Input
+                      :type="showApiKey ? 'text' : 'password'"
+                      :model-value="tenant.api_key"
+                      readonly
+                      class="pr-10 font-mono"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="absolute right-0 top-0 h-full"
+                      @click="showApiKey = !showApiKey"
+                    >
+                      <EyeOff v-if="showApiKey" class="h-4 w-4" />
+                      <Eye v-else class="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <Button variant="outline" @click="copyApiKey">
+                    <Copy class="h-4 w-4 mr-2" />
+                    Copy
+                  </Button>
+                </div>
+                <Button v-if="$page.props.auth.user.can.manage_tenant_settings" variant="ghost" size="sm" class="text-destructive" @click="regenerateApiKey">
+                  <RefreshCw class="h-4 w-4 mr-2" />
+                  Regenerate API Key
+                </Button>
+              </CardContent>
+            </Card>
+          </template>
+          <Card v-else>
             <CardHeader>
-              <CardTitle>Embed Code</CardTitle>
+              <CardTitle>{{ lifecycleState === 'expired' ? 'Your free plan has ended' : 'Your widget is ready to go live' }}</CardTitle>
               <CardDescription>
-                Add this code to your website, just before the closing <code class="bg-muted px-1 rounded text-sm">&lt;/body&gt;</code> tag.
+                {{ lifecycleState === 'expired'
+                  ? 'Subscribe to a paid plan to bring your chat widget back online. Your settings and knowledge base are preserved.'
+                  : 'Start your free plan to reveal your embed code and put the chat widget live on your site. You can keep building your knowledge base in the meantime.' }}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div class="relative">
-                <pre class="bg-zinc-900 text-zinc-100 p-4 rounded-lg text-sm overflow-x-auto"><code>{{ embedCode }}</code></pre>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  class="absolute top-2 right-2"
-                  @click="copyEmbedCode"
-                >
-                  <Check v-if="copied" class="h-4 w-4 mr-1" />
-                  <Copy v-else class="h-4 w-4 mr-1" />
-                  {{ copied ? 'Copied!' : 'Copy' }}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          <!-- API Key Card -->
-          <Card>
-            <CardHeader>
-              <CardTitle>API Key</CardTitle>
-            </CardHeader>
-            <CardContent class="space-y-4">
-              <div class="flex items-center gap-2">
-                <div class="flex-1 relative">
-                  <Input
-                    :type="showApiKey ? 'text' : 'password'"
-                    :model-value="tenant.api_key"
-                    readonly
-                    class="pr-10 font-mono"
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    class="absolute right-0 top-0 h-full"
-                    @click="showApiKey = !showApiKey"
-                  >
-                    <EyeOff v-if="showApiKey" class="h-4 w-4" />
-                    <Eye v-else class="h-4 w-4" />
-                  </Button>
-                </div>
-                <Button variant="outline" @click="copyApiKey">
-                  <Copy class="h-4 w-4 mr-2" />
-                  Copy
-                </Button>
-              </div>
-              <Button v-if="$page.props.auth.user.can.manage_tenant_settings" variant="ghost" size="sm" class="text-destructive" @click="regenerateApiKey">
-                <RefreshCw class="h-4 w-4 mr-2" />
-                Regenerate API Key
+              <Button
+                v-if="lifecycleState === 'setup' && $page.props.auth.user.can.manage_billing"
+                :disabled="startForm.processing"
+                @click="startFreePlan"
+              >
+                Start Free Plan
               </Button>
+              <Button v-else-if="lifecycleState === 'expired' && $page.props.auth.user.can.manage_billing" as-child>
+                <Link :href="route('client.billing.plans')">Subscribe</Link>
+              </Button>
+              <p v-else class="text-sm text-muted-foreground">
+                Ask an account owner to start a plan to activate the widget.
+              </p>
             </CardContent>
           </Card>
 
