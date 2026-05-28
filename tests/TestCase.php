@@ -66,7 +66,7 @@ abstract class TestCase extends BaseTestCase
 
     /**
      * Create a SuperAdmin user for testing.
-     * Uses a unique email to avoid collision with the DatabaseSeeder's admin@example.com.
+     * Uses a unique email so repeated calls within a test never collide.
      */
     protected function createSuperAdmin(): User
     {
