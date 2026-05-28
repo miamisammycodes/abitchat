@@ -1,19 +1,14 @@
 # Chatbot SaaS - AI Coding Rules
 
-## Test Credentials
+## Accounts & Seeding
 
-All accounts use the password `password`.
+`php artisan db:seed` (and `migrate:fresh --seed`) seeds **only** the reference Plans — never users or tenants. Production must not contain fake accounts.
 
-**Tenant: Test Company**
-- `admin@example.com` — Platform Admin (super_admin only; no tenant)
-- `test@example.com` — Owner of Test Company + Platform Admin (dual-role; exercises chooser flow)
-- `manager@example.com` — Manager of Test Company
-- `agent@example.com` — Agent of Test Company
+To get accounts after a fresh seed:
+- **Platform admin**: `php artisan admin:create` — interactive (prompts for name, email, password). Creates a `super_admin` with no tenant.
+- **Tenant owner + staff**: register through the app (`/register`), then add managers/agents from the dashboard.
 
-**Tenant: Demo Co**
-- `owner@demo.example` — Owner of Demo Co
-- `manager@demo.example` — Manager of Demo Co
-- `agent@demo.example` — Agent of Demo Co
+Roles: `super_admin` (platform admin, no tenant), `owner`, `manager`, `agent` (tenant-scoped).
 
 ## Development URLs
 
