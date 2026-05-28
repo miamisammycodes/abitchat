@@ -29,6 +29,7 @@ See `ROADMAP.md` for current build status.
 **Tech Stack:**
 - Backend: Laravel 13+, PHP 8.3+
 - Frontend: Vue 3 (Composition API), Inertia.js, Tailwind CSS v4
+- JS toolchain: **pnpm — NOT npm** (`package.json` `packageManager`). Use `pnpm install` / `pnpm run dev` / `pnpm run build`. Node pinned to 22 via `.nvmrc` (Vite 8 requires Node ≥20; Herd's nvm defaults to 16, so a terminal must honor `.nvmrc`).
 - Database: MySQL 8.0+, SQLite-vec (vectors), Redis
 - Multi-tenancy: Spatie Laravel Multitenancy
 - LLM: Prism (Ollama/gemma3:4b dev, Groq/llama-3.1 prod)
