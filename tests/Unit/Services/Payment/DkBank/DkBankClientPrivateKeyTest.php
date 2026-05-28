@@ -35,10 +35,12 @@ class DkBankClientPrivateKeyTest extends TestCase
         file_put_contents($path, 'FAKE-PEM-CONTENTS');
         config(['services.dk_bank.private_key_path' => $path]);
 
-        $result = $this->invokeGetPrivateKey();
+        try {
+            $result = $this->invokeGetPrivateKey();
 
-        $this->assertSame('FAKE-PEM-CONTENTS', $result);
-
-        unlink($path);
+            $this->assertSame('FAKE-PEM-CONTENTS', $result);
+        } finally {
+            unlink($path);
+        }
     }
 }
