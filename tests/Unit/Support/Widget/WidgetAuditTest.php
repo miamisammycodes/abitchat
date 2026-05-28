@@ -14,10 +14,14 @@ use Tests\TestCase;
 
 class WidgetAuditTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Cache::forget(WidgetAudit::FAILURE_COUNTER_KEY);
+    }
+
     public function test_log_swallows_logging_failure_and_increments_counter(): void
     {
-        Cache::forget('widget_audit_failures');
-
         Log::shouldReceive('channel')->with(WidgetAudit::CHANNEL)->andThrow(new \RuntimeException('boom'));
         Log::shouldReceive('error')->andReturnNull();
 
@@ -25,25 +29,21 @@ class WidgetAuditTest extends TestCase
         $tenant->id = 1;
         $request = Request::create('/api/v1/widget/init', 'POST');
 
-        // Must NOT throw despite the log channel failing.
         WidgetAudit::log(WidgetAuditEvent::Init, $tenant, 'https://example.com', $request);
 
-        $this->assertSame(1, Cache::get('widget_audit_failures', 0));
+        $this->assertSame(1, Cache::get(WidgetAudit::FAILURE_COUNTER_KEY, 0));
     }
 
     public function test_reject_swallows_logging_failure_and_increments_counter(): void
     {
-        Cache::forget('widget_audit_failures');
-
         Log::shouldReceive('channel')->with(WidgetAudit::CHANNEL)->andThrow(new \RuntimeException('boom'));
         Log::shouldReceive('error')->andReturnNull();
 
         $request = Request::create('/api/v1/widget/conversation', 'POST');
 
-        // Must NOT throw, and must own the rejected-path log shape internally.
         WidgetAudit::reject('invalid token', 'https://example.com', $request);
 
-        $this->assertSame(1, Cache::get('widget_audit_failures', 0));
+        $this->assertSame(1, Cache::get(WidgetAudit::FAILURE_COUNTER_KEY, 0));
     }
 
     public function test_ip_hash_throws_when_app_key_empty(): void
@@ -58,10 +58,9 @@ class WidgetAuditTest extends TestCase
 
     public function test_log_swallows_the_real_empty_app_key_failure(): void
     {
-        // No log mock here: let ipHash() throw for real (the production trigger
-        // this whole guard exists for), and prove the chokepoint absorbs it.
+        // No log mock: let ipHash() throw for real (the production trigger this
+        // guard exists for) and prove the chokepoint absorbs it.
         config(['app.key' => '']);
-        Cache::forget('widget_audit_failures');
 
         $tenant = new Tenant;
         $tenant->id = 1;
@@ -69,6 +68,17 @@ class WidgetAuditTest extends TestCase
 
         WidgetAudit::log(WidgetAuditEvent::Init, $tenant, 'https://example.com', $request);
 
-        $this->assertSame(1, Cache::get('widget_audit_failures', 0));
+        $this->assertSame(1, Cache::get(WidgetAudit::FAILURE_COUNTER_KEY, 0));
+    }
+
+    public function test_reject_swallows_the_real_empty_app_key_failure(): void
+    {
+        config(['app.key' => '']);
+
+        $request = Request::create('/api/v1/widget/conversation', 'POST');
+
+        WidgetAudit::reject('invalid token', 'https://example.com', $request);
+
+        $this->assertSame(1, Cache::get(WidgetAudit::FAILURE_COUNTER_KEY, 0));
     }
 }

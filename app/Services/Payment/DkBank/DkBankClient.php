@@ -119,6 +119,9 @@ class DkBankClient
     {
         if ($this->cachedPrivateKey === null) {
             $path = (string) config('services.dk_bank.private_key_path');
+            // is_readable short-circuit is load-bearing: a bare file_get_contents on a
+            // missing file emits an E_WARNING that Laravel's handler promotes to an
+            // ErrorException, masking the clear RuntimeException below.
             $contents = is_readable($path) ? file_get_contents($path) : false;
 
             if ($contents === false) {

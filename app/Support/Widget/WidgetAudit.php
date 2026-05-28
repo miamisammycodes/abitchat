@@ -14,6 +14,8 @@ final class WidgetAudit
 {
     public const CHANNEL = 'widget_audit';
 
+    public const FAILURE_COUNTER_KEY = 'widget_audit_failures';
+
     public static function log(WidgetAuditEvent $event, Tenant $tenant, ?string $origin, Request $request): void
     {
         try {
@@ -58,7 +60,7 @@ final class WidgetAudit
         // The failure recorder must never re-throw, or the "audit never crashes
         // the request" guarantee leaks back out to the callers.
         try {
-            Cache::increment('widget_audit_failures');
+            Cache::increment(self::FAILURE_COUNTER_KEY);
         } catch (\Throwable) {
         }
 

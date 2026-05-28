@@ -33,7 +33,7 @@ class WidgetAuditGuardTest extends TestCase
         $headers = $this->widgetHeaders($this->tenant);
 
         // Clear any cached counter
-        Cache::forget('widget_audit_failures');
+        Cache::forget(WidgetAudit::FAILURE_COUNTER_KEY);
 
         // Mock the Log channel to throw on widget_audit channel
         Log::shouldReceive('channel')
@@ -55,7 +55,7 @@ class WidgetAuditGuardTest extends TestCase
 
     public function test_audit_failure_increments_cache_counter(): void
     {
-        Cache::forget('widget_audit_failures');
+        Cache::forget(WidgetAudit::FAILURE_COUNTER_KEY);
 
         $headers = $this->widgetHeaders($this->tenant);
 
@@ -72,7 +72,7 @@ class WidgetAuditGuardTest extends TestCase
         $this->withHeaders($headers)
             ->postJson('/api/v1/widget/conversation', ['api_key' => $this->tenant->api_key]);
 
-        $this->assertGreaterThanOrEqual(1, Cache::get('widget_audit_failures', 0),
+        $this->assertGreaterThanOrEqual(1, Cache::get(WidgetAudit::FAILURE_COUNTER_KEY, 0),
             'widget_audit_failures counter must be incremented on audit failure');
     }
 
@@ -99,7 +99,7 @@ class WidgetAuditGuardTest extends TestCase
 
     public function test_audit_failure_on_init_path_is_also_swallowed(): void
     {
-        Cache::forget('widget_audit_failures');
+        Cache::forget(WidgetAudit::FAILURE_COUNTER_KEY);
 
         Log::shouldReceive('channel')
             ->with(WidgetAudit::CHANNEL)
@@ -118,7 +118,7 @@ class WidgetAuditGuardTest extends TestCase
         // If line 64 of ChatController::init() were unguarded, this would return 500.
         $response->assertOk()->assertJsonStructure(['success', 'config', 'session_token', 'expires_at']);
 
-        $this->assertGreaterThanOrEqual(1, Cache::get('widget_audit_failures', 0),
+        $this->assertGreaterThanOrEqual(1, Cache::get(WidgetAudit::FAILURE_COUNTER_KEY, 0),
             'widget_audit_failures counter must be incremented on init-path audit failure');
     }
 }
