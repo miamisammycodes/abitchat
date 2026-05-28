@@ -118,7 +118,17 @@ class DkBankClient
     private function getPrivateKey(): string
     {
         if ($this->cachedPrivateKey === null) {
-            $this->cachedPrivateKey = file_get_contents(config('services.dk_bank.private_key_path'));
+            $path = (string) config('services.dk_bank.private_key_path');
+            // is_readable short-circuit is load-bearing: a bare file_get_contents on a
+            // missing file emits an E_WARNING that Laravel's handler promotes to an
+            // ErrorException, masking the clear RuntimeException below.
+            $contents = is_readable($path) ? file_get_contents($path) : false;
+
+            if ($contents === false) {
+                throw new \RuntimeException("DK Bank private key file unreadable: {$path}");
+            }
+
+            $this->cachedPrivateKey = $contents;
         }
 
         return $this->cachedPrivateKey;
