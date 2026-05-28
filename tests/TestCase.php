@@ -65,6 +65,41 @@ abstract class TestCase extends BaseTestCase
     }
 
     /**
+     * Create a tenant in the Setup lifecycle state (no plan, no trial clock).
+     */
+    protected function createSetupTenantWithUser(): User
+    {
+        $this->tenant = Tenant::create([
+            'name' => 'Setup Company',
+            'slug' => 'setup-company',
+            'status' => 'active',
+        ]);
+
+        $this->user = User::create([
+            'name' => 'Setup User',
+            'email' => 'setup@example.com',
+            'password' => bcrypt('password'),
+            'tenant_id' => $this->tenant->id,
+        ]);
+
+        UserRole::create([
+            'user_id' => $this->user->id,
+            'role' => Role::Owner,
+            'tenant_id' => $this->tenant->id,
+        ]);
+
+        return $this->user;
+    }
+
+    protected function actingAsSetupTenant(): static
+    {
+        $this->createSetupTenantWithUser();
+        $this->actingAs($this->user);
+
+        return $this;
+    }
+
+    /**
      * Create a SuperAdmin user for testing.
      * Uses a unique email so repeated calls within a test never collide.
      */

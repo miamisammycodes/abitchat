@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\TenantLifecycle;
 use App\Services\Usage\UsageTracker;
 use Database\Factories\TenantFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -30,6 +31,11 @@ class Tenant extends BaseTenant
      * the two paths can't drift apart.
      */
     public const MAX_CUSTOM_INSTRUCTIONS_CHARS = 1000;
+
+    /**
+     * Length (in days) of the free window unlocked by "Start Free Plan".
+     */
+    public const FREE_TRIAL_DAYS = 14;
 
     protected $fillable = [
         'name',
@@ -183,6 +189,19 @@ class Tenant extends BaseTenant
     public function hasPlan(): bool
     {
         return $this->plan_id !== null && ! $this->isPlanExpired();
+    }
+
+    public function lifecycleState(): TenantLifecycle
+    {
+        if ($this->plan_id !== null) {
+            return $this->isPlanExpired() ? TenantLifecycle::Expired : TenantLifecycle::Active;
+        }
+
+        if ($this->trial_ends_at !== null) {
+            return $this->isOnTrial() ? TenantLifecycle::LegacyTrial : TenantLifecycle::Expired;
+        }
+
+        return TenantLifecycle::Setup;
     }
 
     public function extendPlan(Plan $plan): void
