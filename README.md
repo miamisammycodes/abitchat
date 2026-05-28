@@ -23,6 +23,8 @@ AI-Powered WordPress Chatbot SaaS with RAG (Retrieval-Augmented Generation) and 
 
 ## Quick Start
 
+> **Requirements:** PHP 8.3+, **Node ≥20** (project pins Node 22 via `.nvmrc` — use nvm/fnm/Volta to honor it), and **pnpm** (`npm install -g pnpm` or `corepack enable`). Node <18 will fail: pnpm won't run and Vite 8 needs ≥20.
+
 ```bash
 # Clone the repo
 git clone https://github.com/YOUR_USERNAME/abitchat.git

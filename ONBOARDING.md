@@ -28,6 +28,8 @@ Read CLAUDE.md and CONTEXT.md before touching code. They're the "this is how we 
 
 ## Local setup
 
+> Needs **Node ≥20** (project pins Node 22 via `.nvmrc`) and **pnpm**. On Herd, the bundled nvm defaults to Node 16 — open the terminal *in* this repo so `.nvmrc` switches you to 22, or set it up in nvm/fnm/Volta.
+
 ```bash
 composer install && pnpm install
 cp .env.example .env
