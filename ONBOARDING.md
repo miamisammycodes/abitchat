@@ -29,7 +29,7 @@ Read CLAUDE.md and CONTEXT.md before touching code. They're the "this is how we 
 ## Local setup
 
 ```bash
-composer install && npm install
+composer install && pnpm install
 cp .env.example .env
 php artisan key:generate
 php artisan migrate --seed
@@ -39,7 +39,7 @@ Then in three terminals (or via your favorite multiplexer):
 
 ```bash
 php artisan serve --port=8001          # http://127.0.0.1:8001
-npm run dev                            # Vite on :5173
+pnpm run dev                           # Vite on :5173
 php artisan queue:work --queue=crawls,default
 ```
 
