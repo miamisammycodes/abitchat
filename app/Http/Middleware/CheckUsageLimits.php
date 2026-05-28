@@ -34,7 +34,21 @@ class CheckUsageLimits
             return $this->reject($isJson, 'Account is not active', 'TENANT_INACTIVE', 403);
         }
 
-        if (! $tenant->hasPlan() && ! $tenant->isOnTrial()) {
+        $state = $tenant->lifecycleState();
+
+        if ($type === UsageTracker::TYPE_KNOWLEDGE_ITEMS) {
+            // KB management: blocked only when Expired (view-only). Setup,
+            // Active, and LegacyTrial may manage KB up to their resolved limits.
+            if (! $state->allowsKnowledgeWrites()) {
+                return $this->reject(
+                    $isJson,
+                    'Your free plan has ended. Please subscribe to make changes.',
+                    'NO_SUBSCRIPTION',
+                    403,
+                );
+            }
+        } elseif (! $state->allowsWidget()) {
+            // Widget usage (conversations/tokens/leads) requires a live plan.
             return $this->reject(
                 $isJson,
                 'Your trial has expired. Please subscribe to a plan to continue.',
