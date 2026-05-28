@@ -28,7 +28,7 @@ class WidgetAuditTest extends TestCase
         // Must NOT throw despite the log channel failing.
         WidgetAudit::log(WidgetAuditEvent::Init, $tenant, 'https://example.com', $request);
 
-        $this->assertGreaterThanOrEqual(1, Cache::get('widget_audit_failures', 0));
+        $this->assertSame(1, Cache::get('widget_audit_failures', 0));
     }
 
     public function test_reject_swallows_logging_failure_and_increments_counter(): void
@@ -43,6 +43,6 @@ class WidgetAuditTest extends TestCase
         // Must NOT throw, and must own the rejected-path log shape internally.
         WidgetAudit::reject('invalid token', 'https://example.com', $request);
 
-        $this->assertGreaterThanOrEqual(1, Cache::get('widget_audit_failures', 0));
+        $this->assertSame(1, Cache::get('widget_audit_failures', 0));
     }
 }

@@ -55,7 +55,16 @@ final class WidgetAudit
 
     private static function recordFailure(\Throwable $e): void
     {
-        Cache::increment('widget_audit_failures');
-        Log::warning('[Widget] Audit log failure', ['error' => $e->getMessage()]);
+        // The failure recorder must never re-throw, or the "audit never crashes
+        // the request" guarantee leaks back out to the callers.
+        try {
+            Cache::increment('widget_audit_failures');
+        } catch (\Throwable) {
+        }
+
+        try {
+            Log::warning('[Widget] Audit log failure', ['error' => $e->getMessage()]);
+        } catch (\Throwable) {
+        }
     }
 }
