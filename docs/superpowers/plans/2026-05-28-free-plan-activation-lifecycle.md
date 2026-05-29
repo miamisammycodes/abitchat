@@ -1195,6 +1195,7 @@ declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -1202,9 +1203,23 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('tenants', function (Blueprint $table) {
+            // NOTE: ->after() is a MySQL-ism (no-op on Postgres). Harmless on both.
             $table->timestamp('trial_expiring_notified_at')->nullable()->after('trial_activated_at');
             $table->timestamp('trial_expired_notified_at')->nullable()->after('trial_expiring_notified_at');
         });
+
+        // BLOCKER GUARD: backfill so the FIRST scheduled run does not email
+        // tenants whose Free plan already lapsed before this feature shipped
+        // (they would receive a stale "your plan has ended" email). Only the
+        // expired stamp needs backfilling — already-lapsed tenants can't match
+        // the "expiring in ~3 days" (future) reminder window anyway.
+        DB::table('tenants')
+            ->whereIn('plan_id', function ($q) {
+                $q->select('id')->from('plans')->where('slug', 'free')->where('price', 0);
+            })
+            ->whereNotNull('plan_expires_at')
+            ->where('plan_expires_at', '<=', now())
+            ->update(['trial_expired_notified_at' => now()]);
     }
 
     public function down(): void
@@ -1587,7 +1602,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
-use App\Models\Plan;
 use App\Models\Tenant;
 use App\Notifications\Billing\TrialExpiredNotification;
 use App\Notifications\Billing\TrialExpiringNotification;
@@ -1596,16 +1610,7 @@ use Tests\TestCase;
 
 class SendTrialLifecycleEmailsTest extends TestCase
 {
-    private function freePlan(): Plan
-    {
-        return Plan::create([
-            'name' => 'Free', 'slug' => 'free', 'description' => null, 'price' => 0,
-            'billing_period' => 'monthly', 'conversations_limit' => 100,
-            'messages_per_conversation' => 50, 'knowledge_items_limit' => 10,
-            'tokens_limit' => 50000, 'leads_limit' => 50, 'is_active' => true,
-            'is_contact_sales' => false, 'features' => [], 'sort_order' => 0,
-        ]);
-    }
+    // Free plan via the shared TestCase::createFreePlan() helper (Phase 1).
 
     private function tenantWithOwner(string $slug, array $attrs): Tenant
     {
@@ -1619,7 +1624,7 @@ class SendTrialLifecycleEmailsTest extends TestCase
     public function test_sends_reminder_and_expired_once_each(): void
     {
         Notification::fake();
-        $free = $this->freePlan();
+        $free = $this->createFreePlan();
 
         $expiring = $this->tenantWithOwner('expiring', ['plan_id' => $free->id, 'plan_expires_at' => now()->addDays(2)]);
         $expired = $this->tenantWithOwner('expired', ['plan_id' => $free->id, 'plan_expires_at' => now()->subDay()]);
@@ -1680,7 +1685,7 @@ class SendTrialLifecycleEmails extends Command
 
     public function handle(): int
     {
-        $freeId = Plan::query()->where('slug', 'free')->where('price', 0)->value('id');
+        $freeId = Plan::query()->free()->value('id'); // Plan::free() scope added in Phase 1
         if ($freeId === null) {
             $this->warn('No Free plan found; nothing to do.');
 
@@ -1777,20 +1782,13 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Models\Plan;
 use Tests\TestCase;
 
 class InertiaTrialStatusTest extends TestCase
 {
     public function test_active_free_tenant_shares_trial_status_with_days_remaining(): void
     {
-        $free = Plan::create([
-            'name' => 'Free', 'slug' => 'free', 'description' => null, 'price' => 0,
-            'billing_period' => 'monthly', 'conversations_limit' => 100,
-            'messages_per_conversation' => 50, 'knowledge_items_limit' => 10,
-            'tokens_limit' => 50000, 'leads_limit' => 50, 'is_active' => true,
-            'is_contact_sales' => false, 'features' => [], 'sort_order' => 0,
-        ]);
+        $free = $this->createFreePlan();
         $this->actingAsSetupTenant();
         $this->tenant->update(['plan_id' => $free->id, 'plan_expires_at' => now()->addDays(5), 'trial_activated_at' => now()]);
 
@@ -1829,7 +1827,7 @@ And add the private method (uses the Free plan only — paid tenants don't need 
         }
 
         return once(function () use ($tenant): ?array {
-            $free = \App\Models\Plan::query()->where('slug', 'free')->where('price', 0)->value('id');
+            $free = \App\Models\Plan::query()->free()->value('id'); // Plan::free() scope added in Phase 1
             if ($free === null || $tenant->plan_id !== $free) {
                 return null; // banner is only for Free-plan tenants
             }

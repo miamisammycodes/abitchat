@@ -139,6 +139,14 @@ Gating is enforced by `lifecycleState()` + middleware, never by `limitsFor`.
 **Banner** (`HandleInertiaRequests` shares a `trialStatus` prop):
 - Active: "Your Free plan expires in N days — subscribe to stay live."
 - Expired: "Your Free plan ended — subscribe to reactivate your widget."
+- **LegacyTrial tenants get no banner** (the banner is Free-plan-only, keyed on
+  `plan_id === free`). Intended — the legacy implicit-trial path self-sunsets;
+  not a bug for QA to file.
+
+**First-run guard (deploy):** the Task 10 migration backfills
+`trial_expired_notified_at = now()` for tenants whose Free plan **already lapsed**
+before this ships, so the first scheduled run doesn't email them a stale
+"plan ended" message.
 
 **Email (Resend)** — three new `EmailType` enum entries + notifications:
 - `trial_started` — sent by `startFreePlan`.
