@@ -19,6 +19,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -208,8 +209,18 @@ class BillingController extends Controller
         }
 
         $fresh = $tenant->fresh();
-        $recipients = app(RecipientResolver::class)->recipientsFor(EmailType::TrialStarted, $fresh);
-        Notification::send($recipients, new TrialStartedNotification($fresh));
+
+        try {
+            $recipients = app(RecipientResolver::class)->recipientsFor(EmailType::TrialStarted, $fresh);
+            Notification::send($recipients, new TrialStartedNotification($fresh));
+        } catch (\Throwable $e) {
+            // Plan is already committed — a mail/queue hiccup must not 500 the user
+            // (their widget IS live). Log and fall through to the success page.
+            Log::warning('[Billing] (IS $) TrialStarted email failed to queue', [
+                'tenant_id' => $fresh->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return redirect()
             ->route('client.billing.index')

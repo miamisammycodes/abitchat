@@ -56,4 +56,22 @@ class StartFreePlanTest extends TestCase
 
         Notification::assertSentTimes(TrialStartedNotification::class, 1);
     }
+
+    public function test_free_plan_activates_even_if_email_dispatch_throws(): void
+    {
+        $this->actingAsSetupTenant();
+        $this->createFreePlan();
+
+        // Simulate a queue/mail dispatch failure after the plan commits.
+        Notification::shouldReceive('send')->andThrow(new \RuntimeException('queue down'));
+
+        $this->post(route('client.billing.start-free-plan'))
+            ->assertRedirect(route('client.billing.index'))
+            ->assertSessionHas('success');
+
+        $this->assertSame(
+            TenantLifecycle::Active,
+            $this->tenant->fresh()->lifecycleState(),
+        );
+    }
 }
