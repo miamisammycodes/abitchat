@@ -52,6 +52,8 @@ class Tenant extends BaseTenant
         'settings',
         'trial_ends_at',
         'trial_activated_at',
+        'trial_expiring_notified_at',
+        'trial_expired_notified_at',
         'bot_type',
         'bot_tone',
         'bot_custom_instructions',
@@ -62,6 +64,8 @@ class Tenant extends BaseTenant
         'trial_ends_at' => 'datetime',
         'plan_expires_at' => 'datetime',
         'trial_activated_at' => 'datetime',
+        'trial_expiring_notified_at' => 'datetime',
+        'trial_expired_notified_at' => 'datetime',
         'auto_recrawl' => 'boolean',
     ];
 
