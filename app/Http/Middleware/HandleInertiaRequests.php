@@ -6,7 +6,9 @@ namespace App\Http\Middleware;
 
 use App\Enums\Ability;
 use App\Enums\Role;
+use App\Enums\TenantLifecycle;
 use App\Models\CrawlSession;
+use App\Models\Plan;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -82,6 +84,7 @@ class HandleInertiaRequests extends Middleware
             'usageStats' => fn () => $this->buildUsage($request, warningsOnly: false),
             'dkBankEnabled' => (bool) config('services.dk_bank.enabled'),
             'latest_crawl_session' => fn () => $this->latestCrawlSession($request),
+            'trialStatus' => fn () => $this->buildTrialStatus($request),
         ];
     }
 
@@ -301,5 +304,40 @@ class HandleInertiaRequests extends Middleware
         }
 
         return $rows;
+    }
+
+    /**
+     * Free-plan-only banner state. Null for Setup/LegacyTrial/paid tenants.
+     *
+     * @return array{state: string, days_remaining: int}|null
+     */
+    private function buildTrialStatus(Request $request): ?array
+    {
+        $tenant = $request->user()?->tenant;
+        if (! $tenant) {
+            return null;
+        }
+
+        return once(function () use ($tenant): ?array {
+            $free = Plan::query()->free()->value('id');
+            if ($free === null || $tenant->plan_id !== $free) {
+                return null;
+            }
+
+            $state = $tenant->lifecycleState();
+            if ($state === TenantLifecycle::Active) {
+                // diffInDays returns a float; ceil so "expires in 5 days" doesn't
+                // truncate to 4 a few microseconds after the row was written.
+                return [
+                    'state' => 'active',
+                    'days_remaining' => (int) max(0, ceil(now()->diffInDays($tenant->plan_expires_at, false))),
+                ];
+            }
+            if ($state === TenantLifecycle::Expired) {
+                return ['state' => 'expired', 'days_remaining' => 0];
+            }
+
+            return null;
+        });
     }
 }

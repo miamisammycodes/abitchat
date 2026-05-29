@@ -214,45 +214,32 @@ class AbilityCoverageTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // BillingController::activateTrial — ManageBilling (Owner only)
+    // BillingController::startFreePlan — ManageBilling (Owner only)
     // -------------------------------------------------------------------------
 
     public function test_manager_cannot_activate_trial(): void
     {
         $tenant = $this->makeTenant();
         $this->actingAsManager($tenant);
-        $plan = $this->makePlan();
 
-        $this->post(route('client.billing.activate-trial', $plan))->assertForbidden();
+        $this->post(route('client.billing.start-free-plan'))->assertForbidden();
     }
 
     public function test_agent_cannot_activate_trial(): void
     {
         $tenant = $this->makeTenant();
         $this->actingAsAgent($tenant);
-        $plan = $this->makePlan();
 
-        $this->post(route('client.billing.activate-trial', $plan))->assertForbidden();
+        $this->post(route('client.billing.start-free-plan'))->assertForbidden();
     }
 
     public function test_owner_can_activate_trial(): void
     {
         $tenant = $this->makeTenant();
         $this->actingAsOwner($tenant);
-        $plan = Plan::create([
-            'name' => 'Free',
-            'slug' => uniqid('free-'),
-            'price' => 0,
-            'billing_period' => 'monthly',
-            'is_active' => true,
-            'conversations_limit' => 50,
-            'leads_limit' => 25,
-            'tokens_limit' => 5000,
-            'knowledge_items_limit' => 3,
-        ]);
 
-        // Not 403 — gate allows owner (business logic may redirect with error about active plan)
-        $response = $this->post(route('client.billing.activate-trial', $plan));
+        // Not 403 — gate allows owner (business logic may redirect with error about missing free plan)
+        $response = $this->post(route('client.billing.start-free-plan'));
         $this->assertNotEquals(403, $response->status());
     }
 

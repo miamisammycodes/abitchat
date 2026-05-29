@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { Link, usePage, router } from '@inertiajs/vue3'
+import { useRoute } from '@/composables/useRoute'
 import { Button } from '@/Components/ui/button'
 import { Avatar, AvatarFallback } from '@/Components/ui/avatar'
 import RoleBadge from '@/Components/RoleBadge.vue'
@@ -24,11 +25,13 @@ import {
 import { useTheme } from '@/composables/useTheme'
 
 const page = usePage()
+const route = useRoute()
 const user = computed(() => page.props.auth?.user)
 const primaryRole = computed(() => user.value?.primary_role ?? null)
 const tenant = computed(() => page.props.tenant)
 const usageWarnings = computed(() => page.props.usageWarnings ?? [])
 const usageStats = computed(() => page.props.usageStats ?? [])
+const trialStatus = computed(() => page.props.trialStatus ?? null)
 
 const formatNum = (n) => {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M'
@@ -198,6 +201,24 @@ const getInitials = (name) => {
           </div>
         </div>
       </header>
+
+      <!-- Free-plan trial banner (Free-plan tenants only) -->
+      <div
+        v-if="trialStatus"
+        :class="['border-b px-4 py-2 text-sm', trialStatus.state === 'expired'
+          ? 'bg-destructive/10 text-destructive border-destructive/30'
+          : 'bg-amber-50 text-amber-900 border-amber-200']"
+      >
+        <div class="max-w-7xl mx-auto flex items-center justify-between gap-3">
+          <span v-if="trialStatus.state === 'active'">
+            Your free plan expires in {{ trialStatus.days_remaining }} day{{ trialStatus.days_remaining === 1 ? '' : 's' }} — subscribe to stay live.
+          </span>
+          <span v-else>Your free plan has ended — your widget is offline.</span>
+          <Link :href="route('client.billing.plans')" class="font-medium underline whitespace-nowrap">
+            {{ trialStatus.state === 'expired' ? 'Reactivate' : 'Subscribe' }}
+          </Link>
+        </div>
+      </div>
 
       <!-- Usage limit banners (only when at/over limit or near it) -->
       <div v-if="usageWarnings.length" class="border-b">

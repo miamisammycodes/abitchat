@@ -14,6 +14,7 @@ class EmailTypeTest extends TestCase
         $expected = [
             'receipt', 'lead_notification', 'enterprise_inquiry', 'password_reset',
             'team_invite', 'cancellation', 'dunning', 'quota_warning', 'weekly_digest',
+            'trial_started', 'trial_expiring', 'trial_expired',
         ];
 
         $actual = array_map(fn (EmailType $case): string => $case->value, EmailType::cases());

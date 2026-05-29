@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Usage;
 
 use App\Models\Conversation;
+use App\Models\Plan;
 use App\Models\Tenant;
 use App\Models\UsageRecord;
 use Carbon\Carbon;
@@ -103,17 +104,47 @@ final class UsageTracker
     /** @return array<string, int> */
     public function limitsFor(Tenant $tenant): array
     {
-        $plan = $tenant->currentPlan;
-        if ($plan && $tenant->hasPlan()) {
-            return [
-                self::TYPE_CONVERSATIONS => (int) $plan->conversations_limit,
-                self::TYPE_LEADS => (int) $plan->leads_limit,
-                self::TYPE_TOKENS => (int) $plan->tokens_limit,
-                self::TYPE_KNOWLEDGE_ITEMS => (int) $plan->knowledge_items_limit,
-            ];
+        // Plan limits drive display whenever a plan is attached — even if expired
+        // (the lifecycle gate, not the limit numbers, enforces the block).
+        if ($tenant->plan_id !== null && $tenant->currentPlan) {
+            return $this->planLimits($tenant->currentPlan);
         }
 
-        return config('billing.trial_limits', []);
+        // Legacy implicit-trial tenants keep the config trial limits.
+        if ($tenant->trial_ends_at !== null) {
+            return config('billing.trial_limits', []);
+        }
+
+        // Setup tenants preview the Free plan's limits.
+        return $this->freePlanLimits();
+    }
+
+    /** @return array<string, int> */
+    private function planLimits(Plan $plan): array
+    {
+        return [
+            self::TYPE_CONVERSATIONS => (int) $plan->conversations_limit,
+            self::TYPE_LEADS => (int) $plan->leads_limit,
+            self::TYPE_TOKENS => (int) $plan->tokens_limit,
+            self::TYPE_KNOWLEDGE_ITEMS => (int) $plan->knowledge_items_limit,
+        ];
+    }
+
+    /**
+     * Free-plan limits for Setup tenants. Cached because limitsFor() runs on
+     * every client Inertia request and the Free plan is rarely-changing
+     * reference data. Falls back to the configured trial limits if no Free
+     * plan row exists.
+     *
+     * @return array<string, int>
+     */
+    private function freePlanLimits(): array
+    {
+        return Cache::remember('plan:free:limits', 300, function (): array {
+            $free = Plan::query()->free()->first();
+
+            return $free ? $this->planLimits($free) : (array) config('billing.trial_limits', []);
+        });
     }
 
     /**

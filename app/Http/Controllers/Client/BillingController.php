@@ -5,17 +5,22 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Client;
 
 use App\Enums\Ability;
+use App\Enums\EmailType;
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
 use App\Models\Tenant;
 use App\Models\Transaction;
+use App\Notifications\Billing\TrialStartedNotification;
 use App\Services\Billing\ReceiptService;
+use App\Services\Email\RecipientResolver;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -56,6 +61,7 @@ class BillingController extends Controller
         return Inertia::render('Client/Billing/Plans', [
             'plans' => Plan::active()->ordered()->get(),
             'currentPlanId' => $tenant->plan_id,
+            'trialUsed' => $tenant->trial_activated_at !== null,
         ]);
     }
 
@@ -163,39 +169,61 @@ class BillingController extends Controller
     }
 
     /**
-     * Activate free trial for a tenant
+     * Start the Free plan — the explicit trial activation. Unlocks the
+     * api_key + widget and begins the 14-day window.
      */
-    public function activateTrial(Request $request, Plan $plan): RedirectResponse
+    public function startFreePlan(Request $request): RedirectResponse
     {
         $this->authorize(Ability::ManageBilling->value);
-        abort_if(! $plan->is_active, 404);
 
-        if ($plan->price > 0) {
-            return back()->with('error', 'This plan requires payment.');
+        $freePlan = Plan::query()->free()->first();
+
+        if ($freePlan === null) {
+            return back()->with('error', 'The free plan is currently unavailable. Please contact support.');
         }
 
         $tenant = $this->getTenant($request);
 
-        return DB::transaction(function () use ($tenant, $plan) {
+        $error = DB::transaction(function () use ($tenant, $freePlan): ?string {
             $locked = Tenant::whereKey($tenant->id)->lockForUpdate()->first();
 
             if ($locked->trial_activated_at !== null) {
-                return back()->with('error', 'Your free trial has already been used.');
+                return 'Your free plan has already been used. Please choose a paid plan.';
             }
 
             if ($locked->plan_id && ! $locked->isPlanExpired()) {
-                return back()->with('error', 'You already have an active plan.');
+                return 'You already have an active plan.';
             }
 
             $locked->update([
-                'plan_id' => $plan->id,
-                'plan_expires_at' => now()->addDays(14),
+                'plan_id' => $freePlan->id,
+                'plan_expires_at' => now()->addDays(Tenant::FREE_TRIAL_DAYS),
                 'trial_activated_at' => now(),
             ]);
 
-            return redirect()
-                ->route('client.billing.index')
-                ->with('success', 'Your 14-day free trial has been activated! Enjoy exploring all the features.');
+            return null;
         });
+
+        if ($error !== null) {
+            return back()->with('error', $error);
+        }
+
+        $fresh = $tenant->fresh();
+
+        try {
+            $recipients = app(RecipientResolver::class)->recipientsFor(EmailType::TrialStarted, $fresh);
+            Notification::send($recipients, new TrialStartedNotification($fresh));
+        } catch (\Throwable $e) {
+            // Plan is already committed — a mail/queue hiccup must not 500 the user
+            // (their widget IS live). Log and fall through to the success page.
+            Log::warning('[Billing] (IS $) TrialStarted email failed to queue', [
+                'tenant_id' => $fresh->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return redirect()
+            ->route('client.billing.index')
+            ->with('success', 'Your 14-day free plan is active — your widget is now live!');
     }
 }

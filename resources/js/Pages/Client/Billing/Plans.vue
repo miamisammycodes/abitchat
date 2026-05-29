@@ -16,6 +16,7 @@ const route = useRoute()
 const props = defineProps({
   plans: Array,
   currentPlanId: Number,
+  trialUsed: { type: Boolean, default: false },
 })
 
 const showEnterpriseModal = ref(false)
@@ -27,12 +28,10 @@ const inquiryForm = useForm({
   message: '',
 })
 
-const trialForm = useForm({})
+const startForm = useForm({})
 
-function activateFreeTrial(planId) {
-  trialForm.post(route('client.billing.activate-trial', planId), {
-    preserveScroll: true,
-  })
+function startFreePlan() {
+  startForm.post(route('client.billing.start-free-plan'), { preserveScroll: true })
 }
 
 function formatLimit(limit) {
@@ -173,16 +172,21 @@ function formatPrice(plan) {
                 <MessageSquare class="h-4 w-4 mr-2" />
                 Contact Us
               </Button>
-              <!-- Free Trial Button (manage_billing required) -->
-              <Button
-                v-else-if="plan.price == 0 && $page.props.auth.user.can.manage_billing"
-                variant="default"
-                class="w-full"
-                :disabled="trialForm.processing"
-                @click="activateFreeTrial(plan.id)"
-              >
-                Start Free Trial
-              </Button>
+              <!-- Free Plan Button (manage_billing required) -->
+              <template v-else-if="plan.price == 0 && $page.props.auth.user.can.manage_billing">
+                <Button
+                  v-if="!trialUsed"
+                  variant="default"
+                  class="w-full"
+                  :disabled="startForm.processing"
+                  @click="startFreePlan"
+                >
+                  Start Free Plan
+                </Button>
+                <Button v-else variant="outline" class="w-full" disabled>
+                  Trial used — choose a paid plan
+                </Button>
+              </template>
               <!-- Regular Subscribe Button (manage_billing required) -->
               <Button
                 v-else-if="! plan.is_contact_sales && plan.price > 0 && $page.props.auth.user.can.manage_billing"

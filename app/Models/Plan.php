@@ -66,6 +66,12 @@ class Plan extends Model
         $query->orderBy('sort_order')->orderBy('price');
     }
 
+    /** @param Builder<self> $query */
+    public function scopeFree(Builder $query): void
+    {
+        $query->where('slug', 'free')->where('price', 0)->where('is_active', true);
+    }
+
     /**
      * Check if limit is unlimited (-1)
      */

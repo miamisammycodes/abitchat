@@ -10,3 +10,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('dk:cleanup-abandoned-qr')->daily();
 Schedule::command('crawls:refresh-all')->daily();
+Schedule::command('trials:send-lifecycle-emails')->daily();

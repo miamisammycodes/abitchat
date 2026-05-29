@@ -41,13 +41,12 @@ class RegisterController extends Controller
                 'name' => $request->company_name,
                 'website_url' => $request->website_url,
                 'auto_recrawl' => true,
-                'trial_ends_at' => now()->addDays(14),
             ]);
 
             Log::debug('[Register] (NO $) Tenant created', [
                 'tenant_id' => $tenant->id,
                 'api_key' => substr($tenant->api_key, 0, 8).'...',
-                'trial_ends_at' => $tenant->trial_ends_at->toDateString(),
+                'lifecycle' => $tenant->lifecycleState()->value,
             ]);
 
             $user = User::create([
