@@ -32,7 +32,10 @@ class RecipientResolver
             EmailType::Cancellation,
             EmailType::Dunning,
             EmailType::QuotaWarning,
-            EmailType::WeeklyDigest => $this->ownersOf($this->requireTenant($type, $tenant)),
+            EmailType::WeeklyDigest,
+            EmailType::TrialStarted,
+            EmailType::TrialExpiring,
+            EmailType::TrialExpired => $this->ownersOf($this->requireTenant($type, $tenant)),
 
             EmailType::EnterpriseInquiry => $this->adminInquiryNotifiable(),
 

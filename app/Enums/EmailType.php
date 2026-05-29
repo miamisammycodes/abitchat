@@ -15,4 +15,7 @@ enum EmailType: string
     case Dunning = 'dunning';
     case QuotaWarning = 'quota_warning';
     case WeeklyDigest = 'weekly_digest';
+    case TrialStarted = 'trial_started';
+    case TrialExpiring = 'trial_expiring';
+    case TrialExpired = 'trial_expired';
 }
