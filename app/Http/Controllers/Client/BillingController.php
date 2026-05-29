@@ -5,17 +5,21 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Client;
 
 use App\Enums\Ability;
+use App\Enums\EmailType;
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
 use App\Models\Tenant;
 use App\Models\Transaction;
+use App\Notifications\Billing\TrialStartedNotification;
 use App\Services\Billing\ReceiptService;
+use App\Services\Email\RecipientResolver;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -179,15 +183,15 @@ class BillingController extends Controller
 
         $tenant = $this->getTenant($request);
 
-        return DB::transaction(function () use ($tenant, $freePlan) {
+        $error = DB::transaction(function () use ($tenant, $freePlan): ?string {
             $locked = Tenant::whereKey($tenant->id)->lockForUpdate()->first();
 
             if ($locked->trial_activated_at !== null) {
-                return back()->with('error', 'Your free plan has already been used. Please choose a paid plan.');
+                return 'Your free plan has already been used. Please choose a paid plan.';
             }
 
             if ($locked->plan_id && ! $locked->isPlanExpired()) {
-                return back()->with('error', 'You already have an active plan.');
+                return 'You already have an active plan.';
             }
 
             $locked->update([
@@ -196,9 +200,19 @@ class BillingController extends Controller
                 'trial_activated_at' => now(),
             ]);
 
-            return redirect()
-                ->route('client.billing.index')
-                ->with('success', 'Your 14-day free plan is active — your widget is now live!');
+            return null;
         });
+
+        if ($error !== null) {
+            return back()->with('error', $error);
+        }
+
+        $fresh = $tenant->fresh();
+        $recipients = app(RecipientResolver::class)->recipientsFor(EmailType::TrialStarted, $fresh);
+        Notification::send($recipients, new TrialStartedNotification($fresh));
+
+        return redirect()
+            ->route('client.billing.index')
+            ->with('success', 'Your 14-day free plan is active — your widget is now live!');
     }
 }

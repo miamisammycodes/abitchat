@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature\Client;
 
 use App\Enums\TenantLifecycle;
+use App\Notifications\Billing\TrialStartedNotification;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 class StartFreePlanTest extends TestCase
@@ -42,5 +44,16 @@ class StartFreePlanTest extends TestCase
         $this->post(route('client.billing.start-free-plan'))
             ->assertRedirect()
             ->assertSessionHas('error');
+    }
+
+    public function test_starting_free_plan_sends_trial_started_email(): void
+    {
+        Notification::fake();
+        $this->actingAsSetupTenant();
+        $this->createFreePlan();
+
+        $this->post(route('client.billing.start-free-plan'));
+
+        Notification::assertSentTimes(TrialStartedNotification::class, 1);
     }
 }
