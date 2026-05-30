@@ -112,11 +112,24 @@ class SiteCrawler
                     ->where('url_normalized', $normalized)
                     ->first();
 
+                // Heal candidate: a skipped page gets ONE render attempt when
+                // rendering is enabled. Once render-attempted (render_attempted_at
+                // set) it is no longer a heal candidate, so an unchanged-hash page
+                // is hash-skipped instead of re-rendered (~15s) every crawl. A
+                // content-hash CHANGE still re-processes it (hash mismatch below).
+                $healCandidate = $this->resolver->renderingEnabled()
+                    && $existing !== null
+                    && $existing->status === KnowledgeItemStatus::SkippedNoContent
+                    && empty($existing->metadata['render_attempted_at'] ?? null);
+
                 $headResult = $existing !== null
                     ? $this->probeHeaders($url, $existing)
                     : ['skip' => false, 'last_modified' => null, 'etag' => null];
 
-                if ($headResult['skip']) {
+                // A heal candidate must bypass the validator short-circuit too: a
+                // refresh-crawled SPA stores ETag/Last-Modified, so an unchanged
+                // shell would otherwise skip here before ever reaching the render.
+                if ($headResult['skip'] && ! $healCandidate) {
                     $pagesSkippedUnchanged++;
 
                     continue;
@@ -130,15 +143,6 @@ class SiteCrawler
                 }
 
                 $contentHash = 'sha256:'.hash('sha256', $body);
-                // Heal candidate: a skipped page gets ONE render attempt when
-                // rendering is enabled. Once render-attempted (render_attempted_at
-                // set) it is no longer a heal candidate, so an unchanged-hash page
-                // is hash-skipped instead of re-rendered (~15s) every crawl. A
-                // content-hash CHANGE still re-processes it (hash mismatch below).
-                $healCandidate = $this->resolver->renderingEnabled()
-                    && $existing !== null
-                    && $existing->status === KnowledgeItemStatus::SkippedNoContent
-                    && empty($existing->metadata['render_attempted_at'] ?? null);
                 if ($existing && ! $healCandidate && ($existing->metadata['content_hash'] ?? null) === $contentHash) {
                     $metadata = array_merge((array) $existing->metadata, [
                         'last_modified' => $headResult['last_modified'],

@@ -283,6 +283,54 @@ class SiteCrawlerTest extends TestCase
         Bus::assertDispatched(ProcessKnowledgeItem::class);
     }
 
+    public function test_skipped_item_heals_on_recrawl_when_rendering_enabled_despite_matching_validators(): void
+    {
+        $tenant = Tenant::factory()->create(['website_url' => 'https://example.com']);
+
+        // Pre-existing SkippedNoContent item with stored ETag (refresh-crawled SPA).
+        $shell = '<html><body><div id="root">Tours visit us today right now for more info here please</div></body></html>';
+        $item = KnowledgeItem::factory()->forTenant($tenant)
+            ->webpage('https://example.com/tours', 'https://example.com/tours')
+            ->create([
+                'status' => KnowledgeItemStatus::SkippedNoContent,
+                'metadata' => [
+                    'crawl_session_id' => 1,
+                    'content_hash' => 'sha256:'.hash('sha256', $shell),
+                    'skipped_reason' => 'no_content',
+                    'etag' => '"v1"',
+                ],
+            ]);
+
+        // Fake renderer: enabled, and "renders" the shell into a real page.
+        $real = '<html><body><main><p>Our Bhutan cultural tours include guided treks, monastery visits, and homestays across the kingdom every season.</p></main></body></html>';
+        $renderer = Mockery::mock(PageRenderer::class);
+        $renderer->shouldReceive('enabled')->andReturn(true);
+        $renderer->shouldReceive('render')->andReturn($real);
+        $this->app->instance(PageRenderer::class, $renderer);
+
+        $session = CrawlSession::factory()->forTenant($tenant)->create([
+            'mode' => CrawlMode::Refresh,
+            'status' => CrawlSessionStatus::Running,
+        ]);
+        Http::fake([
+            'https://example.com/robots.txt' => Http::response('', 404),
+            'https://example.com/sitemap.xml' => Http::response($this->sitemapWith(['https://example.com/tours']), 200),
+            // ETag matches the stored validator → HEAD-probe gate would short-circuit
+            // were it not for the heal bypass.
+            'https://example.com/tours*' => Http::response($shell, 200, ['ETag' => '"v1"']),
+        ]);
+
+        $crawler = app(SiteCrawler::class);
+        $crawler->setSleeper(fn () => null);
+        $crawler->crawl($tenant, $session);
+
+        $item->refresh();
+        $this->assertSame(KnowledgeItemStatus::Pending, $item->status); // healed despite matching ETag
+        $this->assertStringContainsString('cultural tours', (string) $item->content);
+        $this->assertSame(1, $session->refresh()->pages_indexed);
+        Bus::assertDispatched(ProcessKnowledgeItem::class);
+    }
+
     public function test_render_attempted_skipped_item_is_not_re_rendered_on_unchanged_recrawl(): void
     {
         $tenant = Tenant::factory()->create(['website_url' => 'https://example.com']);
