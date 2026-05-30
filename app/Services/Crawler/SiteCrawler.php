@@ -12,8 +12,6 @@ use App\Models\CrawlUrlBlocklist;
 use App\Models\KnowledgeItem;
 use App\Models\Tenant;
 use App\Rules\SafeExternalUrl;
-use App\Services\Knowledge\ContentSufficiency;
-use App\Services\Knowledge\DocumentProcessor;
 use App\Services\Usage\UsageTracker;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -34,8 +32,7 @@ class SiteCrawler
         private readonly RobotsTxtPolicy $robotsTxt,
         private readonly UrlNormalizer $normalizer,
         private readonly UsageTracker $usage,
-        private readonly DocumentProcessor $processor,
-        private readonly ContentSufficiency $sufficiency,
+        private readonly RenderOnFallback $resolver,
     ) {
         $this->sleeper = static function (int $seconds): void {
             sleep($seconds);
@@ -133,7 +130,16 @@ class SiteCrawler
                 }
 
                 $contentHash = 'sha256:'.hash('sha256', $body);
-                if ($existing && ($existing->metadata['content_hash'] ?? null) === $contentHash) {
+                // Heal candidate: a skipped page gets ONE render attempt when
+                // rendering is enabled. Once render-attempted (render_attempted_at
+                // set) it is no longer a heal candidate, so an unchanged-hash page
+                // is hash-skipped instead of re-rendered (~15s) every crawl. A
+                // content-hash CHANGE still re-processes it (hash mismatch below).
+                $healCandidate = $this->resolver->renderingEnabled()
+                    && $existing !== null
+                    && $existing->status === KnowledgeItemStatus::SkippedNoContent
+                    && empty($existing->metadata['render_attempted_at'] ?? null);
+                if ($existing && ! $healCandidate && ($existing->metadata['content_hash'] ?? null) === $contentHash) {
                     $metadata = array_merge((array) $existing->metadata, [
                         'last_modified' => $headResult['last_modified'],
                         'etag' => $headResult['etag'],
@@ -145,7 +151,8 @@ class SiteCrawler
                     continue;
                 }
 
-                $cleanText = $this->processor->extractHtml($body);
+                $resolution = $this->resolver->resolve($url, $body);
+                $cleanText = $resolution['text'];
                 $title = $this->extractTitle($body) ?: $url;
 
                 $attributes = [
@@ -165,10 +172,15 @@ class SiteCrawler
                     ],
                 ];
 
-                if (! $this->sufficiency->isSufficient($cleanText, $body)) {
+                if (! $resolution['sufficient']) {
                     $values['status'] = KnowledgeItemStatus::SkippedNoContent;
                     $values['metadata']['skipped_reason'] = 'no_content';
                     $values['metadata']['skipped_at'] = now()->toIso8601String();
+                    // Stamp the render attempt so an unrenderable page isn't
+                    // re-rendered every crawl (P2-8). Only when rendering ran.
+                    if ($this->resolver->renderingEnabled()) {
+                        $values['metadata']['render_attempted_at'] = now()->toIso8601String();
+                    }
                     $skipped = KnowledgeItem::updateOrCreate($attributes, $values);
                     // A previously-Ready page whose content changed to a shell
                     // would otherwise keep its stale chunks (inflated chunks_count,
