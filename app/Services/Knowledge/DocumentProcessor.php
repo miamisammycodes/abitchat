@@ -55,36 +55,30 @@ class DocumentProcessor
         };
     }
 
-    private function extractFromUrl(string $url): string
+    /** Fetch the raw body of a public URL (SSRF-guarded, redirects disabled). */
+    public function fetchUrl(string $url): string
     {
-        Log::debug('[DocumentProcessor] (IS $) Extracting from URL', [
-            'url' => $url,
-        ]);
-
         if (! SafeExternalUrl::isSafe($url)) {
-            Log::warning('[DocumentProcessor] Rejected non-public URL at fetch time', [
-                'url' => $url,
-            ]);
+            Log::warning('[DocumentProcessor] Rejected non-public URL at fetch time', ['url' => $url]);
             throw new \Exception("Refusing to fetch non-public URL: {$url}");
         }
 
-        try {
-            $response = Http::timeout(30)
-                ->withOptions(['allow_redirects' => false])
-                ->get($url);
+        $response = Http::timeout(30)
+            ->withOptions(['allow_redirects' => false])
+            ->get($url);
 
-            if (! $response->successful()) {
-                throw new \Exception("Failed to fetch URL: {$url}");
-            }
-
-            return $this->extractHtml($response->body());
-        } catch (\Exception $e) {
-            Log::error('[DocumentProcessor] URL extraction failed', [
-                'url' => $url,
-                'error' => $e->getMessage(),
-            ]);
-            throw $e;
+        if (! $response->successful()) {
+            throw new \Exception("Failed to fetch URL: {$url}");
         }
+
+        return $response->body();
+    }
+
+    private function extractFromUrl(string $url): string
+    {
+        Log::debug('[DocumentProcessor] (IS $) Extracting from URL', ['url' => $url]);
+
+        return $this->extractHtml($this->fetchUrl($url));
     }
 
     private function extractFromPdf(string $path): string
