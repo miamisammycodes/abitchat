@@ -91,6 +91,7 @@ class WebsiteIndexingController extends Controller
                 'pages_indexed' => $session->pages_indexed,
                 'pages_discovered' => $session->pages_discovered,
                 'pages_skipped_budget' => $session->pages_skipped_budget,
+                'pages_skipped_no_content' => $session->pages_skipped_no_content,
                 'error_message' => $session->error_message,
                 'started_at' => $session->started_at?->toIso8601String(),
                 'completed_at' => $session->completed_at?->toIso8601String(),
