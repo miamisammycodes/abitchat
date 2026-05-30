@@ -63,4 +63,13 @@ return [
         'http_timeout' => env('DK_BANK_HTTP_TIMEOUT', 30),
     ],
 
+    'crawler' => [
+        'js_rendering' => env('CRAWLER_JS_RENDERING', false),
+        'render_timeout' => (int) env('CRAWLER_RENDER_TIMEOUT', 45),
+        'render_delay' => (int) env('CRAWLER_RENDER_DELAY', 3000),
+        'node_binary' => env('BROWSERSHOT_NODE_BINARY'),
+        'npm_binary' => env('BROWSERSHOT_NPM_BINARY'),
+        'chrome_path' => env('BROWSERSHOT_CHROME_PATH'),
+    ],
+
 ];
