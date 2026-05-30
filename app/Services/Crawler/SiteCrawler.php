@@ -12,6 +12,8 @@ use App\Models\CrawlUrlBlocklist;
 use App\Models\KnowledgeItem;
 use App\Models\Tenant;
 use App\Rules\SafeExternalUrl;
+use App\Services\Knowledge\ContentSufficiency;
+use App\Services\Knowledge\DocumentProcessor;
 use App\Services\Usage\UsageTracker;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -32,6 +34,8 @@ class SiteCrawler
         private readonly RobotsTxtPolicy $robotsTxt,
         private readonly UrlNormalizer $normalizer,
         private readonly UsageTracker $usage,
+        private readonly DocumentProcessor $processor,
+        private readonly ContentSufficiency $sufficiency,
     ) {
         $this->sleeper = static function (int $seconds): void {
             sleep($seconds);
@@ -73,8 +77,8 @@ class SiteCrawler
             $pagesFailed = 0;
             $pagesSkippedBudget = 0;
             $pagesSkippedUnchanged = 0;
+            $pagesSkippedNoContent = 0;
             $pagesDiscovered = 0;
-            $emptyExtractCount = 0;
 
             foreach ($this->discoverer->discover($rootUrl) as $url) {
                 $pagesDiscovered++;
@@ -127,15 +131,6 @@ class SiteCrawler
 
                     continue;
                 }
-                if (trim(strip_tags($body)) === '') {
-                    // Empty after tag-strip = JS-rendered site or no text content.
-                    // Do NOT create a KnowledgeItem — ProcessKnowledgeItem would
-                    // throw "No content could be extracted" and retry 3 times.
-                    $emptyExtractCount++;
-                    $pagesFailed++;
-
-                    continue;
-                }
 
                 $contentHash = 'sha256:'.hash('sha256', $body);
                 if ($existing && ($existing->metadata['content_hash'] ?? null) === $contentHash) {
@@ -150,27 +145,39 @@ class SiteCrawler
                     continue;
                 }
 
+                $cleanText = $this->processor->extractHtml($body);
                 $title = $this->extractTitle($body) ?: $url;
 
-                $item = KnowledgeItem::updateOrCreate(
-                    [
-                        'tenant_id' => $tenant->id,
-                        'type' => 'webpage',
-                        'url_normalized' => $normalized,
+                $attributes = [
+                    'tenant_id' => $tenant->id,
+                    'type' => 'webpage',
+                    'url_normalized' => $normalized,
+                ];
+                $values = [
+                    'title' => $title,
+                    'source_url' => $url,
+                    'content' => $cleanText,
+                    'metadata' => [
+                        'crawl_session_id' => $session->id,
+                        'content_hash' => $contentHash,
+                        'last_modified' => $headResult['last_modified'],
+                        'etag' => $headResult['etag'],
                     ],
-                    [
-                        'title' => $title,
-                        'source_url' => $url,
-                        'content' => $body,
-                        'status' => KnowledgeItemStatus::Pending,
-                        'metadata' => [
-                            'crawl_session_id' => $session->id,
-                            'content_hash' => $contentHash,
-                            'last_modified' => $headResult['last_modified'],
-                            'etag' => $headResult['etag'],
-                        ],
-                    ],
-                );
+                ];
+
+                if (! $this->sufficiency->isSufficient($cleanText, $body)) {
+                    $values['status'] = KnowledgeItemStatus::SkippedNoContent;
+                    $values['metadata']['skipped_reason'] = 'no_content';
+                    $values['metadata']['skipped_at'] = now()->toIso8601String();
+                    KnowledgeItem::updateOrCreate($attributes, $values);
+                    $pagesSkippedNoContent++;
+                    ($this->sleeper)($crawlDelay);
+
+                    continue;
+                }
+
+                $values['status'] = KnowledgeItemStatus::Pending;
+                $item = KnowledgeItem::updateOrCreate($attributes, $values);
 
                 try {
                     ProcessKnowledgeItem::dispatch($item);
@@ -196,13 +203,15 @@ class SiteCrawler
                 'pages_failed' => $pagesFailed,
                 'pages_skipped_budget' => $pagesSkippedBudget,
                 'pages_skipped_unchanged' => $pagesSkippedUnchanged,
+                'pages_skipped_no_content' => $pagesSkippedNoContent,
             ]);
 
             $status = match (true) {
                 $pagesSkippedBudget > 0 => CrawlSessionStatus::Partial,
-                $pagesIndexed === 0 && $emptyExtractCount > 0 => CrawlSessionStatus::Partial,
-                $pagesFailed > 0 && $pagesIndexed > 0 => CrawlSessionStatus::Partial,
+                $pagesIndexed === 0 && $pagesSkippedNoContent > 0 => CrawlSessionStatus::Partial,
                 $pagesIndexed === 0 && $pagesFailed > 0 => CrawlSessionStatus::Failed,
+                $pagesFailed > 0 && $pagesIndexed > 0 => CrawlSessionStatus::Partial,
+                $pagesSkippedNoContent > 0 && $pagesIndexed > 0 => CrawlSessionStatus::Partial,
                 default => CrawlSessionStatus::Completed,
             };
 

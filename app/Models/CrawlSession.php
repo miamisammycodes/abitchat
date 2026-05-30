@@ -34,6 +34,7 @@ class CrawlSession extends Model
         'pages_failed',
         'pages_skipped_budget',
         'pages_skipped_unchanged',
+        'pages_skipped_no_content',
         'error_message',
     ];
 
@@ -50,6 +51,7 @@ class CrawlSession extends Model
             'pages_failed' => 'integer',
             'pages_skipped_budget' => 'integer',
             'pages_skipped_unchanged' => 'integer',
+            'pages_skipped_no_content' => 'integer',
         ];
     }
 }

@@ -6,6 +6,7 @@ namespace Tests\Unit\Services\Crawler;
 
 use App\Enums\CrawlMode;
 use App\Enums\CrawlSessionStatus;
+use App\Enums\KnowledgeItemStatus;
 use App\Jobs\ProcessKnowledgeItem;
 use App\Models\CrawlSession;
 use App\Models\CrawlUrlBlocklist;
@@ -121,6 +122,39 @@ class SiteCrawlerTest extends TestCase
         $session->refresh();
         $this->assertSame(1, $session->pages_skipped_unchanged);
         $this->assertSame(0, $session->pages_indexed);
+        Bus::assertNotDispatched(ProcessKnowledgeItem::class);
+    }
+
+    public function test_javascript_rendered_shell_is_marked_skipped_no_content(): void
+    {
+        $tenant = Tenant::factory()->create(['website_url' => 'https://example.com']);
+        $session = CrawlSession::factory()->forTenant($tenant)->create([
+            'mode' => CrawlMode::Initial,
+            'status' => CrawlSessionStatus::Running,
+        ]);
+
+        $clean = 'Tours Book Bhutan Tour Official Website for Book Bhutan Tour visit us today now here';
+        $shell = '<html><body><div id="root">'.$clean.'</div><script>'.str_repeat('var x=1;', 800).'</script></body></html>';
+
+        Http::fake([
+            'https://example.com/robots.txt' => Http::response('', 404),
+            'https://example.com/sitemap.xml' => Http::response(
+                $this->sitemapWith(['https://example.com/tours']),
+                200,
+            ),
+            'https://example.com/tours*' => Http::response($shell, 200),
+        ]);
+
+        $this->crawler->crawl($tenant, $session);
+
+        $session->refresh();
+        $item = KnowledgeItem::forTenant($tenant)->where('type', 'webpage')->firstOrFail();
+
+        $this->assertSame(KnowledgeItemStatus::SkippedNoContent, $item->status);
+        $this->assertSame('no_content', $item->metadata['skipped_reason'] ?? null);
+        $this->assertSame(1, $session->pages_skipped_no_content);
+        $this->assertSame(0, $session->pages_indexed);
+        $this->assertSame(CrawlSessionStatus::Partial, $session->status);
         Bus::assertNotDispatched(ProcessKnowledgeItem::class);
     }
 
