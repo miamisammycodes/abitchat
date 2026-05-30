@@ -144,4 +144,13 @@ class DocumentProcessorProcessTest extends TestCase
         $this->assertStringContainsString('Our Bakery', $text);
         $this->assertStringContainsString('We bake', $text);
     }
+
+    public function test_extract_html_separates_block_from_preceding_text_in_same_parent(): void
+    {
+        $processor = new DocumentProcessor;
+
+        $this->assertStringNotContainsString('IntroBody', $processor->extractHtml('<div>Intro<p>Body</p></div>'));
+        $this->assertStringNotContainsString('HeadingParagraph', $processor->extractHtml('<section>Heading<p>Paragraph</p></section>'));
+        $this->assertStringNotContainsString('Labelvalue', $processor->extractHtml('<td>Label<div>value</div></td>'));
+    }
 }

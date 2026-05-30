@@ -163,11 +163,13 @@ class DocumentProcessor
 
         // Block elements carry no whitespace between them in textContent, so
         // "<h1>Our Bakery</h1><p>We bake" collapses to "Our BakeryWe bake".
-        // Append a newline text node to each block element before extracting.
+        // Insert a newline text node before each block element so it is
+        // separated from preceding siblings AND preceding text in the same
+        // parent (e.g. "<div>Intro<p>Body</p></div>" → "Intro\nBody").
         $blockTags = ['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'br', 'section', 'article', 'blockquote', 'pre', 'tr', 'td', 'th', 'ul', 'ol', 'table', 'main'];
         foreach ($blockTags as $tag) {
             foreach (iterator_to_array($dom->getElementsByTagName($tag)) as $element) {
-                $element->appendChild($dom->createTextNode("\n"));
+                $element->parentNode?->insertBefore($dom->createTextNode("\n"), $element);
             }
         }
 
