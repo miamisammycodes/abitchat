@@ -10,6 +10,7 @@ use App\Jobs\ProcessKnowledgeItem;
 use App\Models\KnowledgeChunk;
 use App\Models\KnowledgeItem;
 use App\Models\Tenant;
+use App\Services\Knowledge\ContentSufficiency;
 use App\Services\Knowledge\DocumentProcessor;
 use App\Services\Knowledge\KnowledgeItemWorkflow;
 use Illuminate\Support\Facades\Queue;
@@ -43,16 +44,17 @@ class ProcessKnowledgeItemIdempotencyTest extends TestCase
         $item = $this->makeItem();
 
         $processor = Mockery::mock(DocumentProcessor::class);
-        $processor->shouldReceive('process')->andReturn(['chunk-a', 'chunk-b']);
+        $processor->shouldReceive('extract')->andReturn('Some sufficiently long content body for chunking here.');
+        $processor->shouldReceive('chunk')->andReturn(['chunk-a', 'chunk-b']);
 
-        (new ProcessKnowledgeItem($item))->handle($processor, app(KnowledgeItemWorkflow::class));
+        (new ProcessKnowledgeItem($item))->handle($processor, app(KnowledgeItemWorkflow::class), app(ContentSufficiency::class));
         $this->assertSame(2, KnowledgeChunk::where('knowledge_item_id', $item->id)->count());
 
         // Simulates a Laravel retry. Must produce the same 2 chunks, not 4.
         // Reset status to allow re-entry; the workflow forbids
         // Processing → Processing.
         $item->refresh()->forceFill(['status' => KnowledgeItemStatus::Pending])->save();
-        (new ProcessKnowledgeItem($item))->handle($processor, app(KnowledgeItemWorkflow::class));
+        (new ProcessKnowledgeItem($item))->handle($processor, app(KnowledgeItemWorkflow::class), app(ContentSufficiency::class));
 
         $this->assertSame(
             2,
@@ -67,14 +69,16 @@ class ProcessKnowledgeItemIdempotencyTest extends TestCase
         $item = $this->makeItem();
 
         $first = Mockery::mock(DocumentProcessor::class);
-        $first->shouldReceive('process')->andReturn(['old-1', 'old-2']);
-        (new ProcessKnowledgeItem($item))->handle($first, app(KnowledgeItemWorkflow::class));
+        $first->shouldReceive('extract')->andReturn('Some sufficiently long content body for chunking here.');
+        $first->shouldReceive('chunk')->andReturn(['old-1', 'old-2']);
+        (new ProcessKnowledgeItem($item))->handle($first, app(KnowledgeItemWorkflow::class), app(ContentSufficiency::class));
 
         $item->refresh()->forceFill(['status' => KnowledgeItemStatus::Pending])->save();
 
         $second = Mockery::mock(DocumentProcessor::class);
-        $second->shouldReceive('process')->andReturn(['new-1', 'new-2', 'new-3']);
-        (new ProcessKnowledgeItem($item))->handle($second, app(KnowledgeItemWorkflow::class));
+        $second->shouldReceive('extract')->andReturn('Some sufficiently long content body for chunking here.');
+        $second->shouldReceive('chunk')->andReturn(['new-1', 'new-2', 'new-3']);
+        (new ProcessKnowledgeItem($item))->handle($second, app(KnowledgeItemWorkflow::class), app(ContentSufficiency::class));
 
         $contents = KnowledgeChunk::where('knowledge_item_id', $item->id)
             ->orderBy('chunk_index')
