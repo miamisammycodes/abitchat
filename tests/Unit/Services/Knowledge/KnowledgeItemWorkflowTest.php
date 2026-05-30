@@ -196,6 +196,25 @@ class KnowledgeItemWorkflowTest extends TestCase
         $this->workflow()->retry($item);
     }
 
+    public function test_mark_skipped_no_content_from_processing(): void
+    {
+        $item = $this->makeItem('processing');
+
+        $this->workflow()->markSkippedNoContent($item);
+
+        $item->refresh();
+        $this->assertSame(KnowledgeItemStatus::SkippedNoContent, $item->status);
+    }
+
+    public function test_mark_skipped_no_content_from_pending_throws(): void
+    {
+        $item = $this->makeItem('pending');
+
+        $this->expectException(InvalidTransitionException::class);
+
+        $this->workflow()->markSkippedNoContent($item);
+    }
+
     protected function tearDown(): void
     {
         Mockery::close();
