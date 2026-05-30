@@ -24,7 +24,18 @@
 
 ## Task 0: Install Browsershot + verify it renders the live SPA (CRITICAL — before any other task)
 
-**Files:** `composer.json`, `package.json` (via tooling), throwaway spike (not committed).
+**Files:** `composer.json`, `composer.lock`, `package.json` (via tooling), throwaway spike (not committed).
+
+- [ ] **Step 0: Isolate the pre-existing dependency bump (do this FIRST)**
+
+The working tree already has an unrelated `composer.lock` bump (~30 packages, including majors like `v2.0.22→v3.1.0`) that predates this branch. Commit it on its own BEFORE adding Browsershot so the dependency change isn't entangled:
+```bash
+composer install            # sync vendor/ to the already-bumped lock
+php artisan test            # confirm the suite is still green on the bumped deps
+git add composer.json composer.lock
+git commit -m "chore(deps): bump dependencies"
+```
+Expected: suite green; a standalone deps commit. If the suite is RED on the bumped deps, STOP and report (the bump is the user's separate concern — do not proceed onto a broken base).
 
 - [ ] **Step 1: Install dependencies**
 
@@ -74,7 +85,7 @@ rm -f tmp/render_spike.php
 git add composer.json composer.lock package.json pnpm-lock.yaml
 git commit -m "chore: add spatie/browsershot + puppeteer for headless rendering"
 ```
-> Note: `composer.lock` already had unrelated pre-existing working-tree changes before this branch — include only the browsershot-related lock delta; if `git add -p` is needed to separate, do so. Do **not** commit `node_modules/`.
+> The unrelated dep bump was already committed in Step 0, so this `composer.lock` delta is now only the browsershot addition. Do **not** commit `node_modules/`.
 
 ---
 
@@ -167,6 +178,13 @@ use Spatie\Browsershot\Browsershot;
  * is captured. Opt-in via services.crawler.js_rendering. Never throws —
  * returns null when disabled, blocked, or on any render failure/timeout, so
  * callers fall back to the raw HTTP body.
+ *
+ * SECURITY: rendering a tenant-controlled URL is an SSRF surface — Chromium
+ * follows redirects and runs page JS that can reach internal/metadata
+ * endpoints. The SafeExternalUrl check below guards only the initial URL.
+ * Render-path egress filtering (block private/link-local IPs incl. redirect
+ * hops) is a mandatory-before-prod follow-up PR; keep CRAWLER_JS_RENDERING off
+ * until it ships and the host has no reachable internal endpoints (see spec).
  */
 class PageRenderer
 {
@@ -524,6 +542,41 @@ Append to `tests/Unit/Services/Crawler/SiteCrawlerTest.php` (add `use App\Servic
         $this->assertSame(1, $session->refresh()->pages_indexed);
         Bus::assertDispatched(ProcessKnowledgeItem::class);
     }
+
+    public function test_render_attempted_skipped_item_is_not_re_rendered_on_unchanged_recrawl(): void
+    {
+        $tenant = Tenant::factory()->create(['website_url' => 'https://example.com']);
+        $shell = '<html><body><div id="root">Tours visit us today right now for more info here please</div></body></html>';
+        KnowledgeItem::factory()->forTenant($tenant)
+            ->webpage('https://example.com/tours', 'https://example.com/tours')
+            ->create([
+                'status' => KnowledgeItemStatus::SkippedNoContent,
+                'metadata' => [
+                    'content_hash' => 'sha256:'.hash('sha256', $shell),
+                    'skipped_reason' => 'no_content',
+                    'render_attempted_at' => now()->subDay()->toIso8601String(),
+                ],
+            ]);
+
+        // Rendering on, but the page was already render-attempted + hash unchanged → must NOT re-render.
+        $renderer = Mockery::mock(PageRenderer::class);
+        $renderer->shouldReceive('enabled')->andReturn(true);
+        $renderer->shouldNotReceive('render');
+        $this->app->instance(PageRenderer::class, $renderer);
+
+        $session = CrawlSession::factory()->forTenant($tenant)->create(['mode' => CrawlMode::Refresh, 'status' => CrawlSessionStatus::Running]);
+        Http::fake([
+            'https://example.com/robots.txt' => Http::response('', 404),
+            'https://example.com/sitemap.xml' => Http::response($this->sitemapWith(['https://example.com/tours']), 200),
+            'https://example.com/tours*' => Http::response($shell, 200),
+        ]);
+
+        $crawler = app(SiteCrawler::class);
+        $crawler->setSleeper(fn () => null);
+        $crawler->crawl($tenant, $session);
+
+        $this->assertSame(1, $session->refresh()->pages_skipped_unchanged);
+    }
 ```
 
 - [ ] **Step 2: Run it — expect RED**
@@ -540,9 +593,15 @@ In `app/Services/Crawler/SiteCrawler.php`:
 (b) Change the content-hash dedup block (currently lines ~135-146) to NOT skip a `SkippedNoContent` item when rendering is enabled:
 ```php
                 $contentHash = 'sha256:'.hash('sha256', $body);
+                // Heal candidate: a skipped page gets ONE render attempt when
+                // rendering is enabled. Once render-attempted (render_attempted_at
+                // set) it is no longer a heal candidate, so an unchanged-hash page
+                // is hash-skipped instead of re-rendered (~15s) every crawl. A
+                // content-hash CHANGE still re-processes it (hash mismatch below).
                 $healCandidate = $this->resolver->renderingEnabled()
                     && $existing !== null
-                    && $existing->status === KnowledgeItemStatus::SkippedNoContent;
+                    && $existing->status === KnowledgeItemStatus::SkippedNoContent
+                    && empty($existing->metadata['render_attempted_at'] ?? null);
                 if ($existing && ! $healCandidate && ($existing->metadata['content_hash'] ?? null) === $contentHash) {
                     $metadata = array_merge((array) $existing->metadata, [
                         'last_modified' => $headResult['last_modified'],
@@ -583,6 +642,11 @@ In `app/Services/Crawler/SiteCrawler.php`:
                     $values['status'] = KnowledgeItemStatus::SkippedNoContent;
                     $values['metadata']['skipped_reason'] = 'no_content';
                     $values['metadata']['skipped_at'] = now()->toIso8601String();
+                    // Stamp the render attempt so an unrenderable page isn't
+                    // re-rendered every crawl (P2-8). Only when rendering ran.
+                    if ($this->resolver->renderingEnabled()) {
+                        $values['metadata']['render_attempted_at'] = now()->toIso8601String();
+                    }
                     $skipped = KnowledgeItem::updateOrCreate($attributes, $values);
                     $skipped->chunks()->delete();
                     $pagesSkippedNoContent++;
@@ -790,7 +854,7 @@ Create a throwaway tenant pointed at `https://bookbhutantour.com` on the `profes
 
 - [ ] **Step 3: Browser view (optional)** — log in as that tenant's owner, open `/knowledge`, confirm items show `ready` with chunk counts and the Show page renders the extracted tour text. Clean up the staged login.
 
-- [ ] **Step 4: `/simplify` → Pint → `/simplify` → Pint, then open the PR** (base `feat/scraping-clean-extraction`; note it merges after #41).
+- [ ] **Step 4: `/simplify` → Pint → `/simplify` → Pint, then open the PR** (base `feat/scraping-clean-extraction`; note it merges after #41). The PR body MUST include: the headless-render SSRF disclosure + the hard deploy gate ("do not enable `CRAWLER_JS_RENDERING` in prod until the egress-filtering follow-up ships"), and a checkbox/issue for that follow-up PR.
 
 ---
 
@@ -800,4 +864,6 @@ Create a throwaway tenant pointed at `https://bookbhutantour.com` on the `profes
 - `SiteCrawler` drops its `DocumentProcessor`/`ContentSufficiency` deps in favor of `RenderOnFallback` (which holds them) — a net simplification, no behavior change when rendering is off.
 
 ## Out of scope (per spec)
-Per-tenant rendering toggle; document/PDF rendering; screenshots; render-concurrency throttling; the pre-existing crawl redirect-SSRF hardening; auth-walled pages.
+Per-tenant rendering toggle; document/PDF rendering; screenshots; render-concurrency throttling; auth-walled pages.
+
+**Render-path egress filtering (SSRF mitigation) is a named, mandatory-before-prod FOLLOW-UP PR — not built here (P2-7).** Phase 2 ships the renderer behind `CRAWLER_JS_RENDERING` (off by default) with the initial-URL `SafeExternalUrl` guard, a `PageRenderer` security docblock, a hard deploy gate, and PR-body disclosure. The follow-up PR must add Puppeteer request-interception (or a filtering proxy) blocking private/link-local egress incl. redirect hops, and should fold in the pre-existing crawl redirect-SSRF fix. The PR description for Phase 2 must state: **do not enable `CRAWLER_JS_RENDERING` in production until that follow-up ships.**

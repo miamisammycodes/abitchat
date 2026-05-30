@@ -23,6 +23,8 @@ When a page fails the content-sufficiency gate on its raw HTTP body, render it w
 | P2-4 | Flag default | `CRAWLER_JS_RENDERING=false` (opt-in) | Needs Chromium installed; dormant until the operator enables it. Phase-1 behavior everywhere until then |
 | P2-5 | Failure behavior | **Graceful degradation** — render failure / timeout / missing Chromium → `null` → fall back to the HTTP result (page stays `SkippedNoContent`), logged; crawl never crashes | A flaky renderer must never break a crawl |
 | P2-6 | Helper shape | A distinct **`RenderOnFallback`** service (not inlined per caller) | One behavior, two callers; testable in isolation |
+| P2-7 | SSRF posture | **Document + hard deploy-gate + mandatory follow-up PR** (no in-code egress filter in this phase) | Rendering is a new SSRF surface (see Security); flag is off by default and pre-prod, so we ship behind an explicit gate and a named hardening follow-up that BLOCKS prod enablement |
+| P2-8 | Heal-loop guard | Re-render a `SkippedNoContent` item only if it has **no `metadata.render_attempted_at`** (or its content hash changed) | Without this, the unrenderable tail (auth-walled / genuinely empty pages) re-renders ~15s each on every crawl forever |
 
 ## Architecture & data flow
 
@@ -58,7 +60,7 @@ resolve(string $url, string $httpBody): array{text:string, html:string, sufficie
 - Per page: replace the inline `extractHtml` + `isSufficient` with `RenderOnFallback::resolve($url, $body)`.
   - `sufficient` → index: store `result['text']` as `content`, `status = Pending`, dispatch `ProcessKnowledgeItem`, `pages_indexed++`.
   - not `sufficient` → `SkippedNoContent` (+ delete stale chunks, as Phase 1), `pages_skipped_no_content++`.
-- **Hash-skip change** (P2-1): the existing content-hash dedup skips only when the existing item is **not** a heal candidate. A `SkippedNoContent` item is re-attempted (skip the dedup) **only when `PageRenderer` is enabled**; otherwise Phase-1 behavior (hash-skip applies) is unchanged. Encapsulate the "is rendering enabled" check on `PageRenderer` (e.g. `PageRenderer::enabled(): bool`) so the crawler doesn't read config directly.
+- **Hash-skip change** (P2-1 + P2-8): the content-hash dedup skips unless the item is a *heal candidate*. An item is a heal candidate when `renderingEnabled()` **and** `status === SkippedNoContent` **and** it has no `metadata.render_attempted_at` (P2-8 — so a page that was already render-attempted and is still insufficient is NOT re-rendered every crawl; a content-hash change still re-processes it normally). When insufficient *and* rendering was enabled, the skip path stamps `metadata.render_attempted_at`. With rendering off, behavior is exactly Phase-1. Encapsulate the enabled check on `PageRenderer` (`enabled(): bool`, surfaced via `RenderOnFallback::renderingEnabled()`).
 
 ### `ProcessKnowledgeItem` wiring (manual add)
 - The `webpage`-with-`source_url` path: fetch the body (SSRF-guarded, `allow_redirects=false` — as today) then `RenderOnFallback::resolve($url, $body)`. Sufficient → store `result['text']` as `content`, chunk, embed. Not sufficient → `SkippedNoContent` (Phase-1 skip path). `webpage`-with-stored-`content` and `faq`/`text`/`document` paths are unchanged.
@@ -93,10 +95,24 @@ External-dependency behavior; must pass before Task 1.
 - **`ProcessKnowledgeItem`** (fake `PageRenderer`): manual SPA URL add → renders → indexed; renderer null → `SkippedNoContent`.
 - Layer 2: full `php artisan test` between tasks. Layer 3: live smoke — install Chromium, `CRAWLER_JS_RENDERING=true`, real crawl of `bookbhutantour.com` → pages now `Ready` with real chunks; browser-view the dashboard.
 
-## Out of scope
-Per-tenant rendering toggle; rendering for `document`/PDF types; screenshots / visual capture; render-concurrency throttling across the queue; the pre-existing crawl redirect-SSRF hardening (separate PR); auth-walled / login-required pages.
+## Security — headless-render SSRF (NEW vector introduced by this phase)
+
+A headless browser rendering a **tenant-controlled URL** is a server-side request forgery surface that is broader than the HTTP-fetch path:
+- Chromium **follows redirects** to any host (incl. `169.254.169.254` metadata, `localhost`, internal IPs) — `SafeExternalUrl::isSafe()` only validates the *initial* URL, never the hops.
+- The page's **JavaScript executes** and can `fetch()`/XHR internal or cloud-metadata endpoints; whatever it renders into the DOM is returned by `bodyHtml()`, chunked, embedded, and can surface in bot replies (data exfiltration).
+
+This is **distinct from and worse than** the pre-existing crawl redirect-SSRF, and is *introduced* by Phase 2 — not pre-existing.
+
+**Chosen posture (P2-7):** ship behind mitigations, do not block the feature:
+1. `CRAWLER_JS_RENDERING` defaults **off**; `PageRenderer` still runs `SafeExternalUrl::isSafe()` on the initial URL (blocks the obvious case).
+2. **Hard deploy gate** (below): only enable on a host with **no reachable internal/metadata endpoints**.
+3. **Mandatory follow-up hardening PR** (BLOCKS production enablement): egress filtering for the render path — a Puppeteer request-interception script (or filtering proxy / Chromium `--proxy-server`) that blocks requests and redirects to private + link-local ranges (`127/8`, `10/8`, `172.16/12`, `192.168/16`, `169.254/16`, `::1`, `fc00::/7`). Bundle the pre-existing crawl redirect-SSRF fix into the same PR (same egress concern).
+
+## Out of scope (this phase)
+Per-tenant rendering toggle; rendering for `document`/PDF types; screenshots / visual capture; render-concurrency throttling across the queue; auth-walled / login-required pages. **Render-path egress filtering (the SSRF mitigation above) is a named, mandatory-before-prod follow-up PR — not part of this phase's code.**
 
 ## Deploy steps (after merge)
-1. Install Chromium on the host (`pnpm exec puppeteer browsers install chrome`, or system Chrome + `BROWSERSHOT_CHROME_PATH`).
-2. Set `CRAWLER_JS_RENDERING=true` (+ `BROWSERSHOT_NODE_BINARY`/`CHROME_PATH` if non-standard).
-3. Trigger a re-crawl per tenant with a SPA site — previously-`SkippedNoContent` pages heal automatically (P2-1).
+1. **⚠️ SSRF gate (P2-7):** do NOT set `CRAWLER_JS_RENDERING=true` until the render-path egress-filtering follow-up PR has shipped **and** the host has no reachable internal/cloud-metadata endpoints. Until then, leave rendering off.
+2. Install Chromium on the host (`pnpm exec puppeteer browsers install chrome`, or system Chrome + `BROWSERSHOT_CHROME_PATH`).
+3. Set `CRAWLER_JS_RENDERING=true` (+ `BROWSERSHOT_NODE_BINARY`/`CHROME_PATH` if non-standard) — only after step 1's gate is satisfied.
+4. Trigger a re-crawl per tenant with a SPA site — previously-`SkippedNoContent` pages heal automatically (P2-1).
