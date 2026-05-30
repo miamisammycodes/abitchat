@@ -64,7 +64,8 @@ class DocumentProcessorDocxTest extends TestCase
         $path = $this->makeDocx($bodyXml);
         $item = $this->makeDocumentItem($path);
 
-        $chunks = app(DocumentProcessor::class)->process($item);
+        $processor = app(DocumentProcessor::class);
+        $chunks = $processor->chunk($processor->extract($item));
 
         $combined = implode(' ', $chunks);
         $this->assertStringContainsString('price list', $combined);
@@ -81,7 +82,8 @@ class DocumentProcessorDocxTest extends TestCase
         $path = $this->makeDocx($bodyXml);
         $item = $this->makeDocumentItem($path);
 
-        $chunks = app(DocumentProcessor::class)->process($item);
+        $processor = app(DocumentProcessor::class);
+        $chunks = $processor->chunk($processor->extract($item));
 
         $combined = implode("\n", $chunks);
         $this->assertStringContainsString($p1, $combined);

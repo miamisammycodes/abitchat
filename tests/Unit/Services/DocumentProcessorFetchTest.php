@@ -39,7 +39,7 @@ class DocumentProcessorFetchTest extends TestCase
         $processor = app(DocumentProcessor::class);
 
         $this->expectException(\Throwable::class);
-        $processor->process($item);
+        $processor->chunk($processor->extract($item));
     }
 
     public function test_non_2xx_response_surfaces_as_exception(): void
@@ -62,7 +62,7 @@ class DocumentProcessorFetchTest extends TestCase
 
         $this->expectException(\Throwable::class);
         try {
-            $processor->process($item);
+            $processor->chunk($processor->extract($item));
         } finally {
             Http::assertSentCount(1);
             Http::assertNotSent(fn ($req) => str_contains($req->url(), '169.254.169.254'));
@@ -80,7 +80,7 @@ class DocumentProcessorFetchTest extends TestCase
 
         $item = $this->makeWebpageItem('http://1.1.1.1/page');
         $processor = app(DocumentProcessor::class);
-        $chunks = $processor->process($item);
+        $chunks = $processor->chunk($processor->extract($item));
 
         $combined = implode(' ', $chunks);
         $this->assertStringContainsString('Hello', $combined);

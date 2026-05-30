@@ -19,17 +19,6 @@ class DocumentProcessor
 
     private const MIN_CHUNK_CHARS = 50;
 
-    /**
-     * @deprecated Temporary during the extract/chunk split — removed in the
-     * same PR once all callers use extract()+chunk(). Do not add new callers.
-     *
-     * @return array<int, string>
-     */
-    public function process(KnowledgeItem $item): array
-    {
-        return $this->chunk($this->extract($item));
-    }
-
     /** Clean text for a KnowledgeItem by type. Webpage content is already cleaned. */
     public function extract(KnowledgeItem $item): string
     {

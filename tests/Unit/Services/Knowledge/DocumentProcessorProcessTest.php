@@ -35,7 +35,7 @@ class DocumentProcessorProcessTest extends TestCase
         $processor = new DocumentProcessor;
         $item = $this->makeItem();
 
-        $chunks = $processor->process($item);
+        $chunks = $processor->chunk($processor->extract($item));
 
         $this->assertNotEmpty($chunks);
         foreach ($chunks as $chunk) {
@@ -49,7 +49,7 @@ class DocumentProcessorProcessTest extends TestCase
         $processor = new DocumentProcessor;
         $item = $this->makeItem(['type' => 'faq']);
 
-        $chunks = $processor->process($item);
+        $chunks = $processor->chunk($processor->extract($item));
 
         $this->assertNotEmpty($chunks);
     }
@@ -60,7 +60,7 @@ class DocumentProcessorProcessTest extends TestCase
         $item = $this->makeItem();
         $item->forceFill(['type' => 'unknown_type']);
 
-        $chunks = $processor->process($item);
+        $chunks = $processor->chunk($processor->extract($item));
 
         $this->assertSame([], $chunks);
     }
@@ -70,7 +70,7 @@ class DocumentProcessorProcessTest extends TestCase
         $processor = new DocumentProcessor;
         $item = $this->makeItem(['content' => '']);
 
-        $chunks = $processor->process($item);
+        $chunks = $processor->chunk($processor->extract($item));
 
         $this->assertSame([], $chunks);
     }
@@ -80,7 +80,7 @@ class DocumentProcessorProcessTest extends TestCase
         $processor = new DocumentProcessor;
         $item = $this->makeItem(['content' => 'Too short to survive chunking.']);
 
-        $chunks = $processor->process($item);
+        $chunks = $processor->chunk($processor->extract($item));
 
         $this->assertSame([], $chunks);
     }
@@ -92,7 +92,7 @@ class DocumentProcessorProcessTest extends TestCase
         $body = implode("\n\n", array_fill(0, 6, $paragraph));
         $item = $this->makeItem(['content' => $body]);
 
-        $chunks = $processor->process($item);
+        $chunks = $processor->chunk($processor->extract($item));
 
         $this->assertGreaterThan(1, count($chunks));
     }
@@ -106,7 +106,7 @@ class DocumentProcessorProcessTest extends TestCase
                 "Tail paragraph contains {$marker} which must survive chunking.";
         $item = $this->makeItem(['content' => $body]);
 
-        $chunks = $processor->process($item);
+        $chunks = $processor->chunk($processor->extract($item));
 
         $combined = implode(' ', $chunks);
         $this->assertStringContainsString($marker, $combined);
@@ -114,20 +114,20 @@ class DocumentProcessorProcessTest extends TestCase
 
     public function test_process_webpage_with_stored_content_does_not_fetch_url(): void
     {
-        // Crawler stores HTML in $item->content; DocumentProcessor must reuse it
-        // instead of re-fetching $item->source_url.
+        // Crawler stores CLEAN text in $item->content; extract() must reuse it
+        // verbatim instead of re-fetching $item->source_url.
         Http::fake(['*' => Http::response('SHOULD_NOT_BE_CALLED', 200)]);
         Http::preventStrayRequests();
 
         $processor = new DocumentProcessor;
-        $html = '<html><body><p>Stored page body that is long enough to exceed the minimum chunk threshold for the test.</p></body></html>';
+        $clean = 'Stored clean page text that is long enough to exceed the minimum chunk threshold for this test.';
         $item = $this->makeItem([
             'type' => 'webpage',
             'source_url' => 'https://example.com/about',
-            'content' => $html,
+            'content' => $clean,
         ]);
 
-        $chunks = $processor->process($item);
+        $chunks = $processor->chunk($processor->extract($item));
 
         $this->assertNotEmpty($chunks);
         Http::assertNothingSent();
