@@ -25,11 +25,17 @@ class HandleInertiaRequestsShareLatestCrawlSessionTest extends TestCase
             'role' => Role::Owner,
             'tenant_id' => $tenant->id,
         ]);
-        $session = CrawlSession::factory()->forTenant($tenant)->create();
+        $session = CrawlSession::factory()->forTenant($tenant)->create([
+            'pages_skipped_no_content' => 3,
+        ]);
 
         $response = $this->actingAs($user)->get('/dashboard');
 
-        $response->assertInertia(fn ($page) => $page->has('latest_crawl_session', fn ($s) => $s->where('id', $session->id)->etc()));
+        $response->assertInertia(fn ($page) => $page->has('latest_crawl_session', fn ($s) => $s
+            ->where('id', $session->id)
+            ->where('pages_skipped_no_content', 3)
+            ->etc()
+        ));
     }
 
     public function test_unrelated_route_does_not_share_session(): void
