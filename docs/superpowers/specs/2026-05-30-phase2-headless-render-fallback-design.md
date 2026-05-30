@@ -32,7 +32,7 @@ When a page fails the content-sufficiency gate on its raw HTTP body, render it w
 - `render(string $url): ?string` — rendered HTML or `null`.
 - Returns `null` immediately when `config('services.crawler.js_rendering')` is false (no Browsershot call).
 - Re-validates `SafeExternalUrl::isSafe($url)` before rendering (SSRF guard — mirrors the fetch path).
-- `Browsershot::url($url)->waitUntilNetworkIdle()->timeout($seconds)->bodyHtml()` (timeout from `config('services.crawler.render_timeout')`, default 15s). Optional `setNodeBinary`/`setChromePath` from config when set.
+- `Browsershot::url($url)->setNodeModulePath(base_path('node_modules'))->setDelay($delay)->timeout($seconds)->bodyHtml()` — Task 0 verified that base44/React SPAs never reach network idle (so `waitUntilNetworkIdle()` always times out); a fixed post-load `setDelay` (ms, from `config('services.crawler.render_delay')`, default 3000) is used instead. Timeout from `config('services.crawler.render_timeout')`, default 45s. `setNodeModulePath(base_path('node_modules'))` is unconditional (pnpm's non-hoisted layout breaks puppeteer module resolution). `setNodeBinary`/`setNpmBinary`/`setChromePath` applied from config when set — **`chrome_path` is effectively mandatory on macOS + pnpm** (puppeteer can't auto-resolve the downloaded "Chrome for Testing.app").
 - Catches **all** throwables → logs (`[PageRenderer] (IS $) …`) → returns `null`. Never throws.
 - Injected (constructor) so tests bind a fake/mock — the codebase already mocks `EmbeddingService`/`DocumentProcessor`. The **real Browsershot path is not unit-tested** (CI has no Chromium); it is verified by Task 0 + the live smoke.
 
@@ -69,8 +69,10 @@ resolve(string $url, string $httpBody): array{text:string, html:string, sufficie
 ```php
 'crawler' => [
     'js_rendering' => env('CRAWLER_JS_RENDERING', false),
-    'render_timeout' => (int) env('CRAWLER_RENDER_TIMEOUT', 15),
+    'render_timeout' => (int) env('CRAWLER_RENDER_TIMEOUT', 45),
+    'render_delay' => (int) env('CRAWLER_RENDER_DELAY', 3000),
     'node_binary' => env('BROWSERSHOT_NODE_BINARY'),
+    'npm_binary' => env('BROWSERSHOT_NPM_BINARY'),
     'chrome_path' => env('BROWSERSHOT_CHROME_PATH'),
 ],
 ```
@@ -78,7 +80,8 @@ resolve(string $url, string $httpBody): array{text:string, html:string, sufficie
 ## Task 0 (verification before code — CRITICAL)
 External-dependency behavior; must pass before Task 1.
 - `composer require spatie/browsershot` + `pnpm add puppeteer` (downloads Chromium).
-- Spike: render `https://bookbhutantour.com/` with `Browsershot::url(...)->waitUntilNetworkIdle()->bodyHtml()` and confirm (a) it returns HTML with the `#root` **populated** (real tour text present), and (b) `ContentSufficiency::isSufficient(extractHtml(rendered), rendered)` is now **true**. Capture the working wait/timeout settings.
+- Spike: render `https://bookbhutantour.com/` and confirm (a) it returns HTML with the `#root` **populated** (real tour text present), and (b) `ContentSufficiency::isSufficient(extractHtml(rendered), rendered)` is now **true**. Capture the working wait/timeout settings.
+- **VERIFIED 2026-05-30:** `waitUntilNetworkIdle()` always timed out (base44 SPA never idles). Working chain: `Browsershot::url($url)->setNodeBinary($herdNode)->setNpmBinary($herdNpm)->setNodeModulePath(base_path('node_modules'))->setChromePath($puppeteerChromeForTesting)->setDelay(3000)->timeout(45)->bodyHtml()`. Result across 3 runs: 66–83KB HTML, 372–1263 words, `sufficient=YES`, real tour copy ("Bhutan's Premier Destination Specialist…"). Render time is highly variable (~7–30s), hence the 45s timeout default. `chrome_path` is mandatory (puppeteer auto-resolve fails on the "Chrome for Testing.app" bundle under pnpm).
 - If Browsershot cannot run in this environment (no Node/Chromium), STOP and report — the wait strategy / binary paths feed the `PageRenderer` impl and the plan.
 
 ## Test plan (TDD)

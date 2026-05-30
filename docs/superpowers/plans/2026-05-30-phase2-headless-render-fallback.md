@@ -11,7 +11,7 @@
 **Spec:** `docs/superpowers/specs/2026-05-30-phase2-headless-render-fallback-design.md`
 **Branch:** `feat/phase2-headless-render` (stacked on `feat/scraping-clean-extraction` / PR #41 — merge after #41).
 
-**Environment (already verified):** Node `v22.22.3` at `~/Library/Application Support/Herd/config/nvm/versions/node/v22.22.3/bin/node`; Google Chrome at `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`. `js_rendering` defaults **false**, so the whole test suite runs the Phase-1 path unless a test injects a fake renderer.
+**Environment (verified Task 0, 2026-05-30):** Node `v22.22.3` at `~/Library/Application Support/Herd/config/nvm/versions/node/v22.22.3/bin/node` (+ `npm` alongside). Use the **puppeteer-downloaded** Chrome — `pnpm exec puppeteer browsers install chrome` prints its path (`~/.cache/puppeteer/chrome/mac_arm-149.0.7827.22/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing`); puppeteer's auto-resolve does NOT find it, so `BROWSERSHOT_CHROME_PATH` must point there for the Task 6 live smoke (system `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome` also launches but is not version-matched). `js_rendering` defaults **false**, so the whole test suite runs the Phase-1 path unless a test injects a fake renderer.
 
 ---
 
@@ -57,12 +57,16 @@ use Spatie\Browsershot\Browsershot;
 
 $node = '/Users/sam/Library/Application Support/Herd/config/nvm/versions/node/v22.22.3/bin/node';
 $npm  = '/Users/sam/Library/Application Support/Herd/config/nvm/versions/node/v22.22.3/bin/npm';
+// puppeteer-downloaded Chrome — `pnpm exec puppeteer browsers install chrome` prints this path.
+$chrome = '/Users/sam/.cache/puppeteer/chrome/mac_arm-149.0.7827.22/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing';
 
 $html = Browsershot::url('https://bookbhutantour.com/')
     ->setNodeBinary($node)
     ->setNpmBinary($npm)
-    ->waitUntilNetworkIdle()
-    ->timeout(30)
+    ->setNodeModulePath(base_path('node_modules'))
+    ->setChromePath($chrome)
+    ->setDelay(3000)
+    ->timeout(45)
     ->bodyHtml();
 
 $dp = app(DocumentProcessor::class); $gate = app(ContentSufficiency::class);
@@ -77,6 +81,8 @@ Expected: rendered HTML is much larger than the ~6.9KB shell, `sufficient now? Y
 - [ ] **Step 3: Capture working settings; adjust the plan if needed**
 
 If `waitUntilNetworkIdle()` times out (base44 keeps connections open), try `->setDelay(4000)` (wait 4s after load) or `->waitUntilNetworkIdle($strict = false)`; if it can't find node/Chrome, add `->setChromePath('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')`. **Record the exact working chain** — Task 1's `PageRenderer` and the config defaults must match it. If Browsershot cannot render at all here, STOP and report (the whole phase is blocked).
+
+> **VERIFIED 2026-05-30 (Task 0 complete):** `waitUntilNetworkIdle()` always timed out (the base44 SPA never idles). The working chain is the one shown in Step 2 above: `setNodeBinary` + `setNpmBinary` (Herd Node v22.22.3) + `setNodeModulePath(base_path('node_modules'))` (pnpm non-hoisted layout breaks puppeteer's own module resolution) + `setChromePath(<puppeteer Chrome for Testing>)` (auto-resolve fails on the "Chrome for Testing.app" bundle) + `setDelay(3000)` + `timeout(45)`. Across 3 live runs: 66–83KB HTML, 372–1263 words, `sufficient=YES`, real tour copy. Render time is highly variable (~7–30s) → 45s timeout default. Task 1's `PageRenderer` code block and the config defaults above have been updated to match.
 
 - [ ] **Step 4: Remove the spike, commit the dependencies**
 
@@ -102,16 +108,19 @@ In `config/services.php`, add before the closing `];` (after the `dk_bank` block
 ```php
     'crawler' => [
         'js_rendering' => env('CRAWLER_JS_RENDERING', false),
-        'render_timeout' => (int) env('CRAWLER_RENDER_TIMEOUT', 15),
+        'render_timeout' => (int) env('CRAWLER_RENDER_TIMEOUT', 45),
+        'render_delay' => (int) env('CRAWLER_RENDER_DELAY', 3000),
         'node_binary' => env('BROWSERSHOT_NODE_BINARY'),
         'npm_binary' => env('BROWSERSHOT_NPM_BINARY'),
         'chrome_path' => env('BROWSERSHOT_CHROME_PATH'),
     ],
 ```
+> **Task 0 verified defaults:** `render_timeout=45` (the SPA renders in ~7–30s with high variance; 45s clears the worst observed run with headroom) and `render_delay=3000` (ms after page load — enough for base44/React to paint). `waitUntilNetworkIdle()` is NOT used (the SPA never reaches idle and always times out).
 In `.env.example`, add:
 ```
 CRAWLER_JS_RENDERING=false
-# CRAWLER_RENDER_TIMEOUT=15
+# CRAWLER_RENDER_TIMEOUT=45
+# CRAWLER_RENDER_DELAY=3000
 # BROWSERSHOT_NODE_BINARY=
 # BROWSERSHOT_NPM_BINARY=
 # BROWSERSHOT_CHROME_PATH=
@@ -208,9 +217,15 @@ class PageRenderer
         try {
             Log::debug('[PageRenderer] (IS $) Rendering page', ['url' => $url]);
 
+            // base44/React SPAs (e.g. bookbhutantour.com) never reach network
+            // idle, so waitUntilNetworkIdle() always times out — Task 0 verified
+            // a fixed post-load delay instead. node_modules is set
+            // unconditionally because pnpm's non-hoisted layout breaks
+            // puppeteer's own module resolution from Browsershot's bin script.
             $shot = Browsershot::url($url)
-                ->waitUntilNetworkIdle()
-                ->timeout((int) config('services.crawler.render_timeout', 15));
+                ->setNodeModulePath(base_path('node_modules'))
+                ->setDelay((int) config('services.crawler.render_delay', 3000))
+                ->timeout((int) config('services.crawler.render_timeout', 45));
 
             if ($node = config('services.crawler.node_binary')) {
                 $shot->setNodeBinary((string) $node);
@@ -218,6 +233,11 @@ class PageRenderer
             if ($npm = config('services.crawler.npm_binary')) {
                 $shot->setNpmBinary((string) $npm);
             }
+            // chrome_path is effectively MANDATORY on macOS + pnpm: puppeteer's
+            // auto-resolve fails to find the downloaded "Chrome for Testing.app"
+            // binary, so without this set render() silently returns null. Point
+            // BROWSERSHOT_CHROME_PATH at the puppeteer-downloaded Chrome (see
+            // ~/.cache/puppeteer/chrome/.../Google Chrome for Testing).
             if ($chrome = config('services.crawler.chrome_path')) {
                 $shot->setChromePath((string) $chrome);
             }

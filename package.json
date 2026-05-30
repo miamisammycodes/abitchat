@@ -33,6 +33,7 @@
         "clsx": "*",
         "lodash": "*",
         "lucide-vue-next": "^1.0",
+        "puppeteer": "^25.1.0",
         "radix-vue": "*",
         "tailwind-merge": "*",
         "vue": "*"
