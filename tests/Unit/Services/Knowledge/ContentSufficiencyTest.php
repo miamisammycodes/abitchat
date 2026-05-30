@@ -33,19 +33,33 @@ class ContentSufficiencyTest extends TestCase
         $this->assertTrue($this->gate->isSufficient('one two three four five six seven'));
     }
 
-    public function test_spa_shell_with_low_text_ratio_is_insufficient(): void
+    public function test_spa_shell_with_framework_mount_is_insufficient(): void
     {
-        // ~16 words of body text, but the page is dominated by a JS bundle.
+        // Short text mounted on a known SPA root element (React/base44).
         $clean = 'Tours Book Bhutan Tour Official Website for Book Bhutan Tour visit us today now here';
-        $html = '<html><body><div id="root">'.$clean.'</div><script>'.str_repeat('var x=1;', 800).'</script></body></html>';
+        $html = '<html><body><div id="root">'.$clean.'</div><p>loading…</p></body></html>';
 
         $this->assertFalse($this->gate->isSufficient($clean, $html));
     }
 
-    public function test_real_short_page_with_high_text_ratio_is_sufficient(): void
+    public function test_script_dominated_shell_is_insufficient(): void
     {
+        // Short text on a non-framework mount, but the page is mostly inline JS.
+        $clean = 'Tours Book Bhutan Tour Official Website for Book Bhutan Tour visit us today now here';
+        $html = '<html><body><div id="widget">'.$clean.'</div><script>'.str_repeat('var x=1;', 800).'</script></body></html>';
+
+        $this->assertFalse($this->gate->isSufficient($clean, $html));
+    }
+
+    public function test_thin_real_page_in_heavy_template_is_sufficient(): void
+    {
+        // Regression: a short real page wrapped in a large server-rendered theme
+        // (bulky nav/footer markup, only external scripts) must NOT be buried.
+        // It has no SPA mount and negligible inline JS — unlike a JS shell.
         $clean = 'Visit our showroom Monday to Friday from nine to five at Main Street Thimphu';
-        $html = '<html><body><p>'.$clean.'</p></body></html>';
+        $chrome = str_repeat('<div class="nav-item"><a href="/page">Menu link label</a></div>', 200);
+        $html = '<html><body><header>'.$chrome.'</header><main><p>'.$clean.'</p></main>'
+            .'<footer>'.$chrome.'</footer><script src="/theme.js"></script></body></html>';
 
         $this->assertTrue($this->gate->isSufficient($clean, $html));
     }

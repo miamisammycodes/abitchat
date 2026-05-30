@@ -158,6 +158,41 @@ class SiteCrawlerTest extends TestCase
         Bus::assertNotDispatched(ProcessKnowledgeItem::class);
     }
 
+    public function test_recrawl_to_shell_deletes_stale_chunks(): void
+    {
+        $tenant = Tenant::factory()->create(['website_url' => 'https://example.com']);
+
+        $oldHtml = '<html><body><p>Old real content that was long enough to index and produce chunks for this page.</p></body></html>';
+        $item = KnowledgeItem::factory()
+            ->forTenant($tenant)
+            ->webpage('https://example.com/tours', 'https://example.com/tours')
+            ->create([
+                'status' => KnowledgeItemStatus::Ready,
+                'metadata' => ['crawl_session_id' => 1, 'content_hash' => 'sha256:'.hash('sha256', $oldHtml)],
+            ]);
+        $item->chunks()->create(['content' => 'old chunk one', 'chunk_index' => 0, 'embedding' => null]);
+        $item->chunks()->create(['content' => 'old chunk two', 'chunk_index' => 1, 'embedding' => null]);
+
+        $session = CrawlSession::factory()->forTenant($tenant)->create([
+            'mode' => CrawlMode::Refresh,
+            'status' => CrawlSessionStatus::Running,
+        ]);
+
+        // Content changed (passes the diff check) but is now a JS shell (fails the gate).
+        $shell = '<html><body><div id="root">Tours Book Bhutan Tour visit us today right now for more info here</div></body></html>';
+        Http::fake([
+            'https://example.com/robots.txt' => Http::response('', 404),
+            'https://example.com/sitemap.xml' => Http::response($this->sitemapWith(['https://example.com/tours']), 200),
+            'https://example.com/tours*' => Http::response($shell, 200),
+        ]);
+
+        $this->crawler->crawl($tenant, $session);
+
+        $item->refresh();
+        $this->assertSame(KnowledgeItemStatus::SkippedNoContent, $item->status);
+        $this->assertSame(0, $item->chunks()->count());
+    }
+
     public function test_blocklist_silently_skips_url(): void
     {
         $tenant = Tenant::factory()->create(['website_url' => 'https://example.com']);

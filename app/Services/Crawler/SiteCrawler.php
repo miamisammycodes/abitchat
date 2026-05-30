@@ -169,7 +169,11 @@ class SiteCrawler
                     $values['status'] = KnowledgeItemStatus::SkippedNoContent;
                     $values['metadata']['skipped_reason'] = 'no_content';
                     $values['metadata']['skipped_at'] = now()->toIso8601String();
-                    KnowledgeItem::updateOrCreate($attributes, $values);
+                    $skipped = KnowledgeItem::updateOrCreate($attributes, $values);
+                    // A previously-Ready page whose content changed to a shell
+                    // would otherwise keep its stale chunks (inflated chunks_count,
+                    // dead embeddings). Retrieval already excludes non-Ready items.
+                    $skipped->chunks()->delete();
                     $pagesSkippedNoContent++;
                     ($this->sleeper)($crawlDelay);
 

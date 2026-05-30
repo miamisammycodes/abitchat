@@ -7,10 +7,12 @@ namespace App\Services\Knowledge;
 /**
  * Decides whether extracted text is real content or an empty/SPA-shell page.
  *
- * Signals (combined, so a thin-but-real page is not buried):
+ * Combined signal, so a thin-but-real page is NOT buried:
  * - hard floor: fewer than HARD_FLOOR_WORDS words is always insufficient;
- * - SPA shell: short text AND its length is a tiny fraction of the raw HTML
- *   (the page is dominated by a JS bundle — base44/React/Vue/Next shells).
+ * - SPA shell: short text (< SPA_CEILING_WORDS) AND the raw HTML shows an
+ *   SPA marker — a known framework mount element (React/Next/Nuxt/Gatsby) or
+ *   a page dominated by inline JavaScript. Both are absent from server-rendered
+ *   pages, so a short real page (e.g. a WordPress contact page) stays indexed.
  */
 class ContentSufficiency
 {
@@ -18,7 +20,11 @@ class ContentSufficiency
 
     public const SPA_CEILING_WORDS = 25;
 
-    public const SPA_TEXT_RATIO = 0.03;
+    /** Inline-script bytes / total bytes above this means the page is a JS shell. */
+    public const SPA_SCRIPT_RATIO = 0.25;
+
+    /** Mount elements used by SPA frameworks; server-rendered pages don't use these ids. */
+    private const SPA_MOUNT_PATTERN = '/<[a-z][a-z0-9]*[^>]*\bid=["\'](?:root|__next|__nuxt|___gatsby)["\']/i';
 
     public function isSufficient(string $cleanText, ?string $rawHtml = null): bool
     {
@@ -30,7 +36,7 @@ class ContentSufficiency
 
         if ($words < self::SPA_CEILING_WORDS
             && $rawHtml !== null
-            && $this->looksLikeSpaShell($rawHtml, $cleanText)) {
+            && $this->looksLikeSpaShell($rawHtml)) {
             return false;
         }
 
@@ -48,11 +54,24 @@ class ContentSufficiency
         return count(preg_split('/\s+/', $trimmed));
     }
 
-    private function looksLikeSpaShell(string $rawHtml, string $cleanText): bool
+    private function looksLikeSpaShell(string $rawHtml): bool
     {
-        $htmlLength = strlen($rawHtml);
+        if (preg_match(self::SPA_MOUNT_PATTERN, $rawHtml) === 1) {
+            return true;
+        }
 
-        return $htmlLength > 0
-            && (strlen($cleanText) / $htmlLength) < self::SPA_TEXT_RATIO;
+        $length = strlen($rawHtml);
+        if ($length === 0) {
+            return false;
+        }
+
+        $scriptBytes = 0;
+        if (preg_match_all('/<script\b[^>]*>(.*?)<\/script>/is', $rawHtml, $matches) > 0) {
+            foreach ($matches[1] as $script) {
+                $scriptBytes += strlen($script);
+            }
+        }
+
+        return ($scriptBytes / $length) >= self::SPA_SCRIPT_RATIO;
     }
 }
