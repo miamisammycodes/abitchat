@@ -132,4 +132,16 @@ class DocumentProcessorProcessTest extends TestCase
         $this->assertNotEmpty($chunks);
         Http::assertNothingSent();
     }
+
+    public function test_extract_html_separates_adjacent_block_elements(): void
+    {
+        $processor = new DocumentProcessor;
+
+        $text = $processor->extractHtml('<html><body><h1>Our Bakery</h1><p>We bake bread daily.</p><ul><li>Sourdough</li><li>Rye</li></ul></body></html>');
+
+        $this->assertStringNotContainsString('BakeryWe', $text);
+        $this->assertStringNotContainsString('SourdoughRye', $text);
+        $this->assertStringContainsString('Our Bakery', $text);
+        $this->assertStringContainsString('We bake', $text);
+    }
 }
