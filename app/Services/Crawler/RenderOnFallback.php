@@ -26,14 +26,18 @@ class RenderOnFallback
     }
 
     /**
-     * @return array{text: string, html: string, sufficient: bool, rendered: bool}
+     * `rendered` is true only when the headless render actually executed and
+     * returned HTML (callers use it to stamp render_attempted_at — a render
+     * that returned null must NOT be recorded as attempted, so it can retry).
+     *
+     * @return array{text: string, sufficient: bool, rendered: bool}
      */
     public function resolve(string $url, string $httpBody): array
     {
         $text = $this->processor->extractHtml($httpBody);
 
         if ($this->gate->isSufficient($text, $httpBody)) {
-            return ['text' => $text, 'html' => $httpBody, 'sufficient' => true, 'rendered' => false];
+            return ['text' => $text, 'sufficient' => true, 'rendered' => false];
         }
 
         $rendered = $this->renderer->render($url);
@@ -42,10 +46,10 @@ class RenderOnFallback
             $renderedText = $this->processor->extractHtml($rendered);
 
             if ($this->gate->isSufficient($renderedText, $rendered)) {
-                return ['text' => $renderedText, 'html' => $rendered, 'sufficient' => true, 'rendered' => true];
+                return ['text' => $renderedText, 'sufficient' => true, 'rendered' => true];
             }
         }
 
-        return ['text' => $text, 'html' => $httpBody, 'sufficient' => false, 'rendered' => $rendered !== null];
+        return ['text' => $text, 'sufficient' => false, 'rendered' => $rendered !== null];
     }
 }

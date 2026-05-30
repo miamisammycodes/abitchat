@@ -114,6 +114,11 @@ This is **distinct from and worse than** the pre-existing crawl redirect-SSRF, a
 ## Out of scope (this phase)
 Per-tenant rendering toggle; rendering for `document`/PDF types; screenshots / visual capture; render-concurrency throttling across the queue; auth-walled / login-required pages. **Render-path egress filtering (the SSRF mitigation above) is a named, mandatory-before-prod follow-up PR — not part of this phase's code.**
 
+## Final-review clarifications (2026-05-30)
+- **P2-8 stamp semantics (corrected):** `render_attempted_at` is stamped only when a render **actually executed and returned HTML** (`resolve()`'s `rendered === true`), on both the sufficient and insufficient paths — NOT merely when rendering is enabled. A render that returns `null` (Chromium misconfigured / timed out) is intentionally NOT recorded, so the page stays a heal candidate and retries after the operator fixes Chromium (avoids one bad first crawl poisoning every page).
+- **Manual-add parity (P2-2 wins over the literal P2-4 wording):** SPA *detection* (the 2-arg sufficiency gate) now applies to the manual single-URL add path too, **regardless of the flag** — a manually-added SPA shell is marked `SkippedNoContent` even with rendering off, instead of indexing boilerplate as Phase-1 did. Only *rendering* (the heal) is flag-gated, not detection. This is the intended unification; the earlier "flag off = zero behavior change" framing was imprecise — flag off = Phase-1-correct behavior **plus** consistent SPA detection on both paths.
+- **Known edge for the pre-prod-enablement follow-up:** a page the gate deems sufficient but that yields zero ≥50-char chunks in `ProcessKnowledgeItem` is marked `SkippedNoContent` without a render attempt, so with rendering on it remains a heal candidate and is re-fetched/re-dispatched (not re-rendered) each crawl. Narrow; fix alongside the SSRF/egress follow-up (e.g. a distinct skip reason that is not heal-eligible).
+
 ## Deploy steps (after merge)
 1. **⚠️ SSRF gate (P2-7):** do NOT set `CRAWLER_JS_RENDERING=true` until the render-path egress-filtering follow-up PR has shipped **and** the host has no reachable internal/cloud-metadata endpoints. Until then, leave rendering off.
 2. Install Chromium on the host (`pnpm exec puppeteer browsers install chrome`, or system Chrome + `BROWSERSHOT_CHROME_PATH`).

@@ -176,15 +176,19 @@ class SiteCrawler
                     ],
                 ];
 
+                // Record a render attempt ONLY when a render actually executed
+                // (P2-8). Keyed on $resolution['rendered'], NOT renderingEnabled():
+                // a render that returned null (Chromium misconfigured / timed out)
+                // must not be recorded — otherwise one bad crawl would poison every
+                // page so it never re-renders after the operator fixes Chromium.
+                if ($resolution['rendered']) {
+                    $values['metadata']['render_attempted_at'] = now()->toIso8601String();
+                }
+
                 if (! $resolution['sufficient']) {
                     $values['status'] = KnowledgeItemStatus::SkippedNoContent;
                     $values['metadata']['skipped_reason'] = 'no_content';
                     $values['metadata']['skipped_at'] = now()->toIso8601String();
-                    // Stamp the render attempt so an unrenderable page isn't
-                    // re-rendered every crawl (P2-8). Only when rendering ran.
-                    if ($this->resolver->renderingEnabled()) {
-                        $values['metadata']['render_attempted_at'] = now()->toIso8601String();
-                    }
                     $skipped = KnowledgeItem::updateOrCreate($attributes, $values);
                     // A previously-Ready page whose content changed to a shell
                     // would otherwise keep its stale chunks (inflated chunks_count,

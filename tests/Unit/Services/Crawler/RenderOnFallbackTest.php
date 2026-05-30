@@ -43,7 +43,6 @@ class RenderOnFallbackTest extends TestCase
         $this->assertTrue($result['sufficient']);
         $this->assertTrue($result['rendered']);
         $this->assertStringContainsString('Bhutan', $result['text']);
-        $this->assertSame($this->realPage, $result['html']);
     }
 
     public function test_insufficient_http_and_render_null_is_insufficient(): void

@@ -366,10 +366,11 @@ class SiteCrawlerTest extends TestCase
         $this->assertSame(1, $session->refresh()->pages_skipped_unchanged);
     }
 
-    public function test_failed_heal_render_stamps_render_attempted_at(): void
+    public function test_failed_render_does_not_stamp_so_page_can_retry(): void
     {
-        // A heal candidate (SkippedNoContent, no render_attempted_at) whose render
-        // STILL fails must be stamped so it isn't re-rendered every crawl (P2-8 WRITE).
+        // A heal render that returns null (Chromium misconfigured / timed out) must
+        // NOT stamp render_attempted_at — otherwise one bad crawl would poison the
+        // page and it would never re-render after Chromium is fixed.
         $tenant = Tenant::factory()->create(['website_url' => 'https://example.com']);
         $shell = '<html><body><div id="root">Tours visit us today right now for more info here please</div></body></html>';
         $item = KnowledgeItem::factory()->forTenant($tenant)
@@ -383,7 +384,6 @@ class SiteCrawlerTest extends TestCase
                 ],
             ]);
 
-        // Rendering on; the heal render returns null (still unrenderable).
         $renderer = Mockery::mock(PageRenderer::class);
         $renderer->shouldReceive('enabled')->andReturn(true);
         $renderer->shouldReceive('render')->once()->andReturnNull();
@@ -402,8 +402,45 @@ class SiteCrawlerTest extends TestCase
 
         $item->refresh();
         $this->assertSame(KnowledgeItemStatus::SkippedNoContent, $item->status);
-        $this->assertNotNull($item->metadata['render_attempted_at'] ?? null, 'render_attempted_at must be stamped so the page is not re-rendered next crawl');
-        $this->assertSame(1, $session->refresh()->pages_skipped_no_content);
+        $this->assertNull($item->metadata['render_attempted_at'] ?? null, 'a failed render must remain a heal candidate so it retries');
+    }
+
+    public function test_rendered_but_still_insufficient_stamps_render_attempted_at(): void
+    {
+        // Render executed and returned HTML but the page is still a shell → stamp
+        // render_attempted_at so it isn't re-rendered every crawl (P2-8 WRITE path).
+        $tenant = Tenant::factory()->create(['website_url' => 'https://example.com']);
+        $shell = '<html><body><div id="root">Tours visit us today right now for more info here please</div></body></html>';
+        $item = KnowledgeItem::factory()->forTenant($tenant)
+            ->webpage('https://example.com/tours', 'https://example.com/tours')
+            ->create([
+                'status' => KnowledgeItemStatus::SkippedNoContent,
+                'metadata' => [
+                    'content_hash' => 'sha256:'.hash('sha256', $shell),
+                    'skipped_reason' => 'no_content',
+                ],
+            ]);
+
+        // Render returns another shell (still a SPA mount, still insufficient).
+        $renderer = Mockery::mock(PageRenderer::class);
+        $renderer->shouldReceive('enabled')->andReturn(true);
+        $renderer->shouldReceive('render')->once()->andReturn($shell);
+        $this->app->instance(PageRenderer::class, $renderer);
+
+        $session = CrawlSession::factory()->forTenant($tenant)->create(['mode' => CrawlMode::Refresh, 'status' => CrawlSessionStatus::Running]);
+        Http::fake([
+            'https://example.com/robots.txt' => Http::response('', 404),
+            'https://example.com/sitemap.xml' => Http::response($this->sitemapWith(['https://example.com/tours']), 200),
+            'https://example.com/tours*' => Http::response($shell, 200),
+        ]);
+
+        $crawler = app(SiteCrawler::class);
+        $crawler->setSleeper(fn () => null);
+        $crawler->crawl($tenant, $session);
+
+        $item->refresh();
+        $this->assertSame(KnowledgeItemStatus::SkippedNoContent, $item->status);
+        $this->assertNotNull($item->metadata['render_attempted_at'] ?? null, 'a render that ran but stayed insufficient must be stamped');
     }
 
     /**
