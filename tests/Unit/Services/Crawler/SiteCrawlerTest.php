@@ -366,6 +366,46 @@ class SiteCrawlerTest extends TestCase
         $this->assertSame(1, $session->refresh()->pages_skipped_unchanged);
     }
 
+    public function test_failed_heal_render_stamps_render_attempted_at(): void
+    {
+        // A heal candidate (SkippedNoContent, no render_attempted_at) whose render
+        // STILL fails must be stamped so it isn't re-rendered every crawl (P2-8 WRITE).
+        $tenant = Tenant::factory()->create(['website_url' => 'https://example.com']);
+        $shell = '<html><body><div id="root">Tours visit us today right now for more info here please</div></body></html>';
+        $item = KnowledgeItem::factory()->forTenant($tenant)
+            ->webpage('https://example.com/tours', 'https://example.com/tours')
+            ->create([
+                'status' => KnowledgeItemStatus::SkippedNoContent,
+                'metadata' => [
+                    'content_hash' => 'sha256:'.hash('sha256', $shell),
+                    'skipped_reason' => 'no_content',
+                    // no render_attempted_at → heal candidate (bypasses dedup)
+                ],
+            ]);
+
+        // Rendering on; the heal render returns null (still unrenderable).
+        $renderer = Mockery::mock(PageRenderer::class);
+        $renderer->shouldReceive('enabled')->andReturn(true);
+        $renderer->shouldReceive('render')->once()->andReturnNull();
+        $this->app->instance(PageRenderer::class, $renderer);
+
+        $session = CrawlSession::factory()->forTenant($tenant)->create(['mode' => CrawlMode::Refresh, 'status' => CrawlSessionStatus::Running]);
+        Http::fake([
+            'https://example.com/robots.txt' => Http::response('', 404),
+            'https://example.com/sitemap.xml' => Http::response($this->sitemapWith(['https://example.com/tours']), 200),
+            'https://example.com/tours*' => Http::response($shell, 200),
+        ]);
+
+        $crawler = app(SiteCrawler::class);
+        $crawler->setSleeper(fn () => null);
+        $crawler->crawl($tenant, $session);
+
+        $item->refresh();
+        $this->assertSame(KnowledgeItemStatus::SkippedNoContent, $item->status);
+        $this->assertNotNull($item->metadata['render_attempted_at'] ?? null, 'render_attempted_at must be stamped so the page is not re-rendered next crawl');
+        $this->assertSame(1, $session->refresh()->pages_skipped_no_content);
+    }
+
     /**
      * @param  list<string>  $urls
      */
