@@ -16,6 +16,7 @@
         "prism-php/prism": "*",
         "resend/resend-laravel": "^1.4",
         "smalot/pdfparser": "*",
+        "spatie/browsershot": "^5.4",
         "spatie/laravel-multitenancy": "*",
         "tightenco/ziggy": "*"
     },

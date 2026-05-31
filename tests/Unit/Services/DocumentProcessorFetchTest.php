@@ -86,4 +86,20 @@ class DocumentProcessorFetchTest extends TestCase
         $this->assertStringContainsString('Hello', $combined);
         Http::assertSentCount(1);
     }
+
+    public function test_fetch_url_returns_raw_body_for_public_url(): void
+    {
+        Http::fake(['1.1.1.1/raw' => Http::response('<html><body><p>Raw body here</p></body></html>', 200)]);
+
+        $body = app(DocumentProcessor::class)->fetchUrl('http://1.1.1.1/raw');
+
+        $this->assertStringContainsString('Raw body here', $body);
+        $this->assertStringContainsString('<html>', $body);
+    }
+
+    public function test_fetch_url_rejects_loopback(): void
+    {
+        $this->expectException(\Throwable::class);
+        app(DocumentProcessor::class)->fetchUrl('http://127.0.0.1/admin');
+    }
 }

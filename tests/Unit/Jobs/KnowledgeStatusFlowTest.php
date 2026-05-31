@@ -10,10 +10,13 @@ use App\Jobs\GenerateEmbeddings;
 use App\Jobs\ProcessKnowledgeItem;
 use App\Models\KnowledgeItem;
 use App\Models\Tenant;
+use App\Services\Crawler\PageRenderer;
+use App\Services\Crawler\RenderOnFallback;
 use App\Services\Knowledge\ContentSufficiency;
 use App\Services\Knowledge\DocumentProcessor;
 use App\Services\Knowledge\EmbeddingService;
 use App\Services\Knowledge\KnowledgeItemWorkflow;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Mockery;
 use Tests\TestCase;
@@ -48,6 +51,7 @@ class KnowledgeStatusFlowTest extends TestCase
             app(DocumentProcessor::class),
             app(KnowledgeItemWorkflow::class),
             app(ContentSufficiency::class),
+            app(RenderOnFallback::class),
         );
 
         $item->refresh();
@@ -65,6 +69,7 @@ class KnowledgeStatusFlowTest extends TestCase
             app(DocumentProcessor::class),
             app(KnowledgeItemWorkflow::class),
             app(ContentSufficiency::class),
+            app(RenderOnFallback::class),
         );
 
         $item->refresh();
@@ -132,7 +137,7 @@ class KnowledgeStatusFlowTest extends TestCase
         $job = new ProcessKnowledgeItem($item);
 
         try {
-            $job->handle(app(DocumentProcessor::class), app(KnowledgeItemWorkflow::class), app(ContentSufficiency::class));
+            $job->handle(app(DocumentProcessor::class), app(KnowledgeItemWorkflow::class), app(ContentSufficiency::class), app(RenderOnFallback::class));
             $this->fail('Expected exception to be re-thrown');
         } catch (\Throwable) {
             // Expected — DocumentProcessor will throw on a missing file.
@@ -144,5 +149,37 @@ class KnowledgeStatusFlowTest extends TestCase
             $item->status,
             'Catch block must not call markAsFailed; that is the failed() callbacks job',
         );
+    }
+
+    public function test_manual_webpage_add_renders_on_fallback(): void
+    {
+        Queue::fake([GenerateEmbeddings::class]);
+
+        $tenant = Tenant::create(['name' => 'Render Co', 'slug' => 'render-co-'.uniqid(), 'status' => 'active']);
+        $item = KnowledgeItem::create([
+            'tenant_id' => $tenant->id, 'type' => 'webpage', 'title' => 'SPA',
+            'source_url' => 'https://1.1.1.1/spa', 'status' => 'pending',
+        ]);
+
+        // The HTTP body is a JS shell; the renderer turns it into real content.
+        $shell = '<html><body><div id="root">Tours visit us today right now for more info here please</div></body></html>';
+        Http::fake(['1.1.1.1/spa' => Http::response($shell, 200)]);
+        $real = '<html><body><main><p>Our Bhutan cultural tours run year round with licensed guides, treks, and monastery homestays for every traveller.</p></main></body></html>';
+        $renderer = Mockery::mock(PageRenderer::class);
+        $renderer->shouldReceive('enabled')->andReturn(true);
+        $renderer->shouldReceive('render')->andReturn($real);
+        $this->app->instance(PageRenderer::class, $renderer);
+
+        (new ProcessKnowledgeItem($item))->handle(
+            app(DocumentProcessor::class),
+            app(KnowledgeItemWorkflow::class),
+            app(ContentSufficiency::class),
+            app(RenderOnFallback::class),
+        );
+
+        $item->refresh();
+        $this->assertSame(KnowledgeItemStatus::Processing, $item->status);
+        $this->assertStringContainsString('cultural tours', (string) $item->content);
+        Queue::assertPushed(GenerateEmbeddings::class);
     }
 }

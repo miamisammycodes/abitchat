@@ -12,10 +12,12 @@ use App\Models\CrawlSession;
 use App\Models\CrawlUrlBlocklist;
 use App\Models\KnowledgeItem;
 use App\Models\Tenant;
+use App\Services\Crawler\PageRenderer;
 use App\Services\Crawler\SiteCrawler;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
+use Mockery;
 use Tests\TestCase;
 
 class SiteCrawlerTest extends TestCase
@@ -238,6 +240,207 @@ class SiteCrawlerTest extends TestCase
         $this->assertSame(0, KnowledgeItem::forTenant($tenant)->where('url_normalized', 'https://example.com/admin')->count());
         $session->refresh();
         $this->assertGreaterThanOrEqual(1, $session->pages_failed);
+    }
+
+    public function test_skipped_item_heals_on_recrawl_when_rendering_enabled(): void
+    {
+        $tenant = Tenant::factory()->create(['website_url' => 'https://example.com']);
+
+        // Pre-existing SkippedNoContent item with an UNCHANGED shell hash.
+        $shell = '<html><body><div id="root">Tours visit us today right now for more info here please</div></body></html>';
+        $item = KnowledgeItem::factory()->forTenant($tenant)
+            ->webpage('https://example.com/tours', 'https://example.com/tours')
+            ->create([
+                'status' => KnowledgeItemStatus::SkippedNoContent,
+                'metadata' => ['crawl_session_id' => 1, 'content_hash' => 'sha256:'.hash('sha256', $shell), 'skipped_reason' => 'no_content'],
+            ]);
+
+        // Fake renderer: enabled, and "renders" the shell into a real page.
+        $real = '<html><body><main><p>Our Bhutan cultural tours include guided treks, monastery visits, and homestays across the kingdom every season.</p></main></body></html>';
+        $renderer = Mockery::mock(PageRenderer::class);
+        $renderer->shouldReceive('enabled')->andReturn(true);
+        $renderer->shouldReceive('render')->andReturn($real);
+        $this->app->instance(PageRenderer::class, $renderer);
+
+        $session = CrawlSession::factory()->forTenant($tenant)->create([
+            'mode' => CrawlMode::Refresh,
+            'status' => CrawlSessionStatus::Running,
+        ]);
+        Http::fake([
+            'https://example.com/robots.txt' => Http::response('', 404),
+            'https://example.com/sitemap.xml' => Http::response($this->sitemapWith(['https://example.com/tours']), 200),
+            'https://example.com/tours*' => Http::response($shell, 200),
+        ]);
+
+        $crawler = app(SiteCrawler::class);
+        $crawler->setSleeper(fn () => null);
+        $crawler->crawl($tenant, $session);
+
+        $item->refresh();
+        $this->assertSame(KnowledgeItemStatus::Pending, $item->status); // re-attempted, rendered, queued for embedding
+        $this->assertStringContainsString('cultural tours', (string) $item->content);
+        $this->assertSame(1, $session->refresh()->pages_indexed);
+        Bus::assertDispatched(ProcessKnowledgeItem::class);
+    }
+
+    public function test_skipped_item_heals_on_recrawl_when_rendering_enabled_despite_matching_validators(): void
+    {
+        $tenant = Tenant::factory()->create(['website_url' => 'https://example.com']);
+
+        // Pre-existing SkippedNoContent item with stored ETag (refresh-crawled SPA).
+        $shell = '<html><body><div id="root">Tours visit us today right now for more info here please</div></body></html>';
+        $item = KnowledgeItem::factory()->forTenant($tenant)
+            ->webpage('https://example.com/tours', 'https://example.com/tours')
+            ->create([
+                'status' => KnowledgeItemStatus::SkippedNoContent,
+                'metadata' => [
+                    'crawl_session_id' => 1,
+                    'content_hash' => 'sha256:'.hash('sha256', $shell),
+                    'skipped_reason' => 'no_content',
+                    'etag' => '"v1"',
+                ],
+            ]);
+
+        // Fake renderer: enabled, and "renders" the shell into a real page.
+        $real = '<html><body><main><p>Our Bhutan cultural tours include guided treks, monastery visits, and homestays across the kingdom every season.</p></main></body></html>';
+        $renderer = Mockery::mock(PageRenderer::class);
+        $renderer->shouldReceive('enabled')->andReturn(true);
+        $renderer->shouldReceive('render')->andReturn($real);
+        $this->app->instance(PageRenderer::class, $renderer);
+
+        $session = CrawlSession::factory()->forTenant($tenant)->create([
+            'mode' => CrawlMode::Refresh,
+            'status' => CrawlSessionStatus::Running,
+        ]);
+        Http::fake([
+            'https://example.com/robots.txt' => Http::response('', 404),
+            'https://example.com/sitemap.xml' => Http::response($this->sitemapWith(['https://example.com/tours']), 200),
+            // ETag matches the stored validator → HEAD-probe gate would short-circuit
+            // were it not for the heal bypass.
+            'https://example.com/tours*' => Http::response($shell, 200, ['ETag' => '"v1"']),
+        ]);
+
+        $crawler = app(SiteCrawler::class);
+        $crawler->setSleeper(fn () => null);
+        $crawler->crawl($tenant, $session);
+
+        $item->refresh();
+        $this->assertSame(KnowledgeItemStatus::Pending, $item->status); // healed despite matching ETag
+        $this->assertStringContainsString('cultural tours', (string) $item->content);
+        $this->assertSame(1, $session->refresh()->pages_indexed);
+        Bus::assertDispatched(ProcessKnowledgeItem::class);
+    }
+
+    public function test_render_attempted_skipped_item_is_not_re_rendered_on_unchanged_recrawl(): void
+    {
+        $tenant = Tenant::factory()->create(['website_url' => 'https://example.com']);
+        $shell = '<html><body><div id="root">Tours visit us today right now for more info here please</div></body></html>';
+        KnowledgeItem::factory()->forTenant($tenant)
+            ->webpage('https://example.com/tours', 'https://example.com/tours')
+            ->create([
+                'status' => KnowledgeItemStatus::SkippedNoContent,
+                'metadata' => [
+                    'content_hash' => 'sha256:'.hash('sha256', $shell),
+                    'skipped_reason' => 'no_content',
+                    'render_attempted_at' => now()->subDay()->toIso8601String(),
+                ],
+            ]);
+
+        // Rendering on, but the page was already render-attempted + hash unchanged → must NOT re-render.
+        $renderer = Mockery::mock(PageRenderer::class);
+        $renderer->shouldReceive('enabled')->andReturn(true);
+        $renderer->shouldNotReceive('render');
+        $this->app->instance(PageRenderer::class, $renderer);
+
+        $session = CrawlSession::factory()->forTenant($tenant)->create(['mode' => CrawlMode::Refresh, 'status' => CrawlSessionStatus::Running]);
+        Http::fake([
+            'https://example.com/robots.txt' => Http::response('', 404),
+            'https://example.com/sitemap.xml' => Http::response($this->sitemapWith(['https://example.com/tours']), 200),
+            'https://example.com/tours*' => Http::response($shell, 200),
+        ]);
+
+        $crawler = app(SiteCrawler::class);
+        $crawler->setSleeper(fn () => null);
+        $crawler->crawl($tenant, $session);
+
+        $this->assertSame(1, $session->refresh()->pages_skipped_unchanged);
+    }
+
+    public function test_failed_render_does_not_stamp_so_page_can_retry(): void
+    {
+        // A heal render that returns null (Chromium misconfigured / timed out) must
+        // NOT stamp render_attempted_at — otherwise one bad crawl would poison the
+        // page and it would never re-render after Chromium is fixed.
+        $tenant = Tenant::factory()->create(['website_url' => 'https://example.com']);
+        $shell = '<html><body><div id="root">Tours visit us today right now for more info here please</div></body></html>';
+        $item = KnowledgeItem::factory()->forTenant($tenant)
+            ->webpage('https://example.com/tours', 'https://example.com/tours')
+            ->create([
+                'status' => KnowledgeItemStatus::SkippedNoContent,
+                'metadata' => [
+                    'content_hash' => 'sha256:'.hash('sha256', $shell),
+                    'skipped_reason' => 'no_content',
+                    // no render_attempted_at → heal candidate (bypasses dedup)
+                ],
+            ]);
+
+        $renderer = Mockery::mock(PageRenderer::class);
+        $renderer->shouldReceive('enabled')->andReturn(true);
+        $renderer->shouldReceive('render')->once()->andReturnNull();
+        $this->app->instance(PageRenderer::class, $renderer);
+
+        $session = CrawlSession::factory()->forTenant($tenant)->create(['mode' => CrawlMode::Refresh, 'status' => CrawlSessionStatus::Running]);
+        Http::fake([
+            'https://example.com/robots.txt' => Http::response('', 404),
+            'https://example.com/sitemap.xml' => Http::response($this->sitemapWith(['https://example.com/tours']), 200),
+            'https://example.com/tours*' => Http::response($shell, 200),
+        ]);
+
+        $crawler = app(SiteCrawler::class);
+        $crawler->setSleeper(fn () => null);
+        $crawler->crawl($tenant, $session);
+
+        $item->refresh();
+        $this->assertSame(KnowledgeItemStatus::SkippedNoContent, $item->status);
+        $this->assertNull($item->metadata['render_attempted_at'] ?? null, 'a failed render must remain a heal candidate so it retries');
+    }
+
+    public function test_rendered_but_still_insufficient_stamps_render_attempted_at(): void
+    {
+        // Render executed and returned HTML but the page is still a shell → stamp
+        // render_attempted_at so it isn't re-rendered every crawl (P2-8 WRITE path).
+        $tenant = Tenant::factory()->create(['website_url' => 'https://example.com']);
+        $shell = '<html><body><div id="root">Tours visit us today right now for more info here please</div></body></html>';
+        $item = KnowledgeItem::factory()->forTenant($tenant)
+            ->webpage('https://example.com/tours', 'https://example.com/tours')
+            ->create([
+                'status' => KnowledgeItemStatus::SkippedNoContent,
+                'metadata' => [
+                    'content_hash' => 'sha256:'.hash('sha256', $shell),
+                    'skipped_reason' => 'no_content',
+                ],
+            ]);
+
+        // Render returns another shell (still a SPA mount, still insufficient).
+        $renderer = Mockery::mock(PageRenderer::class);
+        $renderer->shouldReceive('enabled')->andReturn(true);
+        $renderer->shouldReceive('render')->once()->andReturn($shell);
+        $this->app->instance(PageRenderer::class, $renderer);
+
+        $session = CrawlSession::factory()->forTenant($tenant)->create(['mode' => CrawlMode::Refresh, 'status' => CrawlSessionStatus::Running]);
+        Http::fake([
+            'https://example.com/robots.txt' => Http::response('', 404),
+            'https://example.com/sitemap.xml' => Http::response($this->sitemapWith(['https://example.com/tours']), 200),
+            'https://example.com/tours*' => Http::response($shell, 200),
+        ]);
+
+        $crawler = app(SiteCrawler::class);
+        $crawler->setSleeper(fn () => null);
+        $crawler->crawl($tenant, $session);
+
+        $item->refresh();
+        $this->assertSame(KnowledgeItemStatus::SkippedNoContent, $item->status);
+        $this->assertNotNull($item->metadata['render_attempted_at'] ?? null, 'a render that ran but stayed insufficient must be stamped');
     }
 
     /**

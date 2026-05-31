@@ -12,8 +12,6 @@ use App\Models\CrawlUrlBlocklist;
 use App\Models\KnowledgeItem;
 use App\Models\Tenant;
 use App\Rules\SafeExternalUrl;
-use App\Services\Knowledge\ContentSufficiency;
-use App\Services\Knowledge\DocumentProcessor;
 use App\Services\Usage\UsageTracker;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -34,8 +32,7 @@ class SiteCrawler
         private readonly RobotsTxtPolicy $robotsTxt,
         private readonly UrlNormalizer $normalizer,
         private readonly UsageTracker $usage,
-        private readonly DocumentProcessor $processor,
-        private readonly ContentSufficiency $sufficiency,
+        private readonly RenderOnFallback $resolver,
     ) {
         $this->sleeper = static function (int $seconds): void {
             sleep($seconds);
@@ -115,11 +112,24 @@ class SiteCrawler
                     ->where('url_normalized', $normalized)
                     ->first();
 
+                // Heal candidate: a skipped page gets ONE render attempt when
+                // rendering is enabled. Once render-attempted (render_attempted_at
+                // set) it is no longer a heal candidate, so an unchanged-hash page
+                // is hash-skipped instead of re-rendered (~15s) every crawl. A
+                // content-hash CHANGE still re-processes it (hash mismatch below).
+                $healCandidate = $this->resolver->renderingEnabled()
+                    && $existing !== null
+                    && $existing->status === KnowledgeItemStatus::SkippedNoContent
+                    && empty($existing->metadata['render_attempted_at'] ?? null);
+
                 $headResult = $existing !== null
                     ? $this->probeHeaders($url, $existing)
                     : ['skip' => false, 'last_modified' => null, 'etag' => null];
 
-                if ($headResult['skip']) {
+                // A heal candidate must bypass the validator short-circuit too: a
+                // refresh-crawled SPA stores ETag/Last-Modified, so an unchanged
+                // shell would otherwise skip here before ever reaching the render.
+                if ($headResult['skip'] && ! $healCandidate) {
                     $pagesSkippedUnchanged++;
 
                     continue;
@@ -133,7 +143,7 @@ class SiteCrawler
                 }
 
                 $contentHash = 'sha256:'.hash('sha256', $body);
-                if ($existing && ($existing->metadata['content_hash'] ?? null) === $contentHash) {
+                if ($existing && ! $healCandidate && ($existing->metadata['content_hash'] ?? null) === $contentHash) {
                     $metadata = array_merge((array) $existing->metadata, [
                         'last_modified' => $headResult['last_modified'],
                         'etag' => $headResult['etag'],
@@ -145,7 +155,8 @@ class SiteCrawler
                     continue;
                 }
 
-                $cleanText = $this->processor->extractHtml($body);
+                $resolution = $this->resolver->resolve($url, $body);
+                $cleanText = $resolution['text'];
                 $title = $this->extractTitle($body) ?: $url;
 
                 $attributes = [
@@ -165,7 +176,16 @@ class SiteCrawler
                     ],
                 ];
 
-                if (! $this->sufficiency->isSufficient($cleanText, $body)) {
+                // Record a render attempt ONLY when a render actually executed
+                // (P2-8). Keyed on $resolution['rendered'], NOT renderingEnabled():
+                // a render that returned null (Chromium misconfigured / timed out)
+                // must not be recorded — otherwise one bad crawl would poison every
+                // page so it never re-renders after the operator fixes Chromium.
+                if ($resolution['rendered']) {
+                    $values['metadata']['render_attempted_at'] = now()->toIso8601String();
+                }
+
+                if (! $resolution['sufficient']) {
                     $values['status'] = KnowledgeItemStatus::SkippedNoContent;
                     $values['metadata']['skipped_reason'] = 'no_content';
                     $values['metadata']['skipped_at'] = now()->toIso8601String();

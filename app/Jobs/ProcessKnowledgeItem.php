@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Models\KnowledgeChunk;
 use App\Models\KnowledgeItem;
+use App\Services\Crawler\RenderOnFallback;
 use App\Services\Knowledge\ContentSufficiency;
 use App\Services\Knowledge\DocumentProcessor;
 use App\Services\Knowledge\KnowledgeItemWorkflow;
@@ -30,7 +31,7 @@ class ProcessKnowledgeItem implements NotTenantAware, ShouldQueue
         public KnowledgeItem $item
     ) {}
 
-    public function handle(DocumentProcessor $processor, KnowledgeItemWorkflow $workflow, ContentSufficiency $gate): void
+    public function handle(DocumentProcessor $processor, KnowledgeItemWorkflow $workflow, ContentSufficiency $gate, RenderOnFallback $resolver): void
     {
         Log::debug('[Knowledge] (NO $) Processing item', [
             'item_id' => $this->item->id,
@@ -40,9 +41,9 @@ class ProcessKnowledgeItem implements NotTenantAware, ShouldQueue
         $workflow->markProcessing($this->item);
 
         try {
-            $text = $processor->extract($this->item);
+            [$text, $sufficient] = $this->resolveContent($processor, $gate, $resolver);
 
-            if (! $gate->isSufficient($text)) {
+            if (! $sufficient) {
                 $this->markSkipped($workflow);
 
                 return;
@@ -93,6 +94,31 @@ class ProcessKnowledgeItem implements NotTenantAware, ShouldQueue
 
             throw $e;
         }
+    }
+
+    /**
+     * Resolve clean text + sufficiency. A manual webpage add (source_url, no
+     * stored content) fetches the body and runs render-on-fallback; every other
+     * case uses the already-clean content via DocumentProcessor::extract.
+     *
+     * @return array{0: string, 1: bool}
+     */
+    private function resolveContent(DocumentProcessor $processor, ContentSufficiency $gate, RenderOnFallback $resolver): array
+    {
+        $item = $this->item;
+
+        if ($item->type === 'webpage'
+            && ($item->content === null || $item->content === '')
+            && $item->source_url !== null) {
+            $body = $processor->fetchUrl($item->source_url);
+            $resolution = $resolver->resolve($item->source_url, $body);
+
+            return [$resolution['text'], $resolution['sufficient']];
+        }
+
+        $text = $processor->extract($item);
+
+        return [$text, $gate->isSufficient($text)];
     }
 
     private function markSkipped(KnowledgeItemWorkflow $workflow): void
