@@ -10,6 +10,7 @@ use App\Jobs\GenerateEmbeddings;
 use App\Jobs\ProcessKnowledgeItem;
 use App\Models\KnowledgeItem;
 use App\Models\Tenant;
+use App\Services\Knowledge\ContentSufficiency;
 use App\Services\Knowledge\DocumentProcessor;
 use App\Services\Knowledge\EmbeddingService;
 use App\Services\Knowledge\KnowledgeItemWorkflow;
@@ -36,6 +37,25 @@ class KnowledgeStatusFlowTest extends TestCase
         ]);
     }
 
+    public function test_process_job_marks_skipped_when_content_insufficient(): void
+    {
+        Queue::fake([GenerateEmbeddings::class]);
+
+        $item = $this->makeItem();
+        $item->update(['type' => 'webpage', 'content' => 'two words']); // below the hard floor
+
+        (new ProcessKnowledgeItem($item))->handle(
+            app(DocumentProcessor::class),
+            app(KnowledgeItemWorkflow::class),
+            app(ContentSufficiency::class),
+        );
+
+        $item->refresh();
+        $this->assertSame(KnowledgeItemStatus::SkippedNoContent, $item->status);
+        $this->assertSame('no_content', $item->metadata['skipped_reason'] ?? null);
+        Queue::assertNotPushed(GenerateEmbeddings::class);
+    }
+
     public function test_process_job_leaves_item_in_processing_until_embeddings_complete(): void
     {
         Queue::fake([GenerateEmbeddings::class]);
@@ -44,6 +64,7 @@ class KnowledgeStatusFlowTest extends TestCase
         (new ProcessKnowledgeItem($item))->handle(
             app(DocumentProcessor::class),
             app(KnowledgeItemWorkflow::class),
+            app(ContentSufficiency::class),
         );
 
         $item->refresh();
@@ -111,7 +132,7 @@ class KnowledgeStatusFlowTest extends TestCase
         $job = new ProcessKnowledgeItem($item);
 
         try {
-            $job->handle(app(DocumentProcessor::class), app(KnowledgeItemWorkflow::class));
+            $job->handle(app(DocumentProcessor::class), app(KnowledgeItemWorkflow::class), app(ContentSufficiency::class));
             $this->fail('Expected exception to be re-thrown');
         } catch (\Throwable) {
             // Expected — DocumentProcessor will throw on a missing file.

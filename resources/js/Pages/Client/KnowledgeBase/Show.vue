@@ -43,7 +43,14 @@ const getStatusVariant = (status) => {
     processing: 'secondary',
     ready: 'success',
     failed: 'destructive',
+    skipped_no_content: 'warning',
   }[status] || 'secondary'
+}
+
+const getStatusLabel = (status) => {
+  return {
+    skipped_no_content: 'No content',
+  }[status] || status
 }
 </script>
 
@@ -84,11 +91,16 @@ const getStatusVariant = (status) => {
             <CardDescription>Information about this knowledge item</CardDescription>
           </div>
           <Badge :variant="getStatusVariant(item.status)">
-            {{ item.status }}
+            {{ getStatusLabel(item.status) }}
           </Badge>
         </CardHeader>
         <CardContent class="p-0">
           <dl class="divide-y divide-border">
+            <div v-if="item.status === 'skipped_no_content'" class="px-6 py-4 bg-amber-50">
+              <p class="text-sm text-amber-900">
+                This page is rendered by JavaScript — no readable text was found. Add its content manually, or wait for site-rendering support.
+              </p>
+            </div>
             <div class="px-6 py-4 grid grid-cols-3 gap-4">
               <dt class="text-sm font-medium text-muted-foreground">Type</dt>
               <dd class="text-sm text-foreground col-span-2 capitalize">{{ item.type }}</dd>

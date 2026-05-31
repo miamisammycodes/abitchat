@@ -19,27 +19,17 @@ class DocumentProcessor
 
     private const MIN_CHUNK_CHARS = 50;
 
-    /**
-     * Extract text content for a KnowledgeItem and chunk it.
-     *
-     * Owns the type-switch (document / faq / webpage / text), extraction,
-     * and chunking. Returns the chunk strings ready for persistence by the
-     * caller (typically ProcessKnowledgeItem::handle).
-     *
-     * @return array<int, string>
-     */
-    public function process(KnowledgeItem $item): array
+    /** Clean text for a KnowledgeItem by type. Webpage content is already cleaned. */
+    public function extract(KnowledgeItem $item): string
     {
-        $content = match ($item->type) {
+        return match ($item->type) {
             'document' => $this->extractFromFile($item->file_path ?? ''),
             'webpage' => $item->content !== null && $item->content !== ''
-                ? $this->extractTextFromHtml($item->content)
+                ? $item->content
                 : $this->extractFromUrl($item->source_url ?? ''),
             'faq', 'text' => $item->content ?? '',
             default => '',
         };
-
-        return $this->chunk($content);
     }
 
     private function extractFromFile(string $filePath): string
@@ -87,7 +77,7 @@ class DocumentProcessor
                 throw new \Exception("Failed to fetch URL: {$url}");
             }
 
-            return $this->extractTextFromHtml($response->body());
+            return $this->extractHtml($response->body());
         } catch (\Exception $e) {
             Log::error('[DocumentProcessor] URL extraction failed', [
                 'url' => $url,
@@ -133,7 +123,7 @@ class DocumentProcessor
         return $this->cleanText($content);
     }
 
-    private function extractTextFromHtml(string $html): string
+    public function extractHtml(string $html): string
     {
         $dom = new \DOMDocument;
         libxml_use_internal_errors(true);
@@ -157,6 +147,18 @@ class DocumentProcessor
         if ($comments) {
             foreach ($comments as $comment) {
                 $comment->parentNode?->removeChild($comment);
+            }
+        }
+
+        // Block elements carry no whitespace between them in textContent, so
+        // "<h1>Our Bakery</h1><p>We bake" collapses to "Our BakeryWe bake".
+        // Insert a newline text node before each block element so it is
+        // separated from preceding siblings AND preceding text in the same
+        // parent (e.g. "<div>Intro<p>Body</p></div>" → "Intro\nBody").
+        $blockTags = ['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'br', 'section', 'article', 'blockquote', 'pre', 'tr', 'td', 'th', 'ul', 'ol', 'table', 'main'];
+        foreach ($blockTags as $tag) {
+            foreach (iterator_to_array($dom->getElementsByTagName($tag)) as $element) {
+                $element->parentNode?->insertBefore($dom->createTextNode("\n"), $element);
             }
         }
 
@@ -189,7 +191,7 @@ class DocumentProcessor
      *
      * @return array<int, string>
      */
-    private function chunk(string $text): array
+    public function chunk(string $text): array
     {
         if (trim($text) === '') {
             return [];

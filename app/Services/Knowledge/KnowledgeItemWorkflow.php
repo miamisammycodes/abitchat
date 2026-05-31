@@ -69,6 +69,22 @@ class KnowledgeItemWorkflow
         ]);
     }
 
+    /** Processing → SkippedNoContent. For pages that yield no real content. */
+    public function markSkippedNoContent(KnowledgeItem $item): void
+    {
+        $this->assertSourceIn(
+            $item,
+            [KnowledgeItemStatus::Processing],
+            KnowledgeItemStatus::SkippedNoContent,
+        );
+
+        $item->update([
+            'status' => KnowledgeItemStatus::SkippedNoContent,
+            'error_message' => null,
+            'failed_at' => null,
+        ]);
+    }
+
     /** Failed → Pending + dispatch ProcessKnowledgeItem. Clears error context. */
     public function retry(KnowledgeItem $item): void
     {

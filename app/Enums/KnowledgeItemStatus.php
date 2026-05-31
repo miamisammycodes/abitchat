@@ -10,4 +10,5 @@ enum KnowledgeItemStatus: string
     case Processing = 'processing';
     case Ready = 'ready';
     case Failed = 'failed';
+    case SkippedNoContent = 'skipped_no_content';
 }

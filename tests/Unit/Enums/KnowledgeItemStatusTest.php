@@ -9,17 +9,18 @@ use PHPUnit\Framework\TestCase;
 
 class KnowledgeItemStatusTest extends TestCase
 {
-    public function test_enum_has_four_cases_with_expected_backing_values(): void
+    public function test_enum_has_expected_backing_values(): void
     {
         $this->assertSame('pending', KnowledgeItemStatus::Pending->value);
         $this->assertSame('processing', KnowledgeItemStatus::Processing->value);
         $this->assertSame('ready', KnowledgeItemStatus::Ready->value);
         $this->assertSame('failed', KnowledgeItemStatus::Failed->value);
+        $this->assertSame('skipped_no_content', KnowledgeItemStatus::SkippedNoContent->value);
     }
 
-    public function test_enum_has_exactly_four_cases(): void
+    public function test_enum_has_exactly_five_cases(): void
     {
-        $this->assertCount(4, KnowledgeItemStatus::cases());
+        $this->assertCount(5, KnowledgeItemStatus::cases());
     }
 
     public function test_enum_can_be_instantiated_from_string_value(): void

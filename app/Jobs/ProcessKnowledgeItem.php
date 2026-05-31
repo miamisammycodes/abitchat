@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Models\KnowledgeChunk;
 use App\Models\KnowledgeItem;
+use App\Services\Knowledge\ContentSufficiency;
 use App\Services\Knowledge\DocumentProcessor;
 use App\Services\Knowledge\KnowledgeItemWorkflow;
 use Illuminate\Bus\Queueable;
@@ -29,7 +30,7 @@ class ProcessKnowledgeItem implements NotTenantAware, ShouldQueue
         public KnowledgeItem $item
     ) {}
 
-    public function handle(DocumentProcessor $processor, KnowledgeItemWorkflow $workflow): void
+    public function handle(DocumentProcessor $processor, KnowledgeItemWorkflow $workflow, ContentSufficiency $gate): void
     {
         Log::debug('[Knowledge] (NO $) Processing item', [
             'item_id' => $this->item->id,
@@ -39,20 +40,28 @@ class ProcessKnowledgeItem implements NotTenantAware, ShouldQueue
         $workflow->markProcessing($this->item);
 
         try {
-            $chunks = $processor->process($this->item);
+            $text = $processor->extract($this->item);
 
-            if ($chunks === []) {
-                throw new \Exception('No content could be extracted');
+            if (! $gate->isSufficient($text)) {
+                $this->markSkipped($workflow);
+
+                return;
             }
 
-            Log::debug('[Knowledge] (NO $) Content chunked', [
-                'item_id' => $this->item->id,
-                'chunks_count' => count($chunks),
-            ]);
+            if (in_array($this->item->type, ['webpage', 'document'], true)) {
+                $this->item->update(['content' => $text]);
+            }
 
-            // Replace any prior chunk set atomically — guards against the
-            // tries=3 retry path appending a duplicate set, and against a
-            // partial-insert state surviving when the transaction throws.
+            $chunks = $processor->chunk($text);
+
+            if ($chunks === []) {
+                $this->markSkipped($workflow);
+
+                return;
+            }
+
+            // Replace any prior chunk set atomically — guards the tries=3 retry
+            // path from appending duplicates.
             DB::transaction(function () use ($chunks): void {
                 $this->item->chunks()->delete();
 
@@ -84,6 +93,23 @@ class ProcessKnowledgeItem implements NotTenantAware, ShouldQueue
 
             throw $e;
         }
+    }
+
+    private function markSkipped(KnowledgeItemWorkflow $workflow): void
+    {
+        $this->item->chunks()->delete();
+        $this->item->forceFill([
+            'metadata' => array_merge((array) $this->item->metadata, [
+                'skipped_reason' => 'no_content',
+                'skipped_at' => now()->toIso8601String(),
+            ]),
+        ])->save();
+
+        $workflow->markSkippedNoContent($this->item);
+
+        Log::debug('[Knowledge] (NO $) Item skipped — no readable content', [
+            'item_id' => $this->item->id,
+        ]);
     }
 
     public function failed(\Throwable $exception): void

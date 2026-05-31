@@ -56,7 +56,14 @@ const getStatusVariant = (status) => {
     processing: 'secondary',
     ready: 'success',
     failed: 'destructive',
+    skipped_no_content: 'warning',
   }[status] || 'secondary'
+}
+
+const getStatusLabel = (status) => {
+  return {
+    skipped_no_content: 'No content',
+  }[status] || status
 }
 
 const getTypeIcon = (type) => {
@@ -195,7 +202,7 @@ const getTypeIcon = (type) => {
                 </div>
                 <div class="flex items-center gap-3 flex-shrink-0">
                   <Badge :variant="getStatusVariant(item.status)">
-                    {{ item.status }}
+                    {{ getStatusLabel(item.status) }}
                   </Badge>
                   <div class="flex items-center gap-1">
                     <Button
@@ -237,6 +244,19 @@ const getTypeIcon = (type) => {
                       Failed at {{ item.failed_at }}
                     </p>
                   </div>
+                </div>
+              </div>
+
+              <!-- No-content (JS-rendered) guidance row -->
+              <div
+                v-if="item.status === 'skipped_no_content'"
+                class="mt-3 ml-12 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm"
+              >
+                <div class="flex items-start gap-2">
+                  <AlertCircle class="h-4 w-4 mt-0.5 flex-shrink-0 text-amber-600" />
+                  <p class="text-amber-900">
+                    This page is rendered by JavaScript — no readable text was found. Add its content manually, or wait for site-rendering support.
+                  </p>
                 </div>
               </div>
             </li>

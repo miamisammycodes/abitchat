@@ -100,6 +100,13 @@ const banner = computed(() => {
           link: { href: '/billing', label: 'Upgrade' },
         }
       }
+      if (s.pages_skipped_no_content > 0) {
+        return {
+          tone: 'warning',
+          text: `Indexed ${s.pages_indexed} pages — ${s.pages_skipped_no_content} had no readable content (the site may be JavaScript-rendered).`,
+          link: { href: `/knowledge?crawl_session_id=${s.id}`, label: 'View' },
+        }
+      }
       return {
         tone: 'warning',
         text: `Indexed ${s.pages_indexed} pages — some pages could not be processed.`,
