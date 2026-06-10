@@ -76,6 +76,9 @@ class SiteCrawler
             $pagesSkippedNoContent = 0;
             $pagesDiscovered = 0;
 
+            $rendersUsed = 0;
+            $renderBudget = (int) config('services.crawler.render_budget', 25);
+
             foreach ($this->discoverer->discover($rootUrl) as $url) {
                 $pagesDiscovered++;
                 if ($pagesDiscovered > self::MAX_PAGES) {
@@ -149,7 +152,11 @@ class SiteCrawler
                     continue;
                 }
 
-                $resolution = $this->resolver->resolve($url, $body);
+                // Per-crawl render budget: once exhausted, insufficient pages are
+                // skipped WITHOUT rendering (and without a render_attempted_at stamp,
+                // so they stay heal-eligible for a future crawl). 0 = unlimited.
+                $allowRender = $renderBudget === 0 || $rendersUsed < $renderBudget;
+                $resolution = $this->resolver->resolve($url, $body, $allowRender);
                 $cleanText = $resolution['text'];
                 $title = $this->extractTitle($body) ?: $url;
 
@@ -177,6 +184,7 @@ class SiteCrawler
                 // page so it never re-renders after the operator fixes Chromium.
                 if ($resolution['rendered']) {
                     $values['metadata']['render_attempted_at'] = now()->toIso8601String();
+                    $rendersUsed++;
                 }
 
                 if (! $resolution['sufficient']) {
