@@ -113,6 +113,7 @@ class SiteCrawler
                 $healCandidate = $this->resolver->renderingEnabled()
                     && $existing !== null
                     && $existing->status === KnowledgeItemStatus::SkippedNoContent
+                    && ($existing->metadata['skipped_reason'] ?? 'no_content') === 'no_content'
                     && empty($existing->metadata['render_attempted_at'] ?? null);
 
                 $headResult = $existing !== null

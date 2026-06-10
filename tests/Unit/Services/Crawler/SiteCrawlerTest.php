@@ -443,6 +443,44 @@ class SiteCrawlerTest extends TestCase
         $this->assertNotNull($item->metadata['render_attempted_at'] ?? null, 'a render that ran but stayed insufficient must be stamped');
     }
 
+    public function test_no_chunks_skip_reason_is_not_a_heal_candidate(): void
+    {
+        // A page previously skipped because it chunked to [] ('no_chunks') is not
+        // a content problem rendering can fix, so it must NOT heal — an unchanged
+        // hash should hash-skip it, never re-render it every crawl.
+        $tenant = Tenant::factory()->create(['website_url' => 'https://example.com']);
+        $shell = '<html><body><div id="root">Tours visit us today right now for more info here please</div></body></html>';
+        KnowledgeItem::factory()->forTenant($tenant)
+            ->webpage('https://example.com/tours', 'https://example.com/tours')
+            ->create([
+                'status' => KnowledgeItemStatus::SkippedNoContent,
+                'metadata' => [
+                    'content_hash' => 'sha256:'.hash('sha256', $shell),
+                    'skipped_reason' => 'no_chunks',
+                    'render_attempted_at' => null,
+                ],
+            ]);
+
+        // Rendering on, but 'no_chunks' is not heal-eligible → must NOT render.
+        $renderer = Mockery::mock(PageRenderer::class);
+        $renderer->shouldReceive('enabled')->andReturn(true);
+        $renderer->shouldNotReceive('render');
+        $this->app->instance(PageRenderer::class, $renderer);
+
+        $session = CrawlSession::factory()->forTenant($tenant)->create(['mode' => CrawlMode::Refresh, 'status' => CrawlSessionStatus::Running]);
+        Http::fake([
+            'https://example.com/robots.txt' => Http::response('', 404),
+            'https://example.com/sitemap.xml' => Http::response($this->sitemapWith(['https://example.com/tours']), 200),
+            'https://example.com/tours*' => Http::response($shell, 200),
+        ]);
+
+        $crawler = app(SiteCrawler::class);
+        $crawler->setSleeper(fn () => null);
+        $crawler->crawl($tenant, $session);
+
+        $this->assertSame(1, $session->refresh()->pages_skipped_unchanged);
+    }
+
     /**
      * @param  list<string>  $urls
      */
