@@ -80,19 +80,9 @@ class SafeExternalUrl implements ValidationRule
             return [];
         }
 
-        $ips = [];
-        foreach ($records as $record) {
-            $ip = $record['ip'] ?? $record['ipv6'] ?? null;
-            if ($ip === null) {
-                continue;
-            }
-            if (self::isPrivateIp($ip)) {
-                return [];
-            }
-            $ips[] = $ip;
-        }
+        $ips = self::publicIpsFromRecords($records);
 
-        return array_values(array_unique($ips));
+        return $ips === null ? [] : array_values(array_unique($ips));
     }
 
     private static function isPrivateHost(string $host): bool
@@ -107,15 +97,33 @@ class SafeExternalUrl implements ValidationRule
             return true;
         }
 
+        return self::publicIpsFromRecords($records) === null;
+    }
+
+    /**
+     * Classify a dns_get_record result: return the resolved IPs, or null if ANY
+     * record points at a private/reserved address. The single fail-closed
+     * classifier shared by isPrivateHost and resolvePublicIps so the two paths
+     * cannot drift.
+     *
+     * @param  array<int, array<string, mixed>>  $records
+     * @return list<string>|null
+     */
+    private static function publicIpsFromRecords(array $records): ?array
+    {
+        $ips = [];
         foreach ($records as $record) {
             $ip = $record['ip'] ?? $record['ipv6'] ?? null;
-
-            if ($ip !== null && self::isPrivateIp($ip)) {
-                return true;
+            if ($ip === null) {
+                continue;
             }
+            if (self::isPrivateIp($ip)) {
+                return null;
+            }
+            $ips[] = $ip;
         }
 
-        return false;
+        return $ips;
     }
 
     /**

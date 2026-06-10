@@ -43,15 +43,20 @@ class GuardedHttpClient
         $hops = 0;
 
         while (true) {
-            $this->assertScheme($current);
+            $parts = parse_url($current);
+            $parts = is_array($parts) ? $parts : [];
 
-            $host = parse_url($current, PHP_URL_HOST);
-            if (! is_string($host) || $host === '') {
+            $scheme = strtolower((string) ($parts['scheme'] ?? ''));
+            if (! in_array($scheme, self::ALLOWED_SCHEMES, true)) {
+                throw new BlockedAddressException("Disallowed scheme: {$scheme}");
+            }
+
+            $host = $parts['host'] ?? '';
+            if ($host === '') {
                 throw new BlockedAddressException("Unparseable host: {$current}");
             }
 
-            $scheme = strtolower((string) parse_url($current, PHP_URL_SCHEME));
-            $port = parse_url($current, PHP_URL_PORT) ?: ($scheme === 'https' ? 443 : 80);
+            $port = $parts['port'] ?? ($scheme === 'https' ? 443 : 80);
 
             $ips = SafeExternalUrl::resolvePublicIps($host);
             if ($ips === []) {
@@ -84,14 +89,6 @@ class GuardedHttpClient
             }
 
             $current = $this->resolveLocation($current, $location);
-        }
-    }
-
-    private function assertScheme(string $url): void
-    {
-        $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
-        if (! in_array($scheme, self::ALLOWED_SCHEMES, true)) {
-            throw new BlockedAddressException("Disallowed scheme: {$scheme}");
         }
     }
 
