@@ -24,6 +24,7 @@
         "barryvdh/laravel-debugbar": "^4.0",
         "fakerphp/faker": "*",
         "larastan/larastan": "*",
+        "laravel/boost": "^2.4",
         "laravel/pail": "*",
         "laravel/pint": "*",
         "laravel/sail": "*",
