@@ -56,7 +56,7 @@ class ProcessKnowledgeItem implements NotTenantAware, ShouldQueue
             $chunks = $processor->chunk($text);
 
             if ($chunks === []) {
-                $this->markSkipped($workflow);
+                $this->markSkipped($workflow, 'no_chunks');
 
                 return;
             }
@@ -121,21 +121,19 @@ class ProcessKnowledgeItem implements NotTenantAware, ShouldQueue
         return [$text, $gate->isSufficient($text)];
     }
 
-    private function markSkipped(KnowledgeItemWorkflow $workflow): void
+    private function markSkipped(KnowledgeItemWorkflow $workflow, string $reason = 'no_content'): void
     {
         $this->item->chunks()->delete();
         $this->item->forceFill([
             'metadata' => array_merge((array) $this->item->metadata, [
-                'skipped_reason' => 'no_content',
+                'skipped_reason' => $reason,
                 'skipped_at' => now()->toIso8601String(),
             ]),
         ])->save();
 
         $workflow->markSkippedNoContent($this->item);
 
-        Log::debug('[Knowledge] (NO $) Item skipped — no readable content', [
-            'item_id' => $this->item->id,
-        ]);
+        Log::debug('[Knowledge] (NO $) Item skipped', ['item_id' => $this->item->id, 'reason' => $reason]);
     }
 
     public function failed(\Throwable $exception): void

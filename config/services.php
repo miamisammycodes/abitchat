@@ -70,6 +70,8 @@ return [
         'node_binary' => env('BROWSERSHOT_NODE_BINARY'),
         'npm_binary' => env('BROWSERSHOT_NPM_BINARY'),
         'chrome_path' => env('BROWSERSHOT_CHROME_PATH'),
+        'egress_proxy' => env('CRAWLER_EGRESS_PROXY'),
+        'render_budget' => (int) env('CRAWLER_RENDER_BUDGET', 25),
     ],
 
 ];

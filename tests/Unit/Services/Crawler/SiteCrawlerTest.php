@@ -443,6 +443,89 @@ class SiteCrawlerTest extends TestCase
         $this->assertNotNull($item->metadata['render_attempted_at'] ?? null, 'a render that ran but stayed insufficient must be stamped');
     }
 
+    public function test_no_chunks_skip_reason_is_not_a_heal_candidate(): void
+    {
+        // A page previously skipped because it chunked to [] ('no_chunks') is not
+        // a content problem rendering can fix, so it must NOT heal — an unchanged
+        // hash should hash-skip it, never re-render it every crawl.
+        $tenant = Tenant::factory()->create(['website_url' => 'https://example.com']);
+        $shell = '<html><body><div id="root">Tours visit us today right now for more info here please</div></body></html>';
+        KnowledgeItem::factory()->forTenant($tenant)
+            ->webpage('https://example.com/tours', 'https://example.com/tours')
+            ->create([
+                'status' => KnowledgeItemStatus::SkippedNoContent,
+                'metadata' => [
+                    'content_hash' => 'sha256:'.hash('sha256', $shell),
+                    'skipped_reason' => 'no_chunks',
+                    'render_attempted_at' => null,
+                ],
+            ]);
+
+        // Rendering on, but 'no_chunks' is not heal-eligible → must NOT render.
+        $renderer = Mockery::mock(PageRenderer::class);
+        $renderer->shouldReceive('enabled')->andReturn(true);
+        $renderer->shouldNotReceive('render');
+        $this->app->instance(PageRenderer::class, $renderer);
+
+        $session = CrawlSession::factory()->forTenant($tenant)->create(['mode' => CrawlMode::Refresh, 'status' => CrawlSessionStatus::Running]);
+        Http::fake([
+            'https://example.com/robots.txt' => Http::response('', 404),
+            'https://example.com/sitemap.xml' => Http::response($this->sitemapWith(['https://example.com/tours']), 200),
+            'https://example.com/tours*' => Http::response($shell, 200),
+        ]);
+
+        $crawler = app(SiteCrawler::class);
+        $crawler->setSleeper(fn () => null);
+        $crawler->crawl($tenant, $session);
+
+        $this->assertSame(1, $session->refresh()->pages_skipped_unchanged);
+    }
+
+    public function test_render_budget_caps_renders_per_crawl(): void
+    {
+        // Two fresh SPA-shell pages with a render budget of 1: the first page
+        // renders (and is indexed); the second is budget-exhausted, so it skips
+        // WITHOUT rendering and stays heal-eligible (no render_attempted_at stamp).
+        config(['services.crawler.render_budget' => 1]);
+
+        $tenant = Tenant::factory()->create(['website_url' => 'https://example.com']);
+        $session = CrawlSession::factory()->forTenant($tenant)->create([
+            'mode' => CrawlMode::Initial,
+            'status' => CrawlSessionStatus::Running,
+        ]);
+
+        $shell = '<html><body><div id="root">Tours visit us today right now for more info here please</div></body></html>';
+        $real = '<html><body><main><p>Our Bhutan cultural tours include guided treks, monastery visits, and homestays across the kingdom every season.</p></main></body></html>';
+
+        // Renderer enabled; must run EXACTLY once (budget = 1) across the two shells.
+        $renderer = Mockery::mock(PageRenderer::class);
+        $renderer->shouldReceive('enabled')->andReturn(true);
+        $renderer->shouldReceive('render')->once()->andReturn($real);
+        $this->app->instance(PageRenderer::class, $renderer);
+
+        Http::fake([
+            'https://example.com/robots.txt' => Http::response('', 404),
+            'https://example.com/sitemap.xml' => Http::response(
+                $this->sitemapWith(['https://example.com/p1', 'https://example.com/p2']),
+                200,
+            ),
+            'https://example.com/p1*' => Http::response($shell, 200),
+            'https://example.com/p2*' => Http::response($shell, 200),
+        ]);
+
+        $crawler = app(SiteCrawler::class);
+        $crawler->setSleeper(fn () => null);
+        $crawler->crawl($tenant, $session);
+
+        // Budget-exhausted page stays heal-eligible: skipped, no render_attempted_at.
+        $skipped = KnowledgeItem::forTenant($tenant)
+            ->where('status', KnowledgeItemStatus::SkippedNoContent)
+            ->firstOrFail();
+        $this->assertNull($skipped->metadata['render_attempted_at'] ?? null);
+        $this->assertSame(1, $session->refresh()->pages_skipped_no_content);
+        $this->assertSame(1, $session->pages_indexed);
+    }
+
     /**
      * @param  list<string>  $urls
      */

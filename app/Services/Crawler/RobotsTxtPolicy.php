@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\Crawler;
 
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class RobotsTxtPolicy
@@ -18,6 +17,8 @@ class RobotsTxtPolicy
     /** @var array<string, RobotsPolicy> */
     private array $cache = [];
 
+    public function __construct(private readonly GuardedHttpClient $http) {}
+
     public function fetchFor(string $rootUrl): RobotsPolicy
     {
         $host = parse_url($rootUrl, PHP_URL_SCHEME).'://'.parse_url($rootUrl, PHP_URL_HOST);
@@ -27,9 +28,7 @@ class RobotsTxtPolicy
         }
 
         try {
-            $response = Http::timeout(5)
-                ->withHeaders(['User-Agent' => self::USER_AGENT_HEADER])
-                ->get($host.'/robots.txt');
+            $response = $this->http->get($host.'/robots.txt', ['User-Agent' => self::USER_AGENT_HEADER], 5);
 
             if (! $response->successful()) {
                 return $this->cache[$host] = $this->permissivePolicy();
@@ -37,7 +36,7 @@ class RobotsTxtPolicy
 
             return $this->cache[$host] = $this->parse($response->body());
         } catch (\Throwable $e) {
-            Log::debug('[RobotsTxt] (IS $) Fetch failed; using permissive policy', [
+            Log::debug('[RobotsTxt] (NO $) Fetch failed/blocked; using permissive policy', [
                 'root' => $rootUrl,
                 'error' => $e->getMessage(),
             ]);

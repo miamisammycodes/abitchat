@@ -67,6 +67,17 @@ class RenderOnFallbackTest extends TestCase
         $this->assertTrue($result['rendered']);
     }
 
+    public function test_resolve_does_not_render_when_allow_render_is_false(): void
+    {
+        $renderer = Mockery::mock(PageRenderer::class);
+        $renderer->shouldNotReceive('render');   // budget exhausted → never render
+
+        $result = $this->resolver($renderer)->resolve('https://x.test', $this->spaShell, allowRender: false);
+
+        $this->assertFalse($result['rendered']);
+        $this->assertFalse($result['sufficient']);
+    }
+
     protected function tearDown(): void
     {
         Mockery::close();

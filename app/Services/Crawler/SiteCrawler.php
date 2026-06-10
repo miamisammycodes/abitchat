@@ -11,9 +11,7 @@ use App\Models\CrawlSession;
 use App\Models\CrawlUrlBlocklist;
 use App\Models\KnowledgeItem;
 use App\Models\Tenant;
-use App\Rules\SafeExternalUrl;
 use App\Services\Usage\UsageTracker;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class SiteCrawler
@@ -33,6 +31,7 @@ class SiteCrawler
         private readonly UrlNormalizer $normalizer,
         private readonly UsageTracker $usage,
         private readonly RenderOnFallback $resolver,
+        private readonly GuardedHttpClient $http,
     ) {
         $this->sleeper = static function (int $seconds): void {
             sleep($seconds);
@@ -77,6 +76,9 @@ class SiteCrawler
             $pagesSkippedNoContent = 0;
             $pagesDiscovered = 0;
 
+            $rendersUsed = 0;
+            $renderBudget = (int) config('services.crawler.render_budget', 25);
+
             foreach ($this->discoverer->discover($rootUrl) as $url) {
                 $pagesDiscovered++;
                 if ($pagesDiscovered > self::MAX_PAGES) {
@@ -101,12 +103,6 @@ class SiteCrawler
                     break;
                 }
 
-                if (! SafeExternalUrl::isSafe($url)) {
-                    $pagesFailed++;
-
-                    continue;
-                }
-
                 $existing = KnowledgeItem::forTenant($tenant)
                     ->where('type', 'webpage')
                     ->where('url_normalized', $normalized)
@@ -120,6 +116,7 @@ class SiteCrawler
                 $healCandidate = $this->resolver->renderingEnabled()
                     && $existing !== null
                     && $existing->status === KnowledgeItemStatus::SkippedNoContent
+                    && ($existing->metadata['skipped_reason'] ?? 'no_content') === 'no_content'
                     && empty($existing->metadata['render_attempted_at'] ?? null);
 
                 $headResult = $existing !== null
@@ -155,7 +152,11 @@ class SiteCrawler
                     continue;
                 }
 
-                $resolution = $this->resolver->resolve($url, $body);
+                // Per-crawl render budget: once exhausted, insufficient pages are
+                // skipped WITHOUT rendering (and without a render_attempted_at stamp,
+                // so they stay heal-eligible for a future crawl). 0 = unlimited.
+                $allowRender = $renderBudget === 0 || $rendersUsed < $renderBudget;
+                $resolution = $this->resolver->resolve($url, $body, $allowRender);
                 $cleanText = $resolution['text'];
                 $title = $this->extractTitle($body) ?: $url;
 
@@ -183,6 +184,7 @@ class SiteCrawler
                 // page so it never re-renders after the operator fixes Chromium.
                 if ($resolution['rendered']) {
                     $values['metadata']['render_attempted_at'] = now()->toIso8601String();
+                    $rendersUsed++;
                 }
 
                 if (! $resolution['sufficient']) {
@@ -258,9 +260,7 @@ class SiteCrawler
     private function probeHeaders(string $url, KnowledgeItem $existing): array
     {
         try {
-            $response = Http::timeout(10)
-                ->withHeaders(['User-Agent' => RobotsTxtPolicy::USER_AGENT_HEADER])
-                ->head($url);
+            $response = $this->http->head($url, ['User-Agent' => RobotsTxtPolicy::USER_AGENT_HEADER], 10);
 
             $lastModified = $response->header('Last-Modified') ?: null;
             $etag = $response->header('ETag') ?: null;
@@ -281,10 +281,7 @@ class SiteCrawler
     private function fetchBody(string $url): ?string
     {
         try {
-            $response = Http::timeout(self::REQUEST_TIMEOUT_SECONDS)
-                ->withHeaders(['User-Agent' => RobotsTxtPolicy::USER_AGENT_HEADER])
-                ->withOptions(['allow_redirects' => true])
-                ->get($url);
+            $response = $this->http->get($url, ['User-Agent' => RobotsTxtPolicy::USER_AGENT_HEADER], self::REQUEST_TIMEOUT_SECONDS);
 
             if (! $response->successful()) {
                 return null;

@@ -16,7 +16,7 @@ class RobotsTxtPolicyTest extends TestCase
             'https://example.com/robots.txt' => Http::response('Not found', 404),
         ]);
 
-        $policy = (new RobotsTxtPolicy)->fetchFor('https://example.com');
+        $policy = app(RobotsTxtPolicy::class)->fetchFor('https://example.com');
 
         $this->assertTrue($policy->isAllowed('https://example.com/anything'));
         $this->assertSame(1, $policy->crawlDelaySeconds());
@@ -31,7 +31,7 @@ class RobotsTxtPolicyTest extends TestCase
             ),
         ]);
 
-        $policy = (new RobotsTxtPolicy)->fetchFor('https://example.com');
+        $policy = app(RobotsTxtPolicy::class)->fetchFor('https://example.com');
 
         $this->assertFalse($policy->isAllowed('https://example.com/admin'));
         $this->assertFalse($policy->isAllowed('https://example.com/admin/users'));
@@ -47,7 +47,7 @@ class RobotsTxtPolicyTest extends TestCase
             ),
         ]);
 
-        $policy = (new RobotsTxtPolicy)->fetchFor('https://example.com');
+        $policy = app(RobotsTxtPolicy::class)->fetchFor('https://example.com');
 
         $this->assertTrue($policy->isAllowed('https://example.com/public/page'));
         $this->assertFalse($policy->isAllowed('https://example.com/private'));
@@ -62,7 +62,7 @@ class RobotsTxtPolicyTest extends TestCase
             ),
         ]);
 
-        $policy = (new RobotsTxtPolicy)->fetchFor('https://example.com');
+        $policy = app(RobotsTxtPolicy::class)->fetchFor('https://example.com');
 
         $this->assertSame(5, $policy->crawlDelaySeconds());
     }
@@ -76,11 +76,26 @@ class RobotsTxtPolicyTest extends TestCase
             ),
         ]);
 
-        $policy = (new RobotsTxtPolicy)->fetchFor('https://example.com');
+        $policy = app(RobotsTxtPolicy::class)->fetchFor('https://example.com');
 
         $this->assertSame(
             ['https://example.com/sitemap.xml', 'https://example.com/news.xml'],
             $policy->sitemapUrls(),
         );
+    }
+
+    public function test_fetch_for_never_follows_a_redirect_to_a_private_address(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'http://1.1.1.1/robots.txt' => Http::response('', 302, ['Location' => 'http://169.254.169.254/latest/meta-data/']),
+            'http://169.254.169.254/*' => Http::response('SECRET', 200),
+        ]);
+
+        $policy = app(RobotsTxtPolicy::class)->fetchFor('http://1.1.1.1/');
+
+        // Blocked hop is swallowed → permissive policy, and the metadata endpoint was never hit.
+        $this->assertSame(1, $policy->crawlDelaySeconds());
+        Http::assertNotSent(fn ($r) => str_contains($r->url(), '169.254.169.254'));
     }
 }

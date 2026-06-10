@@ -92,4 +92,36 @@ class SafeExternalUrlTest extends TestCase
     {
         $this->assertTrue($this->fails('http://[0:0:0:0:0:ffff:7f00:1]/'));
     }
+
+    public function test_is_safe_ip_matches_the_shared_adversarial_fixture(): void
+    {
+        $cases = json_decode(
+            file_get_contents(base_path('tests/fixtures/ssrf-ip-cases.json')),
+            true
+        );
+
+        foreach ($cases as $ip => $expectedPrivate) {
+            $this->assertSame(
+                ! $expectedPrivate,
+                SafeExternalUrl::isSafeIp($ip),
+                "isSafeIp({$ip}) should be ".($expectedPrivate ? 'false' : 'true')
+            );
+        }
+    }
+
+    public function test_resolve_public_ips_returns_validated_set_for_literal_public_ip(): void
+    {
+        $this->assertSame(['1.1.1.1'], SafeExternalUrl::resolvePublicIps('1.1.1.1'));
+    }
+
+    public function test_resolve_public_ips_fails_closed_for_literal_private_ip(): void
+    {
+        $this->assertSame([], SafeExternalUrl::resolvePublicIps('127.0.0.1'));
+        $this->assertSame([], SafeExternalUrl::resolvePublicIps('169.254.169.254'));
+    }
+
+    public function test_resolve_public_ips_fails_closed_for_unresolvable_host(): void
+    {
+        $this->assertSame([], SafeExternalUrl::resolvePublicIps('no-such-host.invalid'));
+    }
 }

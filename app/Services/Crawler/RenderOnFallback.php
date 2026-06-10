@@ -30,14 +30,22 @@ class RenderOnFallback
      * returned HTML (callers use it to stamp render_attempted_at — a render
      * that returned null must NOT be recorded as attempted, so it can retry).
      *
+     * `$allowRender` is the per-crawl budget gate: when false (budget exhausted)
+     * an insufficient page short-circuits WITHOUT rendering, staying heal-eligible
+     * for a future crawl (no render_attempted_at stamp, since no render ran).
+     *
      * @return array{text: string, sufficient: bool, rendered: bool}
      */
-    public function resolve(string $url, string $httpBody): array
+    public function resolve(string $url, string $httpBody, bool $allowRender = true): array
     {
         $text = $this->processor->extractHtml($httpBody);
 
         if ($this->gate->isSufficient($text, $httpBody)) {
             return ['text' => $text, 'sufficient' => true, 'rendered' => false];
+        }
+
+        if (! $allowRender) {
+            return ['text' => $text, 'sufficient' => false, 'rendered' => false];
         }
 
         $rendered = $this->renderer->render($url);
