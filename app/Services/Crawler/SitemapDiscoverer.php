@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Crawler;
 
-use App\Rules\SafeExternalUrl;
 use Generator;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class SitemapDiscoverer
@@ -18,6 +16,7 @@ class SitemapDiscoverer
     public function __construct(
         private readonly RobotsTxtPolicy $robotsTxt,
         private readonly UrlNormalizer $normalizer,
+        private readonly GuardedHttpClient $http,
     ) {}
 
     /**
@@ -66,14 +65,8 @@ class SitemapDiscoverer
      */
     private function fetchSitemap(string $sitemapUrl): Generator
     {
-        if (! SafeExternalUrl::isSafe($sitemapUrl)) {
-            return;
-        }
-
         try {
-            $response = Http::timeout(10)
-                ->withHeaders(['User-Agent' => RobotsTxtPolicy::USER_AGENT_HEADER])
-                ->get($sitemapUrl);
+            $response = $this->http->get($sitemapUrl, ['User-Agent' => RobotsTxtPolicy::USER_AGENT_HEADER], 10);
             if (! $response->successful()) {
                 return;
             }
@@ -145,14 +138,8 @@ class SitemapDiscoverer
      */
     private function extractLinks(string $url, string $rootUrl): array
     {
-        if (! SafeExternalUrl::isSafe($url)) {
-            return [];
-        }
-
         try {
-            $response = Http::timeout(10)
-                ->withHeaders(['User-Agent' => RobotsTxtPolicy::USER_AGENT_HEADER])
-                ->get($url);
+            $response = $this->http->get($url, ['User-Agent' => RobotsTxtPolicy::USER_AGENT_HEADER], 10);
             if (! $response->successful()) {
                 return [];
             }

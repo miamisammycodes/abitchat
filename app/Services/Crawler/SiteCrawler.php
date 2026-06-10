@@ -11,9 +11,7 @@ use App\Models\CrawlSession;
 use App\Models\CrawlUrlBlocklist;
 use App\Models\KnowledgeItem;
 use App\Models\Tenant;
-use App\Rules\SafeExternalUrl;
 use App\Services\Usage\UsageTracker;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class SiteCrawler
@@ -33,6 +31,7 @@ class SiteCrawler
         private readonly UrlNormalizer $normalizer,
         private readonly UsageTracker $usage,
         private readonly RenderOnFallback $resolver,
+        private readonly GuardedHttpClient $http,
     ) {
         $this->sleeper = static function (int $seconds): void {
             sleep($seconds);
@@ -99,12 +98,6 @@ class SiteCrawler
                     || ! $this->usage->canRecordUsage($tenant, UsageTracker::TYPE_TOKENS)) {
                     $pagesSkippedBudget++;
                     break;
-                }
-
-                if (! SafeExternalUrl::isSafe($url)) {
-                    $pagesFailed++;
-
-                    continue;
                 }
 
                 $existing = KnowledgeItem::forTenant($tenant)
@@ -258,9 +251,7 @@ class SiteCrawler
     private function probeHeaders(string $url, KnowledgeItem $existing): array
     {
         try {
-            $response = Http::timeout(10)
-                ->withHeaders(['User-Agent' => RobotsTxtPolicy::USER_AGENT_HEADER])
-                ->head($url);
+            $response = $this->http->head($url, ['User-Agent' => RobotsTxtPolicy::USER_AGENT_HEADER], 10);
 
             $lastModified = $response->header('Last-Modified') ?: null;
             $etag = $response->header('ETag') ?: null;
@@ -281,10 +272,7 @@ class SiteCrawler
     private function fetchBody(string $url): ?string
     {
         try {
-            $response = Http::timeout(self::REQUEST_TIMEOUT_SECONDS)
-                ->withHeaders(['User-Agent' => RobotsTxtPolicy::USER_AGENT_HEADER])
-                ->withOptions(['allow_redirects' => true])
-                ->get($url);
+            $response = $this->http->get($url, ['User-Agent' => RobotsTxtPolicy::USER_AGENT_HEADER], self::REQUEST_TIMEOUT_SECONDS);
 
             if (! $response->successful()) {
                 return null;

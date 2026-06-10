@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services\Crawler;
 
-use App\Services\Crawler\RobotsTxtPolicy;
 use App\Services\Crawler\SitemapDiscoverer;
-use App\Services\Crawler\UrlNormalizer;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -17,10 +15,7 @@ class SitemapDiscovererTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->discoverer = new SitemapDiscoverer(
-            new RobotsTxtPolicy,
-            new UrlNormalizer,
-        );
+        $this->discoverer = app(SitemapDiscoverer::class);
     }
 
     public function test_discovers_from_root_sitemap_xml(): void
