@@ -665,4 +665,59 @@ class ChatServiceTest extends TestCase
         $this->assertCount(1, $records, 'failed-attempt usage record written even on total failure');
         $this->assertGreaterThan(0, (int) $records[0]->quantity);
     }
+
+    public function test_stream_retries_on_retryable_failure_then_yields_chunks(): void
+    {
+        $tenant = $this->configureTenant([]);
+        $conversation = Conversation::create([
+            'tenant_id' => $tenant->id,
+            'session_id' => 'stream-retry',
+            'status' => 'active',
+        ]);
+
+        $service = $this->makeMockableService();
+        $callCount = 0;
+        $service->shouldReceive('dispatchStream')
+            ->times(2)
+            ->andReturnUsing(function () use (&$callCount) {
+                $callCount++;
+                if ($callCount < 2) {
+                    throw new \RuntimeException('HTTP 503 server error');
+                }
+
+                // Successful stream: one text event, no usage event.
+                return (function () {
+                    yield (object) ['text' => 'hello ', 'usage' => null];
+                    yield (object) ['text' => 'world', 'usage' => null];
+                })();
+            });
+
+        $this->allowLogChannels();
+
+        $chunks = iterator_to_array($service->streamResponse($conversation, 'hi'));
+
+        $this->assertSame(['hello ', 'world'], $chunks);
+    }
+
+    public function test_stream_total_failure_yields_fallback_once(): void
+    {
+        $tenant = $this->configureTenant([]);
+        $conversation = Conversation::create([
+            'tenant_id' => $tenant->id,
+            'session_id' => 'stream-fail',
+            'status' => 'active',
+        ]);
+
+        $service = $this->makeMockableService();
+        $service->shouldReceive('dispatchStream')
+            ->times(3)
+            ->andThrow(new \RuntimeException('HTTP 503 server error'));
+
+        $this->allowLogChannels();
+
+        $chunks = iterator_to_array($service->streamResponse($conversation, 'hi'));
+
+        $this->assertCount(1, $chunks, 'fallback yielded exactly once on total failure');
+        $this->assertStringContainsString('having trouble', $chunks[0]);
+    }
 }
