@@ -7,9 +7,11 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StorePlanRequest;
 use App\Http\Requests\Admin\UpdatePlanRequest;
+use App\Models\AdminActivityLog;
 use App\Models\Plan;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -82,7 +84,16 @@ class PlanController extends Controller
             $validated['sort_order'] = Plan::max('sort_order') + 1;
         }
 
-        Plan::create($validated);
+        $plan = Plan::create($validated);
+
+        try {
+            AdminActivityLog::log('create_plan', $plan, ['name' => $plan->name, 'slug' => $plan->slug]);
+        } catch (\Throwable $e) {
+            Log::warning('[Admin] Failed to write create_plan audit log', [
+                'plan_id' => $plan->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return redirect()
             ->route('admin.plans.index')
@@ -102,6 +113,15 @@ class PlanController extends Controller
 
         $plan->update($validated);
 
+        try {
+            AdminActivityLog::log('update_plan', $plan, ['name' => $plan->name, 'slug' => $plan->slug]);
+        } catch (\Throwable $e) {
+            Log::warning('[Admin] Failed to write update_plan audit log', [
+                'plan_id' => $plan->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         return redirect()
             ->route('admin.plans.index')
             ->with('success', 'Plan updated successfully.');
@@ -114,6 +134,15 @@ class PlanController extends Controller
         ]);
 
         $status = $plan->is_active ? 'activated' : 'deactivated';
+
+        try {
+            AdminActivityLog::log('toggle_plan', $plan, ['is_active' => $plan->is_active]);
+        } catch (\Throwable $e) {
+            Log::warning('[Admin] Failed to write toggle_plan audit log', [
+                'plan_id' => $plan->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return back()->with('success', "Plan {$status} successfully.");
     }
