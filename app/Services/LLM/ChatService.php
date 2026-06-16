@@ -91,11 +91,7 @@ class ChatService
 
                     return $this->dispatchToProvider($systemPrompt, $messages);
                 },
-                sleepMilliseconds: fn (int $attempt) => match ($attempt) {
-                    1 => 1000,
-                    2 => 2000,
-                    default => 4000,
-                },
+                sleepMilliseconds: fn (int $attempt) => $this->retryBackoffMs($attempt),
                 when: fn (\Throwable $e) => $this->isRetryable($e),
             );
 
@@ -163,6 +159,16 @@ class ChatService
             ->withMessages($messages)
             ->withClientOptions(['timeout' => 60])
             ->asStream();
+    }
+
+    /** Exponential backoff (ms) shared by the streaming and non-streaming retry paths. */
+    private function retryBackoffMs(int $attempt): int
+    {
+        return match ($attempt) {
+            1 => 1000,
+            2 => 2000,
+            default => 4000,
+        };
     }
 
     /**
@@ -252,11 +258,7 @@ class ChatService
 
                     return $this->dispatchStream($systemPrompt, $messages);
                 },
-                sleepMilliseconds: fn (int $attempt) => match ($attempt) {
-                    1 => 1000,
-                    2 => 2000,
-                    default => 4000,
-                },
+                sleepMilliseconds: fn (int $attempt) => $this->retryBackoffMs($attempt),
                 when: fn (\Throwable $e) => $this->isRetryable($e),
             );
 

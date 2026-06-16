@@ -11,7 +11,6 @@ use App\Models\AdminActivityLog;
 use App\Models\Plan;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -86,14 +85,7 @@ class PlanController extends Controller
 
         $plan = Plan::create($validated);
 
-        try {
-            AdminActivityLog::log('create_plan', $plan, ['name' => $plan->name, 'slug' => $plan->slug]);
-        } catch (\Throwable $e) {
-            Log::warning('[Admin] Failed to write create_plan audit log', [
-                'plan_id' => $plan->id,
-                'error' => $e->getMessage(),
-            ]);
-        }
+        AdminActivityLog::tryLog('create_plan', $plan, ['name' => $plan->name, 'slug' => $plan->slug]);
 
         return redirect()
             ->route('admin.plans.index')
@@ -113,14 +105,7 @@ class PlanController extends Controller
 
         $plan->update($validated);
 
-        try {
-            AdminActivityLog::log('update_plan', $plan, ['name' => $plan->name, 'slug' => $plan->slug]);
-        } catch (\Throwable $e) {
-            Log::warning('[Admin] Failed to write update_plan audit log', [
-                'plan_id' => $plan->id,
-                'error' => $e->getMessage(),
-            ]);
-        }
+        AdminActivityLog::tryLog('update_plan', $plan, ['name' => $plan->name, 'slug' => $plan->slug]);
 
         return redirect()
             ->route('admin.plans.index')
@@ -135,14 +120,7 @@ class PlanController extends Controller
 
         $status = $plan->is_active ? 'activated' : 'deactivated';
 
-        try {
-            AdminActivityLog::log('toggle_plan', $plan, ['is_active' => $plan->is_active]);
-        } catch (\Throwable $e) {
-            Log::warning('[Admin] Failed to write toggle_plan audit log', [
-                'plan_id' => $plan->id,
-                'error' => $e->getMessage(),
-            ]);
-        }
+        AdminActivityLog::tryLog('toggle_plan', $plan, ['is_active' => $plan->is_active]);
 
         return back()->with('success', "Plan {$status} successfully.");
     }

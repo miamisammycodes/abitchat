@@ -4,6 +4,7 @@ import { Link, router } from '@inertiajs/vue3'
 import { ref, watch } from 'vue'
 import { useRoute } from '@/composables/useRoute'
 import { debounce } from 'lodash'
+import { formatDate } from '@/utils/transactions'
 import { Card, CardContent } from '@/Components/ui/card'
 import { Input } from '@/Components/ui/input'
 import { Badge } from '@/Components/ui/badge'
@@ -78,13 +79,6 @@ const getStatusVariant = (status) => {
     return variants[status] || 'secondary'
 }
 
-const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-    })
-}
 </script>
 
 <template>
