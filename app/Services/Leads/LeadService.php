@@ -256,7 +256,7 @@ class LeadService
             'converted' => (clone $leads)->where('status', 'converted')->count(),
             'lost' => (clone $leads)->where('status', 'lost')->count(),
             'average_score' => (float) ((clone $leads)->avg('score') ?? 0),
-            'high_quality' => (clone $leads)->where('score', '>=', 70)->count(),
+            'high_quality' => (clone $leads)->where('score', '>=', LeadScoring::HOT_THRESHOLD)->count(),
         ];
     }
 }

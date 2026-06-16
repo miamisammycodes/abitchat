@@ -337,10 +337,18 @@ class LeadScoringTest extends TestCase
     public function test_temperature_thresholds(): void
     {
         $this->assertSame('cold', $this->service->temperature(0));
-        $this->assertSame('cold', $this->service->temperature(30));
-        $this->assertSame('warm', $this->service->temperature(31));
-        $this->assertSame('warm', $this->service->temperature(60));
-        $this->assertSame('hot', $this->service->temperature(61));
+        $this->assertSame('cold', $this->service->temperature(39));
+        $this->assertSame('warm', $this->service->temperature(40));
+        $this->assertSame('warm', $this->service->temperature(69));
+        $this->assertSame('hot', $this->service->temperature(70));
         $this->assertSame('hot', $this->service->temperature(100));
+    }
+
+    public function test_temperature_uses_the_published_threshold_constants(): void
+    {
+        $this->assertSame('hot', $this->service->temperature(LeadScoring::HOT_THRESHOLD));
+        $this->assertSame('warm', $this->service->temperature(LeadScoring::HOT_THRESHOLD - 1));
+        $this->assertSame('warm', $this->service->temperature(LeadScoring::WARM_THRESHOLD));
+        $this->assertSame('cold', $this->service->temperature(LeadScoring::WARM_THRESHOLD - 1));
     }
 }
