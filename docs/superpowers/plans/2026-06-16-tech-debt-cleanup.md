@@ -1638,7 +1638,7 @@ set the env accordingly:
 | `services.dk_bank.mcc_code` | `5817` | DK may require `5734`. Set `DK_BANK_MCC_CODE` to the value DK assigns. |
 | `services.dk_bank.account_match` | `exact` | If DK returns a masked/reformatted `credit_account`, switch to `suffix`. |
 | `services.dk_bank.account_match_digits` | `4` | Last-N digits compared in `suffix` mode. |
-| RRN format | regex `^[A-Za-z0-9\/\- ]{4,40}$` | Confirm real cross-bank RRNs (hyphens/slashes) pass; tighten only if DK specifies an exact format. |
+| RRN format | regex `^[A-Za-z0-9\/\- ]{4,32}$` (32 = `dk_rrn` column width) | Confirm real cross-bank RRNs (hyphens/slashes) pass; tighten only if DK specifies an exact format. |
 | `extractPaidStatusData` envelope | object `response_data.status` with array `response_data[0].status` fallback | Confirm which shape DK production returns; both are parsed. |
 
 DK end-to-end production verification stays out of scope until DK answers the

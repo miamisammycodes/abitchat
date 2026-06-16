@@ -43,7 +43,9 @@ reference (§9) warns real bank RRNs contain hyphens/slashes (e.g. `SEL-2309203`
 cross-bank payers are rejected before reaching DK. The service already `strtoupper(trim())`s the
 value, so loosening the rule is safe.
 
-**Fix:** `rrn => ['required', 'string', 'regex:/^[A-Za-z0-9\/\- ]{4,40}$/']`.
+**Fix:** `rrn => ['required', 'string', 'regex:/^[A-Za-z0-9\/\- ]{4,32}$/']`. (Max length is
+**32**, not 40, to match the `dk_rrn` `VARCHAR(32)` column — a longer value would risk MySQL
+error 1406 in strict mode.)
 
 ### 1.3 DK credit-account match (correctness)
 

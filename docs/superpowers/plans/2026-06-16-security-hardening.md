@@ -346,7 +346,8 @@ with:
         $validated = $request->validate([
             // Real cross-bank RRNs contain hyphens/slashes/spaces (e.g. "SEL-2309203").
             // The service already strtoupper(trim())s the value, so this loosened rule is safe.
-            'rrn' => ['required', 'string', 'regex:/^[A-Za-z0-9\/\- ]{4,40}$/'],
+            // Max 32 (not 40) to match the dk_rrn VARCHAR(32) column.
+            'rrn' => ['required', 'string', 'regex:/^[A-Za-z0-9\/\- ]{4,32}$/'],
         ]);
 ```
 
