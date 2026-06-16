@@ -86,7 +86,9 @@ final class DkBankQrController extends Controller
         abort_unless($transaction->status === 'awaiting_payment', 410);
 
         $validated = $request->validate([
-            'rrn' => 'required|alpha_num|min:4|max:32',
+            // Real cross-bank RRNs contain hyphens/slashes/spaces (e.g. "SEL-2309203").
+            // The service already strtoupper(trim())s the value, so this loosened rule is safe.
+            'rrn' => ['required', 'string', 'regex:/^[A-Za-z0-9\/\- ]{4,40}$/'],
         ]);
 
         $result = $this->service->verifyByRrn($transaction, $validated['rrn']);
