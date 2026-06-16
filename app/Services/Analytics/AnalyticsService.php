@@ -9,6 +9,7 @@ use App\Models\Lead;
 use App\Models\Message;
 use App\Models\Tenant;
 use App\Models\UsageRecord;
+use App\Services\Leads\LeadScoring;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -164,13 +165,11 @@ class AnalyticsService
     {
         $leads = Lead::forTenant($tenant)->get();
 
-        $distribution = [
-            'hot' => $leads->where('score', '>=', 70)->count(),
-            'warm' => $leads->whereBetween('score', [40, 69])->count(),
-            'cold' => $leads->where('score', '<', 40)->count(),
+        return [
+            'hot' => $leads->where('score', '>=', LeadScoring::HOT_THRESHOLD)->count(),
+            'warm' => $leads->whereBetween('score', [LeadScoring::WARM_THRESHOLD, LeadScoring::HOT_THRESHOLD - 1])->count(),
+            'cold' => $leads->where('score', '<', LeadScoring::WARM_THRESHOLD)->count(),
         ];
-
-        return $distribution;
     }
 
     /**
