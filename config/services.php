@@ -58,6 +58,10 @@ return [
         'client_secret' => env('DK_BANK_CLIENT_SECRET'),
         'source_app' => env('DK_BANK_SOURCE_APP'),
         'beneficiary_account' => env('DK_BANK_BENEFICIARY_ACCOUNT'),
+        // Credit-account match strategy: 'exact' (default — no behavior change until
+        // DK confirms it returns a masked account) or 'suffix' (compare last N digits).
+        'account_match' => env('DK_BANK_ACCOUNT_MATCH', 'exact'),
+        'account_match_digits' => (int) env('DK_BANK_ACCOUNT_MATCH_DIGITS', 4),
         'mcc_code' => env('DK_BANK_MCC_CODE', '5817'),
         'private_key_path' => storage_path('app/dk_pg.pem'),
         'http_timeout' => env('DK_BANK_HTTP_TIMEOUT', 30),
