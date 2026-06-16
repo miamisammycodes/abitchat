@@ -46,10 +46,27 @@ request's IP to the proxy, breaking IP-binding and rate-limits for all tenants.
 
 **Order is mandatory:**
 
-1. **Set `TRUSTED_PROXIES`** to the LB/CDN egress CIDR(s) (or `*` only if the app
-   is not directly reachable from the internet). Deploy. Confirm `request()->ip()`
-   resolves to real client IPs (spot-check the widget audit log's `ip` field — it
-   should show varied client IPs, not one proxy IP).
+1. **Set `TRUSTED_PROXIES`** to the LB/CDN egress CIDR(s) (e.g.
+   `10.0.0.0/8,172.16.0.0/12` for a private-network LB). Deploy. Confirm
+   `request()->ip()` resolves to real client IPs (spot-check the widget audit
+   log's `ip` field — it should show varied client IPs, not one proxy IP).
+
+   > **`TRUSTED_PROXIES=*` does not work with this project.**
+   > `bootstrap/app.php` splits the env value as a comma-separated string and
+   > always passes an **array** to `TrustProxies::at()`. Laravel's
+   > `setTrustedProxyIpAddresses()` only recognises the literal string `'*'`
+   > (not an array containing `'*'`) as its trust-all wildcard — the array falls
+   > through to `setTrustedProxyIpAddressesToSpecificIps()`, which tries to match
+   > `'*'` as a literal CIDR and never trusts any proxy. **Use real CIDR(s)
+   > instead.**
+   >
+   > If there is a single-hop proxy whose IP is not known statically, set
+   > `TRUSTED_PROXIES=REMOTE_ADDR`. That special string is resolved to the
+   > actual connecting IP at request time inside
+   > `setTrustedProxyIpAddressesToSpecificIps()` — the one bootstrap-supported
+   > path that does not require knowing the CIDR in advance. Do **not** use
+   > `REMOTE_ADDR` behind multi-hop topologies (CDN → LB → app) because it
+   > would only trust the last hop (the LB), not the CDN.
 2. **Confirm the burn-down:** `widget_dual_accept_passthrough` flat at zero for ≥
    one JWT TTL window (see §1).
 3. **Flip:** set `WIDGET_SESSION_DUAL_ACCEPT=false`. Token-less
