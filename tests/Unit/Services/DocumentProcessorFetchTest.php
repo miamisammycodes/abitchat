@@ -9,6 +9,7 @@ use App\Models\KnowledgeItem;
 use App\Models\Tenant;
 use App\Services\Crawler\GuardedHttpClient;
 use App\Services\Knowledge\DocumentProcessor;
+use GuzzleHttp\Psr7\Response;
 use Illuminate\Support\Facades\Http;
 use Mockery;
 use Tests\TestCase;
@@ -115,7 +116,7 @@ class DocumentProcessorFetchTest extends TestCase
             ->once()
             ->with('http://1.1.1.1/guarded')
             ->andReturn(new \Illuminate\Http\Client\Response(
-                new \GuzzleHttp\Psr7\Response(200, [], '<p>Guarded body content here.</p>')
+                new Response(200, [], '<p>Guarded body content here.</p>')
             ));
         $this->app->instance(GuardedHttpClient::class, $guard);
 
