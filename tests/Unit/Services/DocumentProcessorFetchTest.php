@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
+use App\Exceptions\BlockedAddressException;
 use App\Models\KnowledgeItem;
 use App\Models\Tenant;
+use App\Services\Crawler\GuardedHttpClient;
 use App\Services\Knowledge\DocumentProcessor;
 use Illuminate\Support\Facades\Http;
+use Mockery;
 use Tests\TestCase;
 
 class DocumentProcessorFetchTest extends TestCase
@@ -101,5 +104,45 @@ class DocumentProcessorFetchTest extends TestCase
     {
         $this->expectException(\Throwable::class);
         app(DocumentProcessor::class)->fetchUrl('http://127.0.0.1/admin');
+    }
+
+    public function test_fetch_url_routes_through_guarded_http_client(): void
+    {
+        // The guarded client is the only thing that should perform the fetch —
+        // prove DocumentProcessor delegates to it (IP-pinned, redirect-revalidating).
+        $guard = Mockery::mock(GuardedHttpClient::class);
+        $guard->shouldReceive('get')
+            ->once()
+            ->with('http://1.1.1.1/guarded')
+            ->andReturn(new \Illuminate\Http\Client\Response(
+                new \GuzzleHttp\Psr7\Response(200, [], '<p>Guarded body content here.</p>')
+            ));
+        $this->app->instance(GuardedHttpClient::class, $guard);
+
+        $body = $this->app->make(DocumentProcessor::class)->fetchUrl('http://1.1.1.1/guarded');
+
+        $this->assertStringContainsString('Guarded body content here.', $body);
+    }
+
+    public function test_fetch_url_propagates_guarded_block_for_rebound_host(): void
+    {
+        // Simulate the DNS-rebind case the raw Http client missed: name-time
+        // validation passed, but the guarded client blocks the resolved private IP.
+        $guard = Mockery::mock(GuardedHttpClient::class);
+        $guard->shouldReceive('get')
+            ->once()
+            ->andThrow(new BlockedAddressException('Blocked non-public address: rebind.example'));
+        $this->app->instance(GuardedHttpClient::class, $guard);
+
+        $this->expectException(BlockedAddressException::class);
+        // Public-literal URL passes the cheap SafeExternalUrl pre-check, then the
+        // guarded client re-resolves and blocks.
+        $this->app->make(DocumentProcessor::class)->fetchUrl('http://1.1.1.1/rebind');
+    }
+
+    protected function tearDown(): void
+    {
+        Mockery::close();
+        parent::tearDown();
     }
 }
