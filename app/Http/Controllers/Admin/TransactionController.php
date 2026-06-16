@@ -111,16 +111,9 @@ class TransactionController extends Controller
             return back()->with('error', 'Cannot approve transaction: referenced tenant or plan no longer exists.');
         }
 
-        try {
-            AdminActivityLog::log('approve_transaction', $transaction, [
-                'admin_notes' => $validated['admin_notes'] ?? null,
-            ]);
-        } catch (\Throwable $e) {
-            Log::warning('[Admin] Failed to write approve_transaction audit log', [
-                'transaction_id' => $transaction->id,
-                'error' => $e->getMessage(),
-            ]);
-        }
+        AdminActivityLog::tryLog('approve_transaction', $transaction, [
+            'admin_notes' => $validated['admin_notes'] ?? null,
+        ]);
 
         return back()->with('success', 'Transaction approved and plan activated.');
     }
@@ -155,16 +148,9 @@ class TransactionController extends Controller
             throw $e;
         }
 
-        try {
-            AdminActivityLog::log('reject_transaction', $transaction, [
-                'admin_notes' => $validated['admin_notes'],
-            ]);
-        } catch (\Throwable $e) {
-            Log::warning('[Admin] Failed to write reject_transaction audit log', [
-                'transaction_id' => $transaction->id,
-                'error' => $e->getMessage(),
-            ]);
-        }
+        AdminActivityLog::tryLog('reject_transaction', $transaction, [
+            'admin_notes' => $validated['admin_notes'],
+        ]);
 
         return back()->with('success', 'Transaction rejected.');
     }
