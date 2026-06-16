@@ -244,6 +244,11 @@ final class DkBankQrService
     /**
      * Extracts the inner status block from DK's `/v1/intra-transaction/status`
      * envelope when DK reports a successful credit (`status === '0'`).
+     *
+     * DK has been seen returning two shapes: object (`response_data.status`) and
+     * array-indexed (`response_data[0].status`). The indexed shape previously
+     * yielded null silently, so the payment never flipped to paid. Try the object
+     * shape first, then fall back to the indexed shape.
      * Returns null in every "not paid" case so callers branch on a single check.
      *
      * @param  array<string, mixed>  $response
@@ -251,7 +256,8 @@ final class DkBankQrService
      */
     private function extractPaidStatusData(array $response): ?array
     {
-        $status = $response['response_data']['status'] ?? null;
+        $data = $response['response_data'] ?? [];
+        $status = $data['status'] ?? ($data[0]['status'] ?? null);
 
         return is_array($status) && ($status['status'] ?? null) === '0' ? $status : null;
     }
