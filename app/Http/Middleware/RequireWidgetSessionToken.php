@@ -26,6 +26,11 @@ class RequireWidgetSessionToken
         // Missing Bearer
         if ($bearer === null) {
             if ($dualAccept) {
+                // Telemetry: ops watch this counter; once it sits at zero the
+                // strict-mode live flip (dual_accept=false) is safe.
+                $origin = CanonicalOrigin::from($request->header('Origin') ?? $request->header('Referer'));
+                WidgetAudit::passthrough($origin, $request);
+
                 $response = $next($request);
                 $response->headers->set('Deprecation', 'true');
 
