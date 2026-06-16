@@ -8,7 +8,6 @@ use App\Models\Tenant;
 use App\Support\Widget\WidgetAudit;
 use App\Support\Widget\WidgetErrors;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Tests\Concerns\AuthenticatesWidget;
 use Tests\TestCase;
@@ -68,31 +67,41 @@ class DualAcceptPassthroughTelemetryTest extends TestCase
 
     public function test_passthrough_telemetry_never_throws_when_cache_fails(): void
     {
-        // Verify the never-throw guarantee by calling WidgetAudit::passthrough() directly
-        // with a cache store that will fail on increment. This is the level at which the
-        // "telemetry must not break the request" contract lives.
-        Cache::forget(WidgetAudit::PASSTHROUGH_COUNTER_KEY);
+        config()->set('widget.session_dual_accept', true);
 
-        // Swap to a null/array store so increment doesn't exist — the try/catch must absorb it.
-        // We do this by setting the cache driver to 'null' temporarily.
-        config()->set('cache.default', 'array');
-
-        // Build a fake request
-        $request = Request::create('/api/v1/widget/conversation', 'POST');
-        $request->server->set('REMOTE_ADDR', '127.0.0.1');
-
-        // Prove WidgetAudit::passthrough never throws even when Cache::increment throws.
-        // Use Cache::shouldReceive scoped to just the passthrough call path —
-        // since we call the method directly (no full HTTP stack), there are no other
-        // cache calls to worry about.
+        // Even if the counter write blows up, the passthrough request must still succeed.
         Cache::shouldReceive('increment')
+            ->once()
             ->with(WidgetAudit::PASSTHROUGH_COUNTER_KEY)
             ->andThrow(new \RuntimeException('cache down'));
 
-        // Must not throw
-        WidgetAudit::passthrough('https://example.com', $request);
+        // Pass-through catch-all so every other cache call during the HTTP request
+        // (tenant lookup in ValidateWidgetDomain, usage check in CheckUsageLimits,
+        // tenant caching in ChatController) still works normally.
+        Cache::shouldReceive('remember')
+            ->zeroOrMoreTimes()
+            ->withAnyArgs()
+            ->andReturnUsing(fn (string $key, int $ttl, \Closure $callback) => $callback());
 
-        // The only assertion needed is that we reached this line (no exception).
-        $this->assertTrue(true);
+        Cache::shouldReceive('get')
+            ->zeroOrMoreTimes()
+            ->withAnyArgs()
+            ->andReturnNull();
+
+        Cache::shouldReceive('put')
+            ->zeroOrMoreTimes()
+            ->withAnyArgs()
+            ->andReturn(true);
+
+        Cache::shouldReceive('forget')
+            ->zeroOrMoreTimes()
+            ->withAnyArgs()
+            ->andReturn(true);
+
+        $response = $this->withHeaders(['Origin' => 'https://example.com'])
+            ->postJson('/api/v1/widget/conversation', ['api_key' => $this->tenant->api_key]);
+
+        $response->assertSuccessful();
+        $this->assertSame('true', $response->headers->get('Deprecation'));
     }
 }
