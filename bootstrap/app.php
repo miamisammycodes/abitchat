@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\CheckUsageLimits;
+use App\Http\Middleware\EnsureDkBankEnabled;
 use App\Http\Middleware\EnsureNotExpired;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RequireSuperAdmin;
@@ -42,6 +43,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'block.expired' => EnsureNotExpired::class,
             'check.limits' => CheckUsageLimits::class,
+            'dk.enabled' => EnsureDkBankEnabled::class,
             'require.super_admin' => RequireSuperAdmin::class,
             'validate.widget.domain' => ValidateWidgetDomain::class,
             'widget.session_token' => RequireWidgetSessionToken::class,

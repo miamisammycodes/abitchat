@@ -120,20 +120,23 @@ Route::middleware('auth')->group(function () {
         Route::post('/start-free-plan', [BillingController::class, 'startFreePlan'])->name('start-free-plan');
         Route::post('/enterprise-inquiry', [EnterpriseInquiryController::class, 'store'])->name('enterprise-inquiry');
 
-        // DK Bank QR payment flow
-        Route::post('/dk-qr/{plan}', [DkBankQrController::class, 'start'])
-            ->name('dk-qr.start');
+        // DK Bank QR payment flow — guarded by the server-side killswitch so a
+        // disabled feature is unreachable (404), not merely hidden in the UI.
+        Route::middleware('dk.enabled')->group(function () {
+            Route::post('/dk-qr/{plan}', [DkBankQrController::class, 'start'])
+                ->name('dk-qr.start');
 
-        Route::get('/dk-qr/transaction/{transaction}', [DkBankQrController::class, 'show'])
-            ->name('dk-qr.show');
+            Route::get('/dk-qr/transaction/{transaction}', [DkBankQrController::class, 'show'])
+                ->name('dk-qr.show');
 
-        Route::get('/dk-qr/{transaction}/status', [DkBankQrController::class, 'status'])
-            ->name('dk-qr.status')
-            ->middleware('throttle:60,1');
+            Route::get('/dk-qr/{transaction}/status', [DkBankQrController::class, 'status'])
+                ->name('dk-qr.status')
+                ->middleware('throttle:60,1');
 
-        Route::post('/dk-qr/{transaction}/verify-rrn', [DkBankQrController::class, 'verifyRrn'])
-            ->name('dk-qr.verify-rrn')
-            ->middleware('throttle:dk-rrn-verify');
+            Route::post('/dk-qr/{transaction}/verify-rrn', [DkBankQrController::class, 'verifyRrn'])
+                ->name('dk-qr.verify-rrn')
+                ->middleware('throttle:dk-rrn-verify');
+        });
     });
 });
 

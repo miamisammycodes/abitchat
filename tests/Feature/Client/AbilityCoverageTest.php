@@ -249,6 +249,7 @@ class AbilityCoverageTest extends TestCase
 
     public function test_manager_cannot_start_dk_qr(): void
     {
+        config()->set('services.dk_bank.enabled', true);
         $tenant = $this->makeTenant();
         $this->actingAsManager($tenant);
         $plan = $this->makePlan();
@@ -258,6 +259,7 @@ class AbilityCoverageTest extends TestCase
 
     public function test_agent_cannot_start_dk_qr(): void
     {
+        config()->set('services.dk_bank.enabled', true);
         $tenant = $this->makeTenant();
         $this->actingAsAgent($tenant);
         $plan = $this->makePlan();
