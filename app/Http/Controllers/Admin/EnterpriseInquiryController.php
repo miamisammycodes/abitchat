@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AdminActivityLog;
 use App\Models\EnterpriseInquiry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -76,6 +78,15 @@ class EnterpriseInquiryController extends Controller
         ]);
 
         $inquiry->update($validated);
+
+        try {
+            AdminActivityLog::log('update_inquiry', $inquiry, ['status' => $validated['status']]);
+        } catch (\Throwable $e) {
+            Log::warning('[Admin] Failed to write update_inquiry audit log', [
+                'inquiry_id' => $inquiry->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return back()->with('success', 'Inquiry updated successfully.');
     }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AdminActivityLog;
 use App\Models\Conversation;
 use App\Models\Lead;
 use App\Models\Plan;
@@ -13,6 +14,7 @@ use App\Models\Transaction;
 use App\Models\UsageRecord;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -158,6 +160,15 @@ class ClientController extends Controller
         $tenant = Tenant::onlyTrashed()->findOrFail($id);
         $tenant->restore();
 
+        try {
+            AdminActivityLog::log('restore_client', $tenant);
+        } catch (\Throwable $e) {
+            Log::warning('[Admin] Failed to write restore_client audit log', [
+                'tenant_id' => $tenant->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         return redirect()
             ->route('admin.clients.show', $tenant->id)
             ->with('success', 'Tenant restored.');
@@ -170,6 +181,15 @@ class ClientController extends Controller
         ]);
 
         $client->update(['status' => $validated['status']]);
+
+        try {
+            AdminActivityLog::log('update_client_status', $client, ['status' => $validated['status']]);
+        } catch (\Throwable $e) {
+            Log::warning('[Admin] Failed to write update_client_status audit log', [
+                'tenant_id' => $client->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return back()->with('success', "Client status updated to {$validated['status']}.");
     }
@@ -193,6 +213,18 @@ class ClientController extends Controller
             $client->extendPlan($plan);
         }
 
+        try {
+            AdminActivityLog::log('update_client_plan', $client, [
+                'plan_id' => $plan->id,
+                'plan_name' => $plan->name,
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('[Admin] Failed to write update_client_plan audit log', [
+                'tenant_id' => $client->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         return back()->with('success', "Client plan updated to {$plan->name}.");
     }
 
@@ -205,6 +237,18 @@ class ClientController extends Controller
         ]);
 
         $client->update($validated);
+
+        try {
+            AdminActivityLog::log('update_client_bot_personality', $client, [
+                'bot_type' => $validated['bot_type'],
+                'bot_tone' => $validated['bot_tone'],
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('[Admin] Failed to write update_client_bot_personality audit log', [
+                'tenant_id' => $client->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return back()->with('success', 'Bot personality updated successfully.');
     }

@@ -79,6 +79,12 @@ class AdminActivityLog extends Model
             'reject_transaction' => 'Rejected transaction',
             'update_client_status' => 'Updated client status',
             'update_client_plan' => 'Updated client plan',
+            'update_client_bot_personality' => 'Updated client bot personality',
+            'restore_client' => 'Restored client',
+            'create_plan' => 'Created plan',
+            'update_plan' => 'Updated plan',
+            'toggle_plan' => 'Toggled plan status',
+            'update_inquiry' => 'Updated inquiry',
         ];
 
         return $labels[$this->action_type] ?? ucwords(str_replace('_', ' ', $this->action_type));
