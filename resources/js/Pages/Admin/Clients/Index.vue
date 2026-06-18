@@ -4,6 +4,7 @@ import { Link, router } from '@inertiajs/vue3'
 import { ref, watch } from 'vue'
 import { useRoute } from '@/composables/useRoute'
 import { debounce } from 'lodash'
+import { formatDate } from '@/utils/transactions'
 import { Card, CardContent } from '@/Components/ui/card'
 import { Input } from '@/Components/ui/input'
 import { Badge } from '@/Components/ui/badge'
@@ -27,19 +28,47 @@ const props = defineProps({
 const search = ref(props.filters.search)
 const status = ref(props.filters.status)
 const plan = ref(props.filters.plan)
+const trashed = ref(props.filters.trashed || '')
+const sort = ref(props.filters.sort || 'created_at')
+const direction = ref(props.filters.direction || 'desc')
 
 const applyFilters = debounce(() => {
     router.get(route('admin.clients.index'), {
         search: search.value,
         status: status.value,
         plan: plan.value,
+        trashed: trashed.value,
+        sort: sort.value,
+        direction: direction.value,
     }, {
         preserveState: true,
         replace: true,
     })
 }, 300)
 
-watch([search, status, plan], applyFilters)
+watch([search, status, plan, trashed, sort, direction], applyFilters)
+
+const toggleSort = (field) => {
+    if (sort.value === field) {
+        direction.value = direction.value === 'asc' ? 'desc' : 'asc'
+    } else {
+        sort.value = field
+        direction.value = 'asc'
+    }
+}
+
+const sortIndicator = (field) => {
+    if (sort.value !== field) {
+        return ''
+    }
+    return direction.value === 'asc' ? ' ▲' : ' ▼'
+}
+
+const restore = (id) => {
+    router.post(route('admin.clients.restore', id), {}, {
+        preserveScroll: true,
+    })
+}
 
 const getStatusVariant = (status) => {
     const variants = {
@@ -50,13 +79,6 @@ const getStatusVariant = (status) => {
     return variants[status] || 'secondary'
 }
 
-const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-    })
-}
 </script>
 
 <template>
@@ -86,6 +108,14 @@ const formatDate = (date) => {
                 <option value="all">All Plans</option>
                 <option v-for="p in plans" :key="p.id" :value="p.id">{{ p.name }}</option>
             </select>
+            <select
+                v-model="trashed"
+                class="h-9 rounded-md bg-background border px-3 text-sm text-foreground focus:border-primary focus:ring-primary"
+            >
+                <option value="">Active only</option>
+                <option value="with">Include deleted</option>
+                <option value="only">Deleted only</option>
+            </select>
         </div>
 
         <!-- Table -->
@@ -94,13 +124,23 @@ const formatDate = (date) => {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Client</TableHead>
+                            <TableHead class="cursor-pointer select-none" @click="toggleSort('name')">
+                                Client{{ sortIndicator('name') }}
+                            </TableHead>
                             <TableHead>Plan</TableHead>
-                            <TableHead>Status</TableHead>
+                            <TableHead class="cursor-pointer select-none" @click="toggleSort('status')">
+                                Status{{ sortIndicator('status') }}
+                            </TableHead>
                             <TableHead class="text-center">Users</TableHead>
-                            <TableHead class="text-center">Conversations</TableHead>
-                            <TableHead class="text-center">Leads</TableHead>
-                            <TableHead>Created</TableHead>
+                            <TableHead class="text-center cursor-pointer select-none" @click="toggleSort('conversations_count')">
+                                Conversations{{ sortIndicator('conversations_count') }}
+                            </TableHead>
+                            <TableHead class="text-center cursor-pointer select-none" @click="toggleSort('leads_count')">
+                                Leads{{ sortIndicator('leads_count') }}
+                            </TableHead>
+                            <TableHead class="cursor-pointer select-none" @click="toggleSort('created_at')">
+                                Created{{ sortIndicator('created_at') }}
+                            </TableHead>
                             <TableHead class="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -121,6 +161,9 @@ const formatDate = (date) => {
                                 <Badge :variant="getStatusVariant(client.status)" class="capitalize">
                                     {{ client.status }}
                                 </Badge>
+                                <Badge v-if="client.deleted_at" variant="destructive" class="ml-1">
+                                    Deleted
+                                </Badge>
                             </TableCell>
                             <TableCell class="text-center text-muted-foreground">
                                 {{ client.users_count }}
@@ -135,7 +178,15 @@ const formatDate = (date) => {
                                 {{ formatDate(client.created_at) }}
                             </TableCell>
                             <TableCell class="text-right">
-                                <Link :href="route('admin.clients.show', client.id)" class="text-sm text-primary hover:text-primary/80">
+                                <button
+                                    v-if="client.deleted_at"
+                                    type="button"
+                                    class="text-sm text-primary hover:text-primary/80"
+                                    @click="restore(client.id)"
+                                >
+                                    Restore
+                                </button>
+                                <Link v-else :href="route('admin.clients.show', client.id)" class="text-sm text-primary hover:text-primary/80">
                                     View
                                 </Link>
                             </TableCell>

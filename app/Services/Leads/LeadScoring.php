@@ -25,6 +25,16 @@ use Illuminate\Support\Facades\Log;
 class LeadScoring
 {
     /**
+     * Canonical lead-temperature thresholds. Single source of truth — the
+     * dashboard distribution buckets (AnalyticsService) and the high-quality
+     * lead count (LeadService::getStats) consume these so a lead's bucket
+     * always agrees with its temperature() label.
+     */
+    public const HOT_THRESHOLD = 70;
+
+    public const WARM_THRESHOLD = 40;
+
+    /**
      * Scoring signals and their point values.
      *
      * @var array<string, int>
@@ -167,11 +177,11 @@ class LeadScoring
 
     public function temperature(int $score): string
     {
-        if ($score >= 61) {
+        if ($score >= self::HOT_THRESHOLD) {
             return 'hot';
         }
 
-        if ($score >= 31) {
+        if ($score >= self::WARM_THRESHOLD) {
             return 'warm';
         }
 

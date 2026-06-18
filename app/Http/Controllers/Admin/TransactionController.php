@@ -8,6 +8,7 @@ use App\Exceptions\Billing\TransactionAlreadyProcessed;
 use App\Exceptions\Billing\TransactionPlanInactive;
 use App\Exceptions\Billing\TransactionRecordMissing;
 use App\Http\Controllers\Controller;
+use App\Models\AdminActivityLog;
 use App\Models\Transaction;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -110,6 +111,10 @@ class TransactionController extends Controller
             return back()->with('error', 'Cannot approve transaction: referenced tenant or plan no longer exists.');
         }
 
+        AdminActivityLog::tryLog('approve_transaction', $transaction, [
+            'admin_notes' => $validated['admin_notes'] ?? null,
+        ]);
+
         return back()->with('success', 'Transaction approved and plan activated.');
     }
 
@@ -142,6 +147,10 @@ class TransactionController extends Controller
             }
             throw $e;
         }
+
+        AdminActivityLog::tryLog('reject_transaction', $transaction, [
+            'admin_notes' => $validated['admin_notes'],
+        ]);
 
         return back()->with('success', 'Transaction rejected.');
     }

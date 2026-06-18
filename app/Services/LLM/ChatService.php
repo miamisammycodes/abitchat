@@ -91,21 +91,8 @@ class ChatService
 
                     return $this->dispatchToProvider($systemPrompt, $messages);
                 },
-                sleepMilliseconds: fn (int $attempt) => match ($attempt) {
-                    1 => 1000,
-                    2 => 2000,
-                    default => 4000,
-                },
-                when: function (\Throwable $e) {
-                    $message = $e->getMessage();
-
-                    return str_contains($message, '429')
-                        || str_contains($message, '500')
-                        || str_contains($message, '503')
-                        || str_contains($message, 'Connection')
-                        || str_contains($message, 'timeout')
-                        || str_contains($message, 'CURL');
-                },
+                sleepMilliseconds: fn (int $attempt) => $this->retryBackoffMs($attempt),
+                when: fn (\Throwable $e) => $this->isRetryable($e),
             );
 
             $this->trackUsage($tenant, $conversation, $response->usage);
@@ -152,6 +139,53 @@ class ChatService
             ->withMessages($messages)
             ->withClientOptions(['timeout' => 60])
             ->asText();
+    }
+
+    /**
+     * Single stream-dispatch wrapper around Prism, kept as its own method so
+     * the retry path is testable: tests partial-mock this via Mockery to throw
+     * on early attempts and return a generator on later ones. Establishes the
+     * stream connection and returns the chunk iterator — retry wraps THIS call
+     * (connection establishment), never mid-stream iteration.
+     *
+     * @param  array<int, UserMessage|AssistantMessage>  $messages
+     * @return iterable<object>
+     */
+    protected function dispatchStream(string $systemPrompt, array $messages): iterable
+    {
+        return Prism::text()
+            ->using($this->provider, $this->model)
+            ->withSystemPrompt($systemPrompt)
+            ->withMessages($messages)
+            ->withClientOptions(['timeout' => 60])
+            ->asStream();
+    }
+
+    /** Exponential backoff (ms) shared by the streaming and non-streaming retry paths. */
+    private function retryBackoffMs(int $attempt): int
+    {
+        return match ($attempt) {
+            1 => 1000,
+            2 => 2000,
+            default => 4000,
+        };
+    }
+
+    /**
+     * Whether a provider error is worth retrying. Transient transport/5xx/rate
+     * conditions are retried; everything else (4xx other than 429, bad request,
+     * auth) fails fast. Shared by generateResponse() and streamResponse().
+     */
+    private function isRetryable(\Throwable $e): bool
+    {
+        $message = $e->getMessage();
+
+        return str_contains($message, '429')
+            || str_contains($message, '500')
+            || str_contains($message, '503')
+            || str_contains($message, 'Connection')
+            || str_contains($message, 'timeout')
+            || str_contains($message, 'CURL');
     }
 
     /**
@@ -212,12 +246,21 @@ class ChatService
         $messages[] = new UserMessage($userMessage);
 
         try {
-            $stream = Prism::text()
-                ->using($this->provider, $this->model)
-                ->withSystemPrompt($systemPrompt)
-                ->withMessages($messages)
-                ->withClientOptions(['timeout' => 60])
-                ->asStream();
+            $stream = retry(
+                times: 3,
+                callback: function (int $attempt) use ($systemPrompt, $messages, $conversation) {
+                    if ($attempt > 1) {
+                        Log::warning('[LLM] (IS $) Stream retry attempt', [
+                            'conversation_id' => $conversation->id,
+                            'attempt' => $attempt,
+                        ]);
+                    }
+
+                    return $this->dispatchStream($systemPrompt, $messages);
+                },
+                sleepMilliseconds: fn (int $attempt) => $this->retryBackoffMs($attempt),
+                when: fn (\Throwable $e) => $this->isRetryable($e),
+            );
 
             $promptTokens = 0;
             $completionTokens = 0;

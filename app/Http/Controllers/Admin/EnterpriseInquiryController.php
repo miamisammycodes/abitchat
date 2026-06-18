@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AdminActivityLog;
 use App\Models\EnterpriseInquiry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -76,6 +77,8 @@ class EnterpriseInquiryController extends Controller
         ]);
 
         $inquiry->update($validated);
+
+        AdminActivityLog::tryLog('update_inquiry', $inquiry, ['status' => $validated['status']]);
 
         return back()->with('success', 'Inquiry updated successfully.');
     }

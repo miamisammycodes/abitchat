@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AdminActivityLog;
 use App\Models\Conversation;
 use App\Models\Lead;
 use App\Models\Plan;
@@ -158,6 +159,8 @@ class ClientController extends Controller
         $tenant = Tenant::onlyTrashed()->findOrFail($id);
         $tenant->restore();
 
+        AdminActivityLog::tryLog('restore_client', $tenant);
+
         return redirect()
             ->route('admin.clients.show', $tenant->id)
             ->with('success', 'Tenant restored.');
@@ -170,6 +173,8 @@ class ClientController extends Controller
         ]);
 
         $client->update(['status' => $validated['status']]);
+
+        AdminActivityLog::tryLog('update_client_status', $client, ['status' => $validated['status']]);
 
         return back()->with('success', "Client status updated to {$validated['status']}.");
     }
@@ -193,6 +198,11 @@ class ClientController extends Controller
             $client->extendPlan($plan);
         }
 
+        AdminActivityLog::tryLog('update_client_plan', $client, [
+            'plan_id' => $plan->id,
+            'plan_name' => $plan->name,
+        ]);
+
         return back()->with('success', "Client plan updated to {$plan->name}.");
     }
 
@@ -205,6 +215,11 @@ class ClientController extends Controller
         ]);
 
         $client->update($validated);
+
+        AdminActivityLog::tryLog('update_client_bot_personality', $client, [
+            'bot_type' => $validated['bot_type'],
+            'bot_tone' => $validated['bot_tone'],
+        ]);
 
         return back()->with('success', 'Bot personality updated successfully.');
     }

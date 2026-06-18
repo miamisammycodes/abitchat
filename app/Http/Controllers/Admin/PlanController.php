@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StorePlanRequest;
 use App\Http\Requests\Admin\UpdatePlanRequest;
+use App\Models\AdminActivityLog;
 use App\Models\Plan;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -82,7 +83,9 @@ class PlanController extends Controller
             $validated['sort_order'] = Plan::max('sort_order') + 1;
         }
 
-        Plan::create($validated);
+        $plan = Plan::create($validated);
+
+        AdminActivityLog::tryLog('create_plan', $plan, ['name' => $plan->name, 'slug' => $plan->slug]);
 
         return redirect()
             ->route('admin.plans.index')
@@ -102,6 +105,8 @@ class PlanController extends Controller
 
         $plan->update($validated);
 
+        AdminActivityLog::tryLog('update_plan', $plan, ['name' => $plan->name, 'slug' => $plan->slug]);
+
         return redirect()
             ->route('admin.plans.index')
             ->with('success', 'Plan updated successfully.');
@@ -114,6 +119,8 @@ class PlanController extends Controller
         ]);
 
         $status = $plan->is_active ? 'activated' : 'deactivated';
+
+        AdminActivityLog::tryLog('toggle_plan', $plan, ['is_active' => $plan->is_active]);
 
         return back()->with('success', "Plan {$status} successfully.");
     }

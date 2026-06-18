@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Request;
 
 class AdminActivityLog extends Model
@@ -68,6 +69,24 @@ class AdminActivityLog extends Model
     }
 
     /**
+     * Best-effort audit write: logs the activity but never lets an audit failure
+     * break the caller's action. Mirrors WidgetAudit's never-throw posture.
+     *
+     * @param  array<string, mixed>  $details
+     */
+    public static function tryLog(string $actionType, ?Model $target = null, array $details = []): void
+    {
+        try {
+            self::log($actionType, $target, $details);
+        } catch (\Throwable $e) {
+            Log::warning("[Admin] Failed to write {$actionType} audit log", [
+                'target_id' => $target?->getKey(),
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
      * Get action type label
      */
     public function getActionLabelAttribute(): string
@@ -79,6 +98,12 @@ class AdminActivityLog extends Model
             'reject_transaction' => 'Rejected transaction',
             'update_client_status' => 'Updated client status',
             'update_client_plan' => 'Updated client plan',
+            'update_client_bot_personality' => 'Updated client bot personality',
+            'restore_client' => 'Restored client',
+            'create_plan' => 'Created plan',
+            'update_plan' => 'Updated plan',
+            'toggle_plan' => 'Toggled plan status',
+            'update_inquiry' => 'Updated inquiry',
         ];
 
         return $labels[$this->action_type] ?? ucwords(str_replace('_', ' ', $this->action_type));
