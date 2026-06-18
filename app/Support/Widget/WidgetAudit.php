@@ -16,6 +16,8 @@ final class WidgetAudit
 
     public const FAILURE_COUNTER_KEY = 'widget_audit_failures';
 
+    public const PASSTHROUGH_COUNTER_KEY = 'widget_dual_accept_passthrough';
+
     public static function log(WidgetAuditEvent $event, Tenant $tenant, ?string $origin, Request $request): void
     {
         try {
@@ -39,6 +41,31 @@ final class WidgetAudit
                 'origin' => $origin,
                 'ip_hash' => self::ipHash($request->ip()),
                 'endpoint' => $request->path(),
+            ]);
+        } catch (\Throwable $e) {
+            self::recordFailure($e);
+        }
+    }
+
+    /**
+     * Records a dual-accept passthrough: a token-less widget write that was let
+     * through because session_dual_accept is true. Increments a cache counter
+     * and logs to the audit channel so ops can confirm zero passthroughs before
+     * the strict-mode live flip. Never throws — telemetry must not break the request.
+     */
+    public static function passthrough(?string $origin, Request $request): void
+    {
+        try {
+            Cache::increment(self::PASSTHROUGH_COUNTER_KEY);
+        } catch (\Throwable) {
+        }
+
+        try {
+            Log::channel(self::CHANNEL)->warning('widget_dual_accept_passthrough', [
+                'origin' => $origin,
+                'ip_hash' => self::ipHash($request->ip()),
+                'endpoint' => $request->path(),
+                'method' => $request->method(),
             ]);
         } catch (\Throwable $e) {
             self::recordFailure($e);

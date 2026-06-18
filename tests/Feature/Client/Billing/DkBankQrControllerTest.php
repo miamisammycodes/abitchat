@@ -218,6 +218,38 @@ class DkBankQrControllerTest extends TestCase
             ->assertJsonValidationErrors('rrn');
     }
 
+    public function test_verify_rrn_accepts_hyphenated_cross_bank_reference(): void
+    {
+        $this->actingAsTenantUser();
+        $tx = Transaction::create([
+            'tenant_id' => $this->tenant->id, 'plan_id' => $this->plan->id,
+            'amount' => 1000, 'payment_method' => 'dk_qr',
+            'payment_date' => now(), 'status' => 'awaiting_payment',
+            'dk_reference_no' => 'DKQR-H-HYPHEN',
+        ]);
+
+        $mock = Mockery::mock(DkBankClient::class);
+        $mock->shouldReceive('generateRequestId')->andReturn(str_repeat('a', 32));
+        $mock->shouldReceive('postSigned')->once()
+            ->andReturn(['response_code' => '0000', 'response_data' => ['status' => [
+                'status' => '0', 'amount' => '1000.00',
+                'credit_account' => '110158212197',
+                'txn_ts' => now()->addMinute()->toDateTimeString(),
+            ]]]);
+        $this->app->instance(DkBankClient::class, $mock);
+
+        // Hyphenated cross-bank RRN (e.g. SEL-2309203) must pass validation and reach DK.
+        $response = $this->postJson(route('client.billing.dk-qr.verify-rrn', $tx), [
+            'rrn' => 'SEL-2309203',
+        ]);
+
+        $response->assertOk()->assertJson(['state' => 'paid']);
+        $tx->refresh();
+        $this->assertSame('approved', $tx->status);
+        // Service uppercases + trims; hyphen preserved.
+        $this->assertSame('SEL-2309203', $tx->dk_rrn);
+    }
+
     public function test_verify_rrn_rate_limited_after_5_attempts(): void
     {
         $this->actingAsTenantUser();

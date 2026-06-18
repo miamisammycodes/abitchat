@@ -107,7 +107,7 @@ final class DkBankQrService
         if (abs((float) $status['amount'] - (float) $transaction->amount) > 0.01) {
             return new DkStatusResult(state: DkStatusState::Failed, errorMessage: 'Payment amount did not match this plan. Contact support.');
         }
-        if ((string) $status['credit_account'] !== (string) config('services.dk_bank.beneficiary_account')) {
+        if (! $this->creditAccountMatches((string) $status['credit_account'])) {
             return new DkStatusResult(state: DkStatusState::Failed, errorMessage: 'Payment was not credited to our account. Contact support.');
         }
 
@@ -222,11 +222,10 @@ final class DkBankQrService
         }
 
         $reportedCredit = (string) ($status['credit_account'] ?? '');
-        $expectedCredit = (string) config('services.dk_bank.beneficiary_account');
-        if ($reportedCredit !== $expectedCredit) {
+        if (! $this->creditAccountMatches($reportedCredit)) {
             Log::warning('[DK QR] (NO $) Status credit_account mismatch', [
                 'transaction_id' => $transaction->id,
-                'expected' => $expectedCredit,
+                'expected' => (string) config('services.dk_bank.beneficiary_account'),
                 'reported' => $reportedCredit,
             ]);
 
@@ -245,6 +244,11 @@ final class DkBankQrService
     /**
      * Extracts the inner status block from DK's `/v1/intra-transaction/status`
      * envelope when DK reports a successful credit (`status === '0'`).
+     *
+     * DK has been seen returning two shapes: object (`response_data.status`) and
+     * array-indexed (`response_data[0].status`). The indexed shape previously
+     * yielded null silently, so the payment never flipped to paid. Try the object
+     * shape first, then fall back to the indexed shape.
      * Returns null in every "not paid" case so callers branch on a single check.
      *
      * @param  array<string, mixed>  $response
@@ -252,8 +256,33 @@ final class DkBankQrService
      */
     private function extractPaidStatusData(array $response): ?array
     {
-        $status = $response['response_data']['status'] ?? null;
+        $data = $response['response_data'] ?? [];
+        $status = $data['status'] ?? ($data[0]['status'] ?? null);
 
         return is_array($status) && ($status['status'] ?? null) === '0' ? $status : null;
+    }
+
+    /**
+     * Compare DK's reported credit account against our beneficiary account.
+     *
+     * Both sides are normalized (whitespace stripped, uppercased) before comparing.
+     * 'exact' (default) requires a full normalized match. 'suffix' compares only the
+     * last N digits (config account_match_digits, default 4) — for the case where DK
+     * confirms it returns a masked/reformatted account.
+     */
+    private function creditAccountMatches(string $reported): bool
+    {
+        $normalize = static fn (string $v): string => strtoupper(str_replace(' ', '', trim($v)));
+
+        $reportedNorm = $normalize($reported);
+        $expectedNorm = $normalize((string) config('services.dk_bank.beneficiary_account'));
+
+        if (config('services.dk_bank.account_match') === 'suffix') {
+            $digits = max(1, (int) config('services.dk_bank.account_match_digits', 4));
+            $reportedNorm = substr($reportedNorm, -$digits);
+            $expectedNorm = substr($expectedNorm, -$digits);
+        }
+
+        return $reportedNorm !== '' && hash_equals($expectedNorm, $reportedNorm);
     }
 }

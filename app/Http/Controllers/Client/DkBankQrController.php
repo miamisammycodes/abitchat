@@ -86,7 +86,11 @@ final class DkBankQrController extends Controller
         abort_unless($transaction->status === 'awaiting_payment', 410);
 
         $validated = $request->validate([
-            'rrn' => 'required|alpha_num|min:4|max:32',
+            // Real cross-bank RRNs contain hyphens/slashes/spaces (e.g. "SEL-2309203").
+            // The service already strtoupper(trim())s the value, so this loosened rule is safe.
+            // Max 32 chars aligns with the dk_rrn VARCHAR(32) column (MySQL strict mode would
+            // throw error 1406 if a 33–40 char value passed validation and reached the DB).
+            'rrn' => ['required', 'string', 'regex:/^[A-Za-z0-9\/\- ]{4,32}$/'],
         ]);
 
         $result = $this->service->verifyByRrn($transaction, $validated['rrn']);

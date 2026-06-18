@@ -6,7 +6,7 @@ namespace App\Services\Knowledge;
 
 use App\Models\KnowledgeItem;
 use App\Rules\SafeExternalUrl;
-use Illuminate\Support\Facades\Http;
+use App\Services\Crawler\GuardedHttpClient;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Smalot\PdfParser\Parser as PdfParser;
@@ -18,6 +18,16 @@ class DocumentProcessor
     private const CHUNK_OVERLAP = 50;
 
     private const MIN_CHUNK_CHARS = 50;
+
+    private GuardedHttpClient $http;
+
+    public function __construct(?GuardedHttpClient $http = null)
+    {
+        // Default-construct so the ~10 no-arg `new DocumentProcessor` test sites
+        // and any container resolution keep working; the container injects the
+        // shared instance in production via type-hint.
+        $this->http = $http ?? new GuardedHttpClient;
+    }
 
     /** Clean text for a KnowledgeItem by type. Webpage content is already cleaned. */
     public function extract(KnowledgeItem $item): string
@@ -55,7 +65,14 @@ class DocumentProcessor
         };
     }
 
-    /** Fetch the raw body of a public URL (SSRF-guarded, redirects disabled). */
+    /**
+     * Fetch the raw body of a public URL through the SSRF-guarded HTTP client.
+     *
+     * The early SafeExternalUrl::isSafe check is cheap name-time pre-validation;
+     * GuardedHttpClient is the real defense — it pins each request to the host's
+     * pre-validated IP set (CURLOPT_RESOLVE) and re-validates every redirect hop,
+     * closing the DNS-rebind TOCTOU that the bare Http client left open here.
+     */
     public function fetchUrl(string $url): string
     {
         if (! SafeExternalUrl::isSafe($url)) {
@@ -63,9 +80,7 @@ class DocumentProcessor
             throw new \Exception("Refusing to fetch non-public URL: {$url}");
         }
 
-        $response = Http::timeout(30)
-            ->withOptions(['allow_redirects' => false])
-            ->get($url);
+        $response = $this->http->get($url);
 
         if (! $response->successful()) {
             throw new \Exception("Failed to fetch URL: {$url}");

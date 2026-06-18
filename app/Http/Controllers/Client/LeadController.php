@@ -22,6 +22,8 @@ class LeadController extends Controller
 
     public function index(Request $request): InertiaResponse
     {
+        $this->authorize(Ability::ManageLeads->value);
+
         $tenant = $this->getTenant($request);
 
         $query = Lead::forTenant($tenant)
